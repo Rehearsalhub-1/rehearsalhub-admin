@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "RehearsalHub Studio",
+    "slug": "rehearsalhub-studio",
+    "scheme": ["rehearsalhubadmin", "rehearsalhub-admin"],
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b0514"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.karaoke.rehearsalhubadmin"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0b0514"
+      },
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize",
+      "package": "com.karaoke.rehearsalhubadmin"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
+  }
+}
