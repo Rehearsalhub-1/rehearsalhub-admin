@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl, TextInput, Linking,
+  SafeAreaView, ActivityIndicator, RefreshControl, TextInput, Linking, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as SecureStore from 'expo-secure-store';
 import { apiClient } from '../lib/apiClient';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
@@ -21,6 +23,13 @@ interface MediaItem {
 
 const MEDIA_FILTERS = ['all', 'audio', 'document', 'video'] as const;
 
+export function inferMediaType(mimeType: string): 'audio' | 'video' | 'image' | 'document' {
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('image/')) return 'image';
+  return 'document';
+}
+
 export default function MediaScreen() {
   const { activeZone } = useZoneContext();
 
@@ -29,6 +38,8 @@ export default function MediaScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<typeof MEDIA_FILTERS[number]>('all');
   const [search, setSearch] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const BASE_URL = (process.env.EXPO_PUBLIC_BACKEND_URL ?? '').replace(/\/+$/, '').replace(/\/api$/, '');
 
   const fetchMedia = useCallback(async () => {
     try {
@@ -68,6 +79,40 @@ export default function MediaScreen() {
     if (!item.url) return;
     await Linking.openURL(item.url).catch(() => {});
   };
+
+  async function handleUpload() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      if (result.canceled) return;
+      const file = result.assets[0];
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream' } as any);
+
+      const token = await SecureStore.getItemAsync('jwt');
+      const uploadRes = await fetch(`${BASE_URL}/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token ?? ''}` },
+        body: formData,
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData?.error ?? 'Upload failed');
+
+      const fileUrl = uploadData.url ?? uploadData.data?.url ?? '';
+      await apiClient.post('/media', {
+        name: file.name,
+        url: fileUrl,
+        type: inferMediaType(file.mimeType ?? ''),
+        zoneId: activeZone?.id,
+      });
+      fetchMedia();
+    } catch (e: any) {
+      Alert.alert('Upload Failed', e.message || 'Could not upload file.');
+    } finally {
+      setUploading(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -148,6 +193,14 @@ export default function MediaScreen() {
           </View>
         )}
       />
+      <TouchableOpacity
+        style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, width: 52, height: 52, borderRadius: 26, backgroundColor: uploading ? Colors.textMuted : Colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.accent, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}
+        onPress={handleUpload}
+        disabled={uploading}
+        activeOpacity={0.85}
+      >
+        {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="cloud-upload-outline" size={24} color="#fff" />}
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

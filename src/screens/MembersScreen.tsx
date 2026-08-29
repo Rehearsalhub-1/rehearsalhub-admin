@@ -86,7 +86,7 @@ export default function MembersScreen() {
   async function handleChangeRole(userId: string, newRole: string) {
     try {
       setActionLoading(true);
-      await apiClient.patch(`/profiles/${userId}/role`, { role: newRole });
+      await apiClient.patch(`/members/${userId}`, { role: newRole });
       Alert.alert('Role Updated', `Member role updated to ${formatRoleName(newRole)}`);
       setSelectedMember(null);
       loadData();

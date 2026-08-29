@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   SafeAreaView, ActivityIndicator, RefreshControl, Alert,
+  TextInput, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../lib/apiClient';
@@ -32,13 +33,19 @@ const STATUS_COLORS: Record<string, string> = {
 
 const TABS = ['all', 'ongoing', 'pre-rehearsal', 'archive'] as const;
 
-export default function PraiseNightScreen() {
+export default function PraiseNightScreen({ navigation }: any) {
   const { activeZone, isAllZones } = useZoneContext();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<typeof TABS[number]>('all');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  const [showProgramModal, setShowProgramModal] = useState(false);
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null);
+  const [form, setForm] = useState({ name: '', date: '', location: '', category: 'pre-rehearsal' });
+  const [formError, setFormError] = useState('');
+  const [savingProgram, setSavingProgram] = useState(false);
 
   const fetchPrograms = useCallback(async () => {
     try {
@@ -61,7 +68,7 @@ export default function PraiseNightScreen() {
   async function handleStatusChange(program: Program, newStatus: string) {
     try {
       setActionLoadingId(program.id);
-      await apiClient.patch(`/programs/${program.id}/status`, { status: newStatus });
+      await apiClient.patch(`/programs/${program.id}`, { status: newStatus });
       fetchPrograms();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to update status');
@@ -81,9 +88,13 @@ export default function PraiseNightScreen() {
           onPress: async () => {
             try {
               setActionLoadingId(program.id);
-              await apiClient.post(`/programs/${program.id}/duplicate`, {
-                newName: `${program.name} (Copy)`,
-                newDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              await apiClient.post(`/programs`, {
+                name: `${program.name} (Copy)`,
+                date: new Date().toLocaleDateString('en-CA'),
+                category: program.category,
+                status: 'pre-rehearsal',
+                location: program.location,
+                songIds: Array.isArray(program.songIds) ? program.songIds : [],
               });
               Alert.alert('Done', 'Program duplicated.');
               fetchPrograms();
@@ -96,6 +107,52 @@ export default function PraiseNightScreen() {
         },
       ],
     );
+  }
+
+  function openCreateModal() {
+    setEditingProgram(null);
+    setForm({ name: '', date: new Date().toISOString().split('T')[0], location: '', category: 'pre-rehearsal' });
+    setFormError('');
+    setShowProgramModal(true);
+  }
+
+  function openEditModal(program: Program) {
+    setEditingProgram(program);
+    setForm({ name: program.name || '', date: program.date || '', location: program.location || '', category: program.category || 'pre-rehearsal' });
+    setFormError('');
+    setShowProgramModal(true);
+  }
+
+  async function handleCreateOrUpdate() {
+    if (!form.name.trim()) { setFormError('Program name is required.'); return; }
+    setSavingProgram(true);
+    try {
+      if (editingProgram) {
+        await apiClient.patch(`/programs/${editingProgram.id}`, { name: form.name.trim(), date: form.date.trim(), location: form.location.trim(), category: form.category });
+      } else {
+        await apiClient.post('/programs', { name: form.name.trim(), date: form.date.trim(), location: form.location.trim(), category: 'pre-rehearsal', status: 'pre-rehearsal', zoneId: activeZone?.id ?? '' });
+      }
+      setShowProgramModal(false);
+      fetchPrograms();
+    } catch (e: any) {
+      setFormError(e.message || 'Failed to save program.');
+    } finally {
+      setSavingProgram(false);
+    }
+  }
+
+  async function handleDeleteProgram(program: Program) {
+    Alert.alert('Delete Program', `Delete "${program.name}"? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await apiClient.delete(`/programs/${program.id}`);
+          setPrograms(prev => prev.filter(p => p.id !== program.id));
+        } catch (e: any) {
+          Alert.alert('Error', e.message || 'Failed to delete program.');
+        }
+      }},
+    ]);
   }
 
   const filtered = programs.filter((p) => {
@@ -181,7 +238,17 @@ export default function PraiseNightScreen() {
           const isLoading = actionLoadingId === item.id;
 
           return (
-            <View style={styles.card}>
+            <TouchableOpacity
+              key={item.id}
+              style={styles.card}
+              onPress={() => navigation.navigate('ProgramSongs', { program: item })}
+              onLongPress={() => Alert.alert(item.name || 'Program', 'Choose an action', [
+                { text: 'Edit', onPress: () => openEditModal(item) },
+                { text: 'Delete', style: 'destructive', onPress: () => handleDeleteProgram(item) },
+                { text: 'Cancel', style: 'cancel' },
+              ])}
+              activeOpacity={0.85}
+            >
               <View style={styles.cardHeader}>
                 <View style={[styles.statusDot, { backgroundColor: catColor }]} />
                 <View style={styles.cardInfo}>
@@ -262,10 +329,43 @@ export default function PraiseNightScreen() {
                   </View>
                 </TouchableOpacity>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.accent, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}
+        onPress={openCreateModal}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={26} color="#fff" />
+      </TouchableOpacity>
+
+      {/* Create / Edit Program Modal */}
+      <Modal visible={showProgramModal} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: Colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 22, gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ color: Colors.textPrimary, fontSize: 17, fontWeight: '800' }}>{editingProgram ? 'Edit Program' : 'New Program'}</Text>
+              <TouchableOpacity onPress={() => setShowProgramModal(false)}>
+                <Ionicons name="close" size={22} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            {formError ? <Text style={{ color: Colors.danger, fontSize: 12 }}>{formError}</Text> : null}
+            <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: '700' }}>Program Name *</Text>
+            <TextInput style={{ backgroundColor: Colors.inputBackground, borderWidth: 1, borderColor: Colors.inputBorder, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: Colors.textPrimary, fontSize: 14 }} value={form.name} onChangeText={t => { setForm(p => ({ ...p, name: t })); setFormError(''); }} placeholder="e.g. Praise Night #19" placeholderTextColor={Colors.textMuted} />
+            <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: '700' }}>Date (YYYY-MM-DD)</Text>
+            <TextInput style={{ backgroundColor: Colors.inputBackground, borderWidth: 1, borderColor: Colors.inputBorder, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: Colors.textPrimary, fontSize: 14 }} value={form.date} onChangeText={t => setForm(p => ({ ...p, date: t }))} placeholder="2025-08-15" placeholderTextColor={Colors.textMuted} />
+            <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: '700' }}>Location</Text>
+            <TextInput style={{ backgroundColor: Colors.inputBackground, borderWidth: 1, borderColor: Colors.inputBorder, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, color: Colors.textPrimary, fontSize: 14 }} value={form.location} onChangeText={t => setForm(p => ({ ...p, location: t }))} placeholder="Main Sanctuary" placeholderTextColor={Colors.textMuted} />
+            <TouchableOpacity style={[{ backgroundColor: Colors.accent, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 10 }, savingProgram && { opacity: 0.6 }]} onPress={handleCreateOrUpdate} disabled={savingProgram} activeOpacity={0.85}>
+              {savingProgram ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>{editingProgram ? 'Save Changes' : 'Create Program'}</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

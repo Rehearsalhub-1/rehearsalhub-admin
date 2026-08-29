@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, SafeAreaView, ActivityIndicator, RefreshControl,
+  TouchableOpacity, SafeAreaView, ActivityIndicator, RefreshControl, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -25,6 +25,14 @@ interface StatCardProps {
   loading?: boolean;
 }
 
+interface MenuItemProps {
+  label: string;
+  iconName: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  badge?: number;
+  color?: string;
+}
+
 function StatCard({ label, value, color, iconName, loading }: StatCardProps) {
   return (
     <View style={[styles.statCard, { borderLeftColor: color }]}>
@@ -39,6 +47,27 @@ function StatCard({ label, value, color, iconName, loading }: StatCardProps) {
       </View>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
+  );
+}
+
+function MenuItem({ label, iconName, onPress, badge, color = Colors.accentBright }: MenuItemProps) {
+  return (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.menuItemLeft}>
+        <View style={[styles.menuIcon, { backgroundColor: `${color}20` }]}>
+          <Ionicons name={iconName} size={20} color={color} />
+        </View>
+        <Text style={styles.menuItemLabel}>{label}</Text>
+      </View>
+      <View style={styles.menuItemRight}>
+        {badge != null && badge > 0 && (
+          <View style={[styles.badge, { backgroundColor: color }]}>
+            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        )}
+        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -77,19 +106,20 @@ export default function DashboardScreen({ navigation }: any) {
   const fetchStats = useCallback(async () => {
     try {
       const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const [songsRes, membersRes, programsRes] = await Promise.all([
-        apiClient.get<any>(`/submitted-songs${zoneParam}`).catch(() => null),
+      const [zoneSongsRes, membersRes, programsRes] = await Promise.all([
+        apiClient.get<any>(`/songs/zone${zoneParam}`).catch(() => null),
         apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => null),
         apiClient.get<any>(`/programs${zoneParam}`).catch(() => null),
       ]);
 
-      const songs: any[] = Array.isArray(songsRes?.data) ? songsRes.data : [];
+      const submittedRes = await apiClient.get<any>(`/submitted-songs${zoneParam}`).catch(() => null);
+      const submitted: any[] = Array.isArray(submittedRes?.data) ? submittedRes.data : [];
       const members: any[] = Array.isArray(membersRes?.data) ? membersRes.data : [];
       const programs: any[] = Array.isArray(programsRes?.data) ? programsRes.data : [];
 
       setStats({
-        totalSongs: songs.length,
-        pendingSongs: songs.filter((s: any) => s.status === 'pending').length,
+        totalSongs: (Array.isArray(zoneSongsRes?.data) ? zoneSongsRes.data : []).length,
+        pendingSongs: submitted.filter((s: any) => s.status === 'pending').length,
         totalMembers: members.length,
         activePrograms: programs.filter((p: any) => (p.status || p.category) === 'ongoing').length,
       });
@@ -123,6 +153,8 @@ export default function DashboardScreen({ navigation }: any) {
     : (adminUser?.role || '').toLowerCase().includes('church') || (adminUser?.role || '').toLowerCase().includes('subgroup')
     ? 'Church Coordinator'
     : 'Zonal Coordinator';
+
+  const hasHighDemand = (stats?.pendingSongs || 0) > 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -161,75 +193,91 @@ export default function DashboardScreen({ navigation }: any) {
         <Text style={styles.sectionTitle}>Overview</Text>
         <View style={styles.statsGrid}>
           <StatCard label="Total Songs" value={stats?.totalSongs ?? 0} color={Colors.accent} iconName="musical-notes" loading={loadingStats} />
-          <StatCard label="Pending Review" value={stats?.pendingSongs ?? 0} color={Colors.warning} iconName="document-text" loading={loadingStats} />
+          <StatCard label="Pending" value={stats?.pendingSongs ?? 0} color={Colors.warning} iconName="document-text" loading={loadingStats} />
           <StatCard label="Members" value={stats?.totalMembers ?? 0} color={Colors.success} iconName="people" loading={loadingStats} />
-          <StatCard label="Active Programs" value={stats?.activePrograms ?? 0} color={Colors.info} iconName="mic" loading={loadingStats} />
+          <StatCard label="Programs" value={stats?.activePrograms ?? 0} color={Colors.info} iconName="mic" loading={loadingStats} />
         </View>
 
-        {/* Quick actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickGrid}>
-          <QuickAction
-            label="Attendance"
-            iconName="calendar-number-outline"
-            onPress={() => navigation.navigate('Attendance')}
-          />
-          <QuickAction
-            label="Churches"
-            iconName="business-outline"
-            onPress={() => navigation.navigate('Churches')}
-          />
-          <QuickAction
-            label="Submissions"
-            iconName="document-text-outline"
-            badge={stats?.pendingSongs}
-            onPress={() => navigation.navigate('Songs')}
-          />
-          <QuickAction
-            label="Programs"
-            iconName="musical-notes-outline"
-            onPress={() => navigation.navigate('PraiseNight')}
-          />
-          <QuickAction
-            label="Calendar"
-            iconName="calendar-outline"
-            onPress={() => navigation.navigate('Calendar')}
-          />
-          <QuickAction
-            label="Members"
-            iconName="people-outline"
-            onPress={() => navigation.navigate('Members')}
-          />
-          <QuickAction
-            label="Analytics"
-            iconName="bar-chart-outline"
-            onPress={() => navigation.navigate('Analytics')}
-          />
-          <QuickAction
-            label="Media Lab"
-            iconName="folder-open-outline"
-            onPress={() => navigation.navigate('Media')}
-          />
-          <QuickAction
-            label="Support Desk"
-            iconName="chatbubbles-outline"
-            onPress={() => navigation.navigate('SupportChat')}
-          />
-          <QuickAction
-            label="Broadcast"
-            iconName="notifications-outline"
-            onPress={() => navigation.navigate('Notifications')}
-          />
-          <QuickAction
-            label="Library"
-            iconName="library-outline"
-            onPress={() => navigation.navigate('MasterLibrary')}
-          />
-          <QuickAction
-            label="Activity Logs"
-            iconName="time-outline"
-            onPress={() => navigation.navigate('ActivityLogs')}
-          />
+        {/* Content Management */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="document-text" size={16} color={Colors.accent} />
+            <Text style={styles.sectionTitle}>Content</Text>
+          </View>
+          <View style={styles.menu}>
+            <MenuItem
+              label="Submissions"
+              iconName="document-text-outline"
+              badge={stats?.pendingSongs}
+              color={Colors.warning}
+              onPress={() => navigation.navigate('Songs')}
+            />
+            <MenuItem
+              label="Master Library"
+              iconName="library-outline"
+              onPress={() => navigation.navigate('MasterLibrary')}
+            />
+          </View>
+        </View>
+
+        {/* Events & Programs */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="musical-notes" size={16} color={Colors.accent} />
+            <Text style={styles.sectionTitle}>Events</Text>
+          </View>
+          <View style={styles.menu}>
+            <MenuItem
+              label="Programs"
+              iconName="musical-notes-outline"
+              onPress={() => navigation.navigate('PraiseNight')}
+            />
+            <MenuItem
+              label="Calendar"
+              iconName="calendar-outline"
+              onPress={() => navigation.navigate('Calendar')}
+            />
+            <MenuItem
+              label="Schedule"
+              iconName="time-outline"
+              onPress={() => navigation.navigate('Schedule')}
+            />
+          </View>
+        </View>
+
+        {/* Admin Tools */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="settings" size={16} color={Colors.accent} />
+            <Text style={styles.sectionTitle}>Management</Text>
+          </View>
+          <View style={styles.menu}>
+            <MenuItem
+              label="Churches"
+              iconName="business-outline"
+              onPress={() => navigation.navigate('Churches')}
+            />
+            <MenuItem
+              label="Analytics"
+              iconName="bar-chart-outline"
+              onPress={() => navigation.navigate('Analytics')}
+            />
+            <MenuItem
+              label="Activity Logs"
+              iconName="history"
+              onPress={() => navigation.navigate('ActivityLogs')}
+            />
+            <MenuItem
+              label="Support Chat"
+              iconName="chatbubbles-outline"
+              onPress={() => navigation.navigate('SupportChat')}
+            />
+            <MenuItem
+              label="Broadcast"
+              iconName="notifications-outline"
+              onPress={() => navigation.navigate('Notifications')}
+            />
+          </View>
         </View>
 
         <View style={{ height: 40 }} />
@@ -303,43 +351,66 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 26, fontWeight: '800' },
   statLabel: { color: Colors.textMuted, fontSize: 12 },
 
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  // New organized menu styles
+  section: {
+    marginBottom: 24,
     paddingHorizontal: 16,
-    gap: 10,
   },
-  quickAction: {
-    flex: 1,
-    minWidth: '22%',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  menu: {
     backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  quickActionIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+  menuItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  quickActionLabel: { color: Colors.textSecondary, fontSize: 11, textAlign: 'center', fontWeight: '600' },
-  quickBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -8,
-    backgroundColor: Colors.warning,
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3,
   },
-  quickBadgeText: { color: '#000', fontSize: 10, fontWeight: '800' },
+  menuItemLabel: {
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: Colors.warning,
+    borderRadius: 8,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  badgeText: {
+    color: '#000',
+    fontSize: 11,
+    fontWeight: '700',
+  },
 });

@@ -144,9 +144,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 20,
     padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 14,
     gap: 14,
   },
   avatar: {
@@ -163,7 +161,7 @@ const styles = StyleSheet.create({
   displayName: {
     color: Colors.textPrimary,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   email: {
     color: Colors.textMuted,
@@ -181,7 +179,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
   },
@@ -194,7 +192,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -212,15 +210,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     paddingHorizontal: 20,
-    marginBottom: 8,
-    marginTop: 16,
+    marginBottom: 10,
+    marginTop: 20,
   },
   menuGroup: {
     backgroundColor: Colors.card,
     marginHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   menuItem: {
@@ -233,8 +229,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   menuIconWrap: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 10,
     backgroundColor: 'rgba(168, 85, 247, 0.12)',
     alignItems: 'center',
@@ -250,7 +246,7 @@ const styles = StyleSheet.create({
   },
   menuSub: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
   destructiveText: {

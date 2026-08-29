@@ -1,0 +1,148 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Add `react-native-qrcode-svg@6.3.2` and `expo-document-picker@13.0.3` to `package.json` in `rehearsalhub-admin`; run `npx expo install react-native-qrcode-svg@6.3.2 expo-document-picker@13.0.3` to let Expo resolve peer deps (react-native-svg). Pin versions in package.json.": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013693331
+      },
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788014013110
+      }
+    ],
+    "1.2 In `src/hooks/useWebSocket.ts`, add `song` to `RESOURCE_ALIASES`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013693488
+      },
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788014013581
+      }
+    ],
+    "2.1 Add zod schema and `POST /attendance/code` handler to `rehearsalhub-api/src/routes/attendance.routes.ts`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013693819
+      }
+    ],
+    "2.2 Add `GET /attendance/code` handler in the same file:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013693911
+      }
+    ],
+    "3. Checkpoint — API routes complete": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013693989
+      }
+    ],
+    "4.1 In `DashboardScreen.tsx`, replace the `/submitted-songs` fetch for `totalSongs` with `GET /songs/zone`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694057
+      }
+    ],
+    "5.1 In `SongDetailScreen.tsx`, add `isZoneSong` derived from `song?.subGroupId || song?.sub_group_id`.": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694135
+      }
+    ],
+    "6.1 Add state and handlers to `PraiseNightScreen.tsx`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694217
+      }
+    ],
+    "6.2 Add FAB and bottom-sheet modal UI to `PraiseNightScreen.tsx`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694337
+      }
+    ],
+    "7.1 Create `src/screens/ProgramSongsScreen.tsx`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694437
+      }
+    ],
+    "8.1 Create `src/screens/LiveConductorScreen.tsx`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694518
+      }
+    ],
+    "9. Checkpoint — New screens and fixes complete": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694603
+      }
+    ],
+    "10.1 In `src/navigation/AppNavigator.tsx`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694716
+      }
+    ],
+    "11.1 Create `src/screens/ZoneSongFormModal.tsx` (new file, single-responsibility):": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694833
+      }
+    ],
+    "11.2 Extend `MasterLibraryScreen.tsx` with zone songs tab:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013694924
+      }
+    ],
+    "12.1 Add upload functionality to `MediaScreen.tsx`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013695010
+      }
+    ],
+    "13.1 Wire `AttendanceScreen.tsx` to the new API routes:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013695119
+      }
+    ],
+    "13.2 Add QR code modal to `AttendanceScreen.tsx`:": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013695203
+      }
+    ],
+    "14. Final Checkpoint — Ensure all tests pass": [
+      {
+        "executionId": "fe5e6734-df47-4e1e-aa08-4444f0651526",
+        "chatSessionId": "1787e82b-a35d-4e27-a9bf-9d61b290f44a",
+        "timestamp": 1788013695278
+      }
+    ]
+  }
+}

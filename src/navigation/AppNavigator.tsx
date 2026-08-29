@@ -22,6 +22,8 @@ import AnalyticsScreen      from '../screens/AnalyticsScreen';
 import CalendarScreen       from '../screens/CalendarScreen';
 import MediaScreen          from '../screens/MediaScreen';
 import SupportChatScreen    from '../screens/SupportChatScreen';
+import ProgramSongsScreen  from '../screens/ProgramSongsScreen';
+import LiveConductorScreen from '../screens/LiveConductorScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -119,6 +121,8 @@ export default function AppNavigator({ initialRoute = 'Login' }: { initialRoute?
       <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ ...headerOpts, title: 'Attendance' }} />
       <Stack.Screen name="Churches" component={ChurchesScreen} options={{ ...headerOpts, title: 'Churches & Subgroups' }} />
       <Stack.Screen name="SongDetail" component={SongDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ProgramSongs"   component={ProgramSongsScreen}  options={{ headerShown: false }} />
+      <Stack.Screen name="LiveConductor"  component={LiveConductorScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ ...headerOpts, title: 'Analytics & Reports' }} />
       <Stack.Screen name="Calendar" component={CalendarScreen} options={{ ...headerOpts, title: 'Rehearsal Calendar' }} />
       <Stack.Screen name="Media" component={MediaScreen} options={{ ...headerOpts, title: 'Media Library' }} />

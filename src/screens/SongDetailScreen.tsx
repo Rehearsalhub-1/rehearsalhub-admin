@@ -18,6 +18,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
 
   const [song, setSong] = useState<any>(initialSong || null);
   const [loading, setLoading] = useState(!initialSong && Boolean(songId));
+  const isZoneSong = Boolean(song?.subGroupId || (song as any)?.sub_group_id);
   const [activeTab, setActiveTab] = useState<typeof TABS[number]>('lyrics');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -86,7 +87,8 @@ export default function SongDetailScreen({ route, navigation }: any) {
     if (!song?.id) return;
     setSaving(true);
     try {
-      await apiClient.patch(`/songs/${song.id}`, editForm);
+      if (!isZoneSong) return; // master songs are read-only
+      await apiClient.patch(`/subgroups/songs/${song.id}`, editForm);
       setSong((prev: any) => ({ ...prev, ...editForm }));
       setIsEditing(false);
       Alert.alert('Saved', 'Song details updated.');
@@ -125,27 +127,27 @@ export default function SongDetailScreen({ route, navigation }: any) {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.editToggleBtn, isEditing && styles.editToggleBtnActive]}
-          onPress={() => {
-            if (isEditing) {
-              handleSave();
-            } else {
-              setIsEditing(true);
-            }
-          }}
-          disabled={saving}
-          activeOpacity={0.8}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name={isEditing ? 'checkmark' : 'create-outline'} size={14} color="#fff" style={{ marginRight: 4 }} />
-              <Text style={styles.editToggleText}>{isEditing ? 'Save' : 'Edit'}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        {isZoneSong ? (
+          <TouchableOpacity
+            style={[styles.editToggleBtn, isEditing && styles.editToggleBtnActive]}
+            onPress={() => { if (isEditing) { handleSave(); } else { setIsEditing(true); } }}
+            disabled={saving}
+            activeOpacity={0.8}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name={isEditing ? 'checkmark' : 'create-outline'} size={14} color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.editToggleText}>{isEditing ? 'Save' : 'Edit'}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.editToggleBtn, { backgroundColor: Colors.textMuted }]}>
+            <Text style={styles.editToggleText}>Master — Read Only</Text>
+          </View>
+        )}
       </View>
 
       {/* Tabs */}

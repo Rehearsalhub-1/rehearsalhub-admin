@@ -14,6 +14,9 @@ export default function AnalyticsScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+
   const [stats, setStats] = useState<any>({
     totalMembers: 0,
     activeAttendanceRate: 88,
@@ -38,18 +41,21 @@ export default function AnalyticsScreen() {
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const res = await apiClient.get<{ success: boolean; data: any }>(`/activity-logs/stats${zoneParam}`).catch(() => null);
-      if (res?.data) {
-        setStats((prev: any) => ({ ...prev, ...res.data }));
+      const res = await apiClient.get<{ success: boolean; data: any[]; count?: number }>('/analytics/events?limit=100').catch(() => null);
+      if (res?.success !== false && Array.isArray(res?.data)) {
+        setEvents(res.data);
+        setEventsError(null);
+      } else if (res?.success === false) {
+        setEventsError('Analytics data is only available to HQ administrators.');
       }
     } catch (e) {
       console.error('[Analytics] fetch error:', e);
+      setEventsError('Could not load analytics data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeZone?.id]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -70,6 +76,11 @@ export default function AnalyticsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ZoneHeader title="Analytics" />
+      {eventsError ? (
+        <View style={{ margin: 16, padding: 12, backgroundColor: Colors.surface, borderRadius: 10, borderWidth: 1, borderColor: Colors.border }}>
+          <Text style={{ color: Colors.textMuted, fontSize: 12, textAlign: 'center' }}>{eventsError}</Text>
+        </View>
+      ) : null}
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -80,6 +91,12 @@ export default function AnalyticsScreen() {
       >
         {/* KPI Overview Grid */}
         <View style={styles.kpiGrid}>
+          <View style={styles.kpiCard}>
+            <Ionicons name="analytics-outline" size={20} color={Colors.accent} />
+            <Text style={styles.kpiValue}>{events.length}</Text>
+            <Text style={styles.kpiLabel}>Events Logged</Text>
+          </View>
+
           <View style={styles.kpiCard}>
             <Ionicons name="pie-chart-outline" size={20} color={Colors.accentBright} />
             <Text style={styles.kpiValue}>{stats.activeAttendanceRate}%</Text>

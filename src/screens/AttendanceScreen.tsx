@@ -4,6 +4,7 @@ import {
   SafeAreaView, ActivityIndicator, RefreshControl, Alert, TextInput, Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { apiClient } from '../lib/apiClient';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
@@ -49,21 +50,24 @@ export default function AttendanceScreen({ navigation }: any) {
   const [newCode, setNewCode] = useState('');
   const [settingCode, setSettingCode] = useState(false);
 
+  // QR code modal
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+
   const fetchAttendance = useCallback(async () => {
     try {
       const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const [attRes, codeRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: AttendanceRecord[] }>(`/attendance${zoneParam}`).catch(() => ({ data: [] })),
-        apiClient.get<{ success: boolean; code?: string; active?: boolean }>(`/attendance/code`).catch(() => ({ success: false, code: '', active: false })),
-      ]);
-
+      const attRes = await apiClient.get<{ success: boolean; data: AttendanceRecord[] }>(`/attendance${zoneParam}`).catch(() => ({ data: [] as AttendanceRecord[] }));
       const records = Array.isArray(attRes.data) ? attRes.data : [];
       setAllRecords(records);
-      if ('active' in codeRes && codeRes.active && codeRes.code) {
-        setActiveCode(codeRes.code);
-      } else {
-        setActiveCode(null);
-      }
+      // Load active code from server
+      try {
+        const codeRes = await apiClient.get<{ success: boolean; data: { code?: string; active?: boolean } }>('/attendance/code').catch(() => null);
+        if (codeRes?.data?.active && codeRes.data.code) {
+          setActiveCode(codeRes.data.code);
+        } else {
+          setActiveCode(null);
+        }
+      } catch { setActiveCode(null); }
     } catch (e) {
       console.error('[Attendance] fetch error:', e);
     } finally {
@@ -84,15 +88,19 @@ export default function AttendanceScreen({ navigation }: any) {
     }
     setSettingCode(true);
     try {
-      await apiClient.post('/attendance/code', {
+      const res = await apiClient.post<{ success: boolean; data: { code?: string; active?: boolean } }>('/attendance/code', {
         code: newCode.trim().toUpperCase(),
-        validMinutes: 180,
-        active: true,
+        validMinutes: 60,
+        zoneId: activeZone?.id,
       });
-      setActiveCode(newCode.trim().toUpperCase());
-      setCodeModalVisible(false);
-      setNewCode('');
-      Alert.alert('Code Active', `Passcode "${activeCode || newCode}" is now active for rehearsal check-ins.`);
+      if (res?.data?.active && res.data.code) {
+        setActiveCode(res.data.code);
+        setCodeModalVisible(false);
+        setNewCode('');
+        Alert.alert('Code Active', `Passcode "${res.data.code}" is now active for rehearsal check-ins.`);
+      } else {
+        Alert.alert('Error', 'Failed to activate code');
+      }
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to activate code');
     } finally {
@@ -108,7 +116,7 @@ export default function AttendanceScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await apiClient.post('/attendance/code', { active: false, code: '' });
+            await apiClient.post('/attendance/code', { active: false, zoneId: activeZone?.id });
             setActiveCode(null);
             Alert.alert('Closed', 'Check-in code deactivated.');
           } catch (e: any) {
@@ -127,12 +135,10 @@ export default function AttendanceScreen({ navigation }: any) {
 
     setSubmittingManual(true);
     try {
-      await apiClient.post('/attendance/manual', {
-        userName: manualName.trim(),
+      await apiClient.post('/attendance/check-in', {
         eventName: manualEvent.trim() || 'Rehearsal',
-        zoneId: activeZone?.id || adminUser?.zoneId || 'general',
         status: 'present',
-        dateString: selectedDate,
+        checkInTime: new Date().toISOString(),
       });
       setManualModalVisible(false);
       setManualName('');
@@ -145,22 +151,9 @@ export default function AttendanceScreen({ navigation }: any) {
     }
   }
 
-  async function handleDeleteRecord(id: string) {
-    Alert.alert('Delete Record', 'Remove this attendance entry?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await apiClient.delete(`/attendance/${id}`);
-            setAllRecords(prev => prev.filter(r => r.id !== id));
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to delete record');
-          }
-        },
-      },
-    ]);
+  // TODO: DELETE /attendance/:id endpoint not yet built
+  async function handleDeleteRecord(_id: string) {
+    Alert.alert('Not Available', 'Deleting attendance records is not yet supported.');
   }
 
   const todayRecords = useMemo(() => {
@@ -211,6 +204,16 @@ export default function AttendanceScreen({ navigation }: any) {
               ? `Singers can check in using code "${activeCode}" or via QR`
               : 'Launch a passcode so singers can self check in.'}
           </Text>
+          {activeCode && (
+            <TouchableOpacity
+              style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              onPress={() => setQrModalVisible(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="qr-code-outline" size={14} color={Colors.accent} />
+              <Text style={{ color: Colors.accent, fontSize: 12, fontWeight: '700' }}>Show QR</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {activeCode ? (
@@ -381,6 +384,21 @@ export default function AttendanceScreen({ navigation }: any) {
               activeOpacity={0.85}
             >
               {submittingManual ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Mark Present</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* QR Code Modal */}
+      <Modal visible={qrModalVisible} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 28, alignItems: 'center', width: '100%', maxWidth: 340 }}>
+            <Text style={{ color: '#1a1a2e', fontSize: 18, fontWeight: '800', marginBottom: 4 }}>Scan to Check In</Text>
+            <Text style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>Singers scan this code with the mobile app</Text>
+            <QRCode value={activeCode ?? 'REHEARSALHUB'} size={260} backgroundColor="white" color="black" />
+            <Text style={{ color: '#1a1a2e', fontSize: 22, fontWeight: '900', letterSpacing: 4, marginTop: 16 }}>{activeCode}</Text>
+            <TouchableOpacity style={{ marginTop: 20, backgroundColor: Colors.accent, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 12, width: '100%', alignItems: 'center' }} onPress={() => setQrModalVisible(false)} activeOpacity={0.85}>
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
