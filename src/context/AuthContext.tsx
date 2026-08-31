@@ -75,6 +75,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setAdminUser(null);
           return;
         }
+
+        // Verify the admin has an actual active admin membership in the DB
+        // This catches cases where JWT role is stale after demotion
+        try {
+          const membershipRes = await apiClient.get<{ success: boolean; data: any }>('/members/mine');
+          const zoneMembers = Array.isArray(membershipRes?.data?.zoneMembers) ? membershipRes.data.zoneMembers : [];
+          const hqMembers = Array.isArray(membershipRes?.data?.hqMembers) ? membershipRes.data.hqMembers : [];
+
+          const hasAdminMembership = [...zoneMembers, ...hqMembers].some(m => {
+            const r = (m.role || '').toLowerCase();
+            return r === 'zone_admin' || r === 'zone_coordinator' || r === 'hq_admin' || r === 'admin' || r === 'super_admin' || r === 'subgroup_admin' || r === 'church_coordinator';
+          });
+
+          // HQ admins might be in hqMembers without explicit admin role — check hasHqAccess
+          const hasHqMembership = hqMembers.length > 0;
+
+          const isHqRole = result.data.role === 'hq_admin' || result.data.role === 'admin' || result.data.role === 'super_admin';
+
+          if (!hasAdminMembership && !hasHqMembership && !isHqRole) {
+            // JWT says admin but DB says no active admin membership
+            // Could mean role was revoked — log warning but don't block (JWT still valid)
+            console.warn('[AuthContext] Admin role claimed but no admin membership found in DB');
+            // Still allow access — the API will enforce scope on each request
+          }
+        } catch (membershipErr) {
+          // Non-blocking — if membership check fails, continue with JWT role
+          console.warn('[AuthContext] Could not verify membership:', membershipErr);
+        }
+
         setAdminUser(mapAdminUser(result.data));
       } else {
         await clearTokens();

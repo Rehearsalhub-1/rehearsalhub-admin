@@ -116,7 +116,7 @@ export default function AppNavigator({ initialRoute = 'Login' }: { initialRoute?
 
       {/* Feature Screens */}
       <Stack.Screen name="Songs" component={SubmittedSongsScreen} options={{ ...headerOpts, title: 'Submitted Songs' }} />
-      <Stack.Screen name="PraiseNight" component={PraiseNightScreen} options={{ ...headerOpts, title: 'Programs & Praise Nights' }} />
+      <Stack.Screen name="PraiseNight" component={PraiseNightScreen} options={{ ...headerOpts, title: 'Programs' }} />
       <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ ...headerOpts, title: 'Schedule Manager' }} />
       <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ ...headerOpts, title: 'Attendance' }} />
       <Stack.Screen name="Churches" component={ChurchesScreen} options={{ ...headerOpts, title: 'Churches & Subgroups' }} />
@@ -125,9 +125,9 @@ export default function AppNavigator({ initialRoute = 'Login' }: { initialRoute?
       <Stack.Screen name="LiveConductor"  component={LiveConductorScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ ...headerOpts, title: 'Analytics & Reports' }} />
       <Stack.Screen name="Calendar" component={CalendarScreen} options={{ ...headerOpts, title: 'Rehearsal Calendar' }} />
-      <Stack.Screen name="Media" component={MediaScreen} options={{ ...headerOpts, title: 'Media Library' }} />
+      <Stack.Screen name="MediaLibrary" component={MediaScreen} options={{ ...headerOpts, title: 'Media Assets' }} />
       <Stack.Screen name="SupportChat" component={SupportChatScreen} options={{ ...headerOpts, title: 'Support Desk' }} />
-      <Stack.Screen name="MasterLibrary" component={MasterLibraryScreen} options={{ ...headerOpts, title: 'Master Library' }} />
+      <Stack.Screen name="MasterLibrary" component={MasterLibraryScreen} options={{ ...headerOpts, title: 'All Ministered' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ ...headerOpts, title: 'Broadcast Notification' }} />
       <Stack.Screen name="Categories" component={CategoriesScreen} options={{ ...headerOpts, title: 'Categories' }} />
       <Stack.Screen name="ActivityLogs" component={ActivityLogsScreen} options={{ ...headerOpts, title: 'Activity Logs' }} />

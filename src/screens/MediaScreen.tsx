@@ -117,7 +117,7 @@ export default function MediaScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Media Library" />
+        <ZoneHeader title="Media Assets" />
         <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
       </SafeAreaView>
     );
@@ -125,7 +125,7 @@ export default function MediaScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Media Library" />
+      <ZoneHeader title="Media Assets" />
 
       {/* Filter Tabs */}
       <View style={styles.filterRow}>

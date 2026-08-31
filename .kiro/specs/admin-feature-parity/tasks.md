@@ -9,10 +9,10 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
 ## Tasks
 
 - [ ] 1. Install dependencies and extend WebSocket resource aliases
-  - [-] 1.1 Add `react-native-qrcode-svg@6.3.2` and `expo-document-picker@13.0.3` to `package.json` in `rehearsalhub-admin`; run `npx expo install react-native-qrcode-svg@6.3.2 expo-document-picker@13.0.3` to let Expo resolve peer deps (react-native-svg). Pin versions in package.json.
+  - [ ] 1.1 Add `react-native-qrcode-svg@6.3.2` and `expo-document-picker@13.0.3` to `package.json` in `rehearsalhub-admin`; run `npx expo install react-native-qrcode-svg@6.3.2 expo-document-picker@13.0.3` to let Expo resolve peer deps (react-native-svg). Pin versions in package.json.
     - Verify `package.json` contains exact pinned versions before proceeding.
     - _Requirements: 5.2, 7.3_
-  - [-] 1.2 In `src/hooks/useWebSocket.ts`, add `song` to `RESOURCE_ALIASES`:
+  - [ ] 1.2 In `src/hooks/useWebSocket.ts`, add `song` to `RESOURCE_ALIASES`:
     ```
     song: ['songs', 'praise_night_song', 'active_song'],
     ```
@@ -20,7 +20,7 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 3.5, 3.7_
 
 - [ ] 2. Gap 6 (API) — Add attendance code routes to `rehearsalhub-api`
-  - [~] 2.1 Add zod schema and `POST /attendance/code` handler to `rehearsalhub-api/src/routes/attendance.routes.ts`:
+  - [ ] 2.1 Add zod schema and `POST /attendance/code` handler to `rehearsalhub-api/src/routes/attendance.routes.ts`:
     - Accept body: `{ code?: string, validMinutes?: number, zoneId?: string, active?: boolean }`
     - Resolve `effectiveZoneId` from tenant middleware or `req.body.zoneId`.
     - Store/upsert in `Setting` model: `key = 'attendance_code_<zoneId>'`, `value = { code, active, validMinutes, zoneId, createdAt, expiresAt }`.
@@ -29,7 +29,7 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - Return `{ success: true, data: { code, active, expiresAt } }`.
     - Generic error message to client; full error logged server-side.
     - _Requirements: 6.1, 6.5_
-  - [~] 2.2 Add `GET /attendance/code` handler in the same file:
+  - [ ] 2.2 Add `GET /attendance/code` handler in the same file:
     - Resolve `effectiveZoneId` from tenant middleware.
     - Fetch `Setting` by key `'attendance_code_<zoneId>'`.
     - If not found or `active === false`: return `{ success: true, data: { active: false } }`.
@@ -43,11 +43,11 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - Test: deactivation sets `active: false`.
     - _Requirements: 6.1, 6.2, 6.7_
 
-- [~] 3. Checkpoint — API routes complete
+- [ ] 3. Checkpoint — API routes complete
   - Ensure all tests pass, confirm API compiles with `tsc --noEmit` in `rehearsalhub-api`. Ask the user if questions arise.
 
 - [ ] 4. Gap 8 — Fix Dashboard stats
-  - [~] 4.1 In `DashboardScreen.tsx`, replace the `/submitted-songs` fetch for `totalSongs` with `GET /songs/zone`:
+  - [ ] 4.1 In `DashboardScreen.tsx`, replace the `/submitted-songs` fetch for `totalSongs` with `GET /songs/zone`:
     ```typescript
     apiClient.get<any>(`/songs/zone${zoneParam}`)  // replaces /submitted-songs
     ```
@@ -61,7 +61,7 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 8.1, 8.5_
 
 - [ ] 5. Gap 9 — Fix SongDetailScreen save endpoint
-  - [~] 5.1 In `SongDetailScreen.tsx`, add `isZoneSong` derived from `song?.subGroupId || song?.sub_group_id`.
+  - [ ] 5.1 In `SongDetailScreen.tsx`, add `isZoneSong` derived from `song?.subGroupId || song?.sub_group_id`.
     In `handleSave`, replace `apiClient.patch('/songs/${song.id}', ...)` with `apiClient.patch('/subgroups/songs/${song.id}', ...)`.
     Guard: if `!isZoneSong`, return early without saving.
     In the header, replace the Edit toggle button with a conditional:
@@ -75,13 +75,13 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 9.1, 9.2_
 
 - [ ] 6. Gap 1 — Program CRUD (Create / Edit / Delete)
-  - [~] 6.1 Add state and handlers to `PraiseNightScreen.tsx`:
+  - [ ] 6.1 Add state and handlers to `PraiseNightScreen.tsx`:
     - State: `showProgramModal`, `editingProgram`, `form` (name, date, location, category).
     - Implement `handleCreateOrUpdate`: calls `POST /programs` or `PATCH /programs/:id` based on `editingProgram`.
     - Implement `handleDeleteProgram`: shows `Alert.alert` confirmation, then calls `DELETE /programs/:id`; removes item from local state on success.
     - On `POST /programs` body: `{ name, date, location, category: 'pre-rehearsal', status: 'pre-rehearsal', zoneId: activeZone?.id ?? '' }`.
     - _Requirements: 1.3, 1.7, 1.8, 1.9_
-  - [~] 6.2 Add FAB and bottom-sheet modal UI to `PraiseNightScreen.tsx`:
+  - [ ] 6.2 Add FAB and bottom-sheet modal UI to `PraiseNightScreen.tsx`:
     - FAB: absolutely positioned `bottom: 28, right: 20`, `zIndex: 100`.
     - Modal form: `<Modal>` with `animationType="slide"` containing name, date, location, category TextInputs.
     - Inline validation: if `form.name.trim() === ''`, show error text and prevent submit.
@@ -96,7 +96,7 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 1.1, 1.3, 1.7, 1.8, 1.10_
 
 - [ ] 7. Gap 2 — Create ProgramSongsScreen
-  - [~] 7.1 Create `src/screens/ProgramSongsScreen.tsx`:
+  - [ ] 7.1 Create `src/screens/ProgramSongsScreen.tsx`:
     - Accept `route.params.program` (full Program object).
     - On mount: fetch `GET /songs/praise-night?praiseNightId=<program.id>`.
     - Render list of songs with title, key, heard/unheard toggle (Switch).
@@ -116,7 +116,7 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 2.5_
 
 - [ ] 8. Gap 3 — Create LiveConductorScreen
-  - [~] 8.1 Create `src/screens/LiveConductorScreen.tsx`:
+  - [ ] 8.1 Create `src/screens/LiveConductorScreen.tsx`:
     - Accept `route.params.program`.
     - On mount: fetch `GET /songs/praise-night?praiseNightId=<program.id>`.
     - Initialise `activeSongId` from the song where `isActive === true`.
@@ -130,11 +130,11 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - `fc.array(fc.record({ id: fc.uuid(), isActive: fc.boolean() }), { minLength: 1 })` × random target id → after `setActive(songs, targetId)`, exactly one element has `isActive === true`.
     - _Requirements: 3.3, 3.4_
 
-- [~] 9. Checkpoint — New screens and fixes complete
+- [ ] 9. Checkpoint — New screens and fixes complete
   - Ensure all tests pass for Gaps 1-3, 8, 9. Ask the user if questions arise.
 
 - [ ] 10. Register new screens in AppNavigator
-  - [~] 10.1 In `src/navigation/AppNavigator.tsx`:
+  - [ ] 10.1 In `src/navigation/AppNavigator.tsx`:
     - Import `ProgramSongsScreen` and `LiveConductorScreen`.
     - Add two `Stack.Screen` entries: `ProgramSongs` and `LiveConductor`, both with `headerShown: false`.
     - Verify `PraiseNightScreen` navigates to `ProgramSongs` on card tap.
@@ -142,13 +142,13 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 2.1, 3.1_
 
 - [ ] 11. Gap 4 — Zone Songs tab in MasterLibraryScreen
-  - [~] 11.1 Create `src/screens/ZoneSongFormModal.tsx` (new file, single-responsibility):
+  - [ ] 11.1 Create `src/screens/ZoneSongFormModal.tsx` (new file, single-responsibility):
     - Props: `visible`, `editSong: ZoneSong | null`, `onClose`, `onSaved`.
     - Fields: Title (required), Writer, Key, Tempo, Category.
     - On submit: if `editSong` — `PATCH /subgroups/songs/:id`; else `POST /subgroups/songs`.
     - Inline validation: Title must be non-empty.
     - _Requirements: 4.4, 4.5, 4.7, 4.9_
-  - [~] 11.2 Extend `MasterLibraryScreen.tsx` with zone songs tab:
+  - [ ] 11.2 Extend `MasterLibraryScreen.tsx` with zone songs tab:
     - Add `TABS = ['master', 'zone']` tab bar at top.
     - State: `activeTab`, `zoneSongs`, `showZoneForm`, `editingZoneSong`.
     - When `activeTab === 'zone'`: fetch `GET /songs/zone`; display songs; show FAB.
@@ -165,7 +165,7 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 4.3, 4.5, 4.7, 4.9, 4.10_
 
 - [ ] 12. Gap 5 — Media upload FAB
-  - [~] 12.1 Add upload functionality to `MediaScreen.tsx`:
+  - [ ] 12.1 Add upload functionality to `MediaScreen.tsx`:
     - Import `DocumentPicker` from `expo-document-picker` and `SecureStore` from `expo-secure-store`.
     - Implement `inferMediaType(mimeType: string)` pure helper.
     - Implement `handleUpload`: pick file → multipart `POST /upload` via raw `fetch` (not `apiClient`) → `POST /media` via `apiClient`.
@@ -179,13 +179,13 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - _Requirements: 5.4_
 
 - [ ] 13. Gap 6 (client) + Gap 7 — AttendanceScreen server wiring and QR code
-  - [~] 13.1 Wire `AttendanceScreen.tsx` to the new API routes:
+  - [ ] 13.1 Wire `AttendanceScreen.tsx` to the new API routes:
     - On mount: call `GET /attendance/code`; set `activeCode` from response or `null` if inactive/error.
     - `handleCreateCode`: replace TODO comment with `apiClient.post('/attendance/code', { code, validMinutes: 60, zoneId: activeZone?.id })`.
     - `handleEndCode`: replace TODO with `apiClient.post('/attendance/code', { active: false, zoneId: activeZone?.id })`.
     - Remove all "// TODO" comments.
     - _Requirements: 6.3, 6.4, 6.5, 6.6_
-  - [~] 13.2 Add QR code modal to `AttendanceScreen.tsx`:
+  - [ ] 13.2 Add QR code modal to `AttendanceScreen.tsx`:
     - Import `QRCode` from `react-native-qrcode-svg`.
     - State: `qrModalVisible`.
     - "Show QR" button: rendered inline on the active-code card when `activeCode !== null`.
@@ -198,7 +198,7 @@ Nine discrete feature gaps are addressed in strict dependency order. Gap 6 (API 
     - "Show QR" visible when `activeCode` is set.
     - _Requirements: 6.4, 6.6, 7.1, 7.4_
 
-- [~] 14. Final Checkpoint — Ensure all tests pass
+- [ ] 14. Final Checkpoint — Ensure all tests pass
   - Run `tsc --noEmit` in both `rehearsalhub-admin` and `rehearsalhub-api`.
   - Run the full test suite. Ensure all tests pass; ask the user if questions arise.
 

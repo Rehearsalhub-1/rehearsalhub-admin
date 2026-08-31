@@ -213,7 +213,7 @@ export default function DashboardScreen({ navigation }: any) {
               onPress={() => navigation.navigate('Songs')}
             />
             <MenuItem
-              label="Master Library"
+              label="All Ministered"
               iconName="library-outline"
               onPress={() => navigation.navigate('MasterLibrary')}
             />

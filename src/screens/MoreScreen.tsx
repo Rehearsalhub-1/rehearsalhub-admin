@@ -104,11 +104,11 @@ export default function MoreScreen({ navigation }: any) {
         <Text style={styles.sectionLabel}>Rehearsals & Music</Text>
         <View style={styles.menuGroup}>
           <MenuItem iconName="document-text-outline" label="Submitted Songs" sub="Review and approve choir song submissions" onPress={() => navigation.navigate('Songs')} />
-          <MenuItem iconName="musical-notes-outline" label="Programs & Praise Nights" sub="Manage praise nights and rehearsal setlists" onPress={() => navigation.navigate('PraiseNight')} />
+          <MenuItem iconName="musical-notes-outline" label="Programs" sub="Manage rehearsal programs and setlists" onPress={() => navigation.navigate('PraiseNight')} />
           <MenuItem iconName="calendar-outline" label="Rehearsal Calendar" sub="Interactive monthly/weekly events and sessions" onPress={() => navigation.navigate('Calendar')} />
           <MenuItem iconName="list-outline" label="Schedule Manager" sub="Weekly & daily setlist plans" onPress={() => navigation.navigate('Schedule')} />
-          <MenuItem iconName="library-outline" label="Master Library" sub="Global song catalog and recordings" onPress={() => navigation.navigate('MasterLibrary')} />
-          <MenuItem iconName="folder-open-outline" label="Media Library" sub="Stems, guide tracks, score sheets, and videos" onPress={() => navigation.navigate('Media')} />
+          <MenuItem iconName="library-outline" label="All Ministered" sub="Global catalog of all ministered songs" onPress={() => navigation.navigate('MasterLibrary')} />
+          <MenuItem iconName="folder-open-outline" label="Media Assets" sub="Stems, guide tracks, score sheets, and videos" onPress={() => navigation.navigate('Medialibrary')} />
         </View>
 
         {/* Administration & Operations */}
