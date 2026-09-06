@@ -25,7 +25,7 @@ interface Church {
 }
 
 export default function ChurchesScreen({ navigation }: any) {
-  const { activeZone, isAllZones } = useZoneContext();
+  const { activeZone, isAllZones, isChurchMode } = useZoneContext();
   const { adminUser } = useAuth();
 
   const [churches, setChurches] = useState<Church[]>([]);
@@ -58,9 +58,10 @@ export default function ChurchesScreen({ navigation }: any) {
 
   const fetchChurches = useCallback(async () => {
     try {
+      const effectiveZoneId = activeZone?.id || 'zone-001';
       const [churchesRes, reqRes] = await Promise.all([
-        api.churches.getAll(activeZone?.id).catch(() => ({ data: [] as Church[] })),
-        api.churches.getRequests(activeZone?.id).catch(() => ({ data: [] as Church[] })),
+        api.churches.getAll(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
+        api.churches.getRequests(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
       ]);
 
       const churchList = Array.isArray(churchesRes.data) ? churchesRes.data : [];
@@ -229,10 +230,35 @@ export default function ChurchesScreen({ navigation }: any) {
       (c.coordinatorName && c.coordinatorName.toLowerCase().includes(q));
   });
 
+  if (isChurchMode && !adminUser?.isHQAdmin) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Churches & Subgroups" />
+        <View style={styles.centerNotice}>
+          <View style={styles.noticeIconWrap}>
+            <Ionicons name="business-outline" size={44} color="#0284c7" />
+          </View>
+          <Text style={styles.noticeTitle}>Zonal Management</Text>
+          <Text style={styles.noticeSub}>
+            Church chapter approvals, creations, and coordinator appointments are managed at the Zonal and HQ Admin level.
+          </Text>
+          <TouchableOpacity
+            style={styles.noticeBackBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.noticeBackBtnText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Churches" />
+        <ZoneHeader title="Churches & Subgroups" />
         <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
       </SafeAreaView>
     );
@@ -240,7 +266,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Churches" />
+      <ZoneHeader title="Churches & Subgroups" />
 
       {/* Tab Switcher */}
       <View style={styles.tabRow}>
@@ -874,5 +900,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.2,
+  },
+  centerNotice: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    backgroundColor: '#ffffff',
+  },
+  noticeIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: '#f0f9ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  noticeTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noticeSub: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  noticeBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  noticeBackBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -148,16 +148,9 @@ export default function MediaScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Cloudflare R2 Media" />
-
-      {/* Top Header Controls */}
-      <View style={styles.topSection}>
-        <View style={styles.headingRow}>
-          <View>
-            <Text style={styles.screenHeading}>Media Assets Library</Text>
-            <Text style={styles.screenSub}>Rehearsal audio stems, practice videos & lead sheets</Text>
-          </View>
-
+      <ZoneHeader
+        title="Media Assets Library"
+        rightElement={
           <TouchableOpacity
             style={styles.uploadBtn}
             onPress={handleUpload}
@@ -168,12 +161,16 @@ export default function MediaScreen() {
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
               <>
-                <Ionicons name="cloud-upload" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-                <Text style={styles.uploadBtnText}>Upload File</Text>
+                <Ionicons name="cloud-upload" size={15} color="#ffffff" style={{ marginRight: 4 }} />
+                <Text style={styles.uploadBtnText}>Upload</Text>
               </>
             )}
           </TouchableOpacity>
-        </View>
+        }
+      />
+
+      {/* Filter and Search Section */}
+      <View style={styles.topSection}>
 
         <SearchFilterBar
           searchQuery={search}

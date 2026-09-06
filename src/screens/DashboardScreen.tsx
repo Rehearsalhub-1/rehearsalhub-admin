@@ -16,6 +16,7 @@ import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import ZoneHeader from '../components/ZoneHeader';
+import DashboardHeroCarousel from '../components/DashboardHeroCarousel';
 import { api } from '../services/api';
 import { StatTile, Badge } from '../components/ui';
 
@@ -28,7 +29,7 @@ interface DashboardStats {
 
 export default function DashboardScreen({ navigation }: any) {
   const { adminUser } = useAuth();
-  const { activeZone, isAllZones } = useZoneContext();
+  const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
 
   const [stats, setStats] = useState<DashboardStats>({
     totalSongs: 0,
@@ -46,15 +47,21 @@ export default function DashboardScreen({ navigation }: any) {
 
   const loadDashboardData = useCallback(async () => {
     try {
+      const progOptions = isChurchMode && activeChurch?.id
+        ? { groupId: activeChurch.id, subGroupId: activeChurch.id, includeChurch: true }
+        : { zoneId: activeZone?.id || 'zone-001' };
+
       const [statsRes, progRes, memRes] = await Promise.all([
-        api.dashboard.getStats(activeZone?.id).catch(() => ({
+        api.dashboard.getStats(activeZone?.id || 'zone-001', isChurchMode ? activeChurch?.id : undefined).catch(() => ({
           totalSongs: 0,
           pendingSongs: 0,
           totalMembers: 0,
           activePrograms: 0,
         })),
-        api.programs.getAll(activeZone?.id).catch(() => ({ data: [] })),
-        api.members.getDirectory(activeZone?.id).catch(() => ({ data: [] })),
+        api.programs.getAll(progOptions).catch(() => ({ data: [] })),
+        isChurchMode && activeChurch?.id
+          ? api.churches.getMembers(activeChurch.id).catch(() => ({ data: [] }))
+          : api.members.getDirectory(activeZone?.id || 'zone-001').catch(() => ({ data: [] })),
       ]);
 
       setStats({
@@ -75,7 +82,7 @@ export default function DashboardScreen({ navigation }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeZone?.id]);
+  }, [activeZone?.id, isChurchMode, activeChurch?.id]);
 
   useEffect(() => {
     setLoading(true);
@@ -116,7 +123,9 @@ export default function DashboardScreen({ navigation }: any) {
     }).slice(0, 6);
   }, [members, memberSearch]);
 
-  const liveMetricsLabel = isAllZones
+  const liveMetricsLabel = isChurchMode
+    ? `${activeChurch?.name || 'Church Choir'} Live Overview`
+    : isAllZones
     ? 'Aggregated Global HQ Metrics'
     : `${activeZone?.name || 'Zonal Hub'} Live Metrics`;
 
@@ -187,26 +196,29 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* 2. Admin 4 KPI Cards Grid (Matching Web Admin Portal) */}
+        {/* 2. Compact Visual Hero Carousel */}
+        <DashboardHeroCarousel />
+
+        {/* 3. Admin 4 KPI Cards Grid (Matching Web Admin Portal) */}
         <View style={styles.kpiGrid}>
           <View style={styles.kpiRow}>
             <StatTile
-              label="Zone Members"
+              label={isChurchMode ? 'Choir Members' : 'Zone Members'}
               value={stats.totalMembers}
               icon="people"
               color="#4f46e5"
-              badgeLabel="DIRECTORY"
-              subtitle="Registered singers"
+              badgeLabel={isChurchMode ? 'ROSTER' : 'DIRECTORY'}
+              subtitle={isChurchMode ? 'Church choir singers' : 'Registered singers'}
               loading={loading}
               onPress={() => navigation.navigate('Members')}
             />
             <StatTile
-              label="Programs"
+              label={isChurchMode ? 'Church Programs' : 'Programs'}
               value={stats.activePrograms}
               icon="calendar"
               color="#7c3aed"
               badgeLabel="PROGRAMS"
-              subtitle="Active & archived"
+              subtitle={isChurchMode ? 'Rehearsals & services' : 'Active & archived'}
               loading={loading}
               onPress={() => navigation.navigate('PraiseNight')}
             />
@@ -223,16 +235,29 @@ export default function DashboardScreen({ navigation }: any) {
               loading={loading}
               onPress={() => navigation.navigate('MasterLibrary')}
             />
-            <StatTile
-              label="Submissions"
-              value={stats.pendingSongs}
-              icon="sparkles"
-              color="#e11d48"
-              badgeLabel={stats.pendingSongs > 0 ? 'ACTION' : 'UP TO DATE'}
-              subtitle="Awaiting review"
-              loading={loading}
-              onPress={() => navigation.navigate('Songs')}
-            />
+            {isChurchMode ? (
+              <StatTile
+                label="Attendance"
+                value={stats.totalMembers > 0 ? stats.totalMembers : 'Active'}
+                icon="calendar-number"
+                color="#059669"
+                badgeLabel="CHECK-IN"
+                subtitle="Rehearsal turnout"
+                loading={loading}
+                onPress={() => navigation.navigate('Attendance')}
+              />
+            ) : (
+              <StatTile
+                label="Submissions"
+                value={stats.pendingSongs}
+                icon="sparkles"
+                color="#e11d48"
+                badgeLabel={stats.pendingSongs > 0 ? 'ACTION' : 'UP TO DATE'}
+                subtitle="Awaiting review"
+                loading={loading}
+                onPress={() => navigation.navigate('Songs')}
+              />
+            )}
           </View>
         </View>
 
@@ -243,7 +268,14 @@ export default function DashboardScreen({ navigation }: any) {
               <Ionicons name="flash-outline" size={16} color="#7c3aed" style={{ marginRight: 6 }} />
               <Text style={styles.sectionTitle}>Quick Admin Actions</Text>
             </View>
-            <Text style={styles.sectionSubtitle}>Frequent workflows</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('More')}
+              style={styles.viewAllBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewAllText}>All Modules</Text>
+              <Ionicons name="chevron-forward" size={12} color="#7c3aed" style={{ marginLeft: 2 }} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.launchpadGrid}>
@@ -259,17 +291,31 @@ export default function DashboardScreen({ navigation }: any) {
               <Text style={styles.launchpadSub} numberOfLines={1}>Manage sets</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.launchpadItem}
-              onPress={() => navigation.navigate('Songs')}
-              activeOpacity={0.75}
-            >
-              <View style={[styles.launchpadIconBox, { backgroundColor: '#fff1f2' }]}>
-                <Ionicons name="cloud-upload-outline" size={20} color="#e11d48" />
-              </View>
-              <Text style={styles.launchpadLabel} numberOfLines={1}>Submissions</Text>
-              <Text style={styles.launchpadSub} numberOfLines={1}>{stats.pendingSongs} pending</Text>
-            </TouchableOpacity>
+            {!isChurchMode ? (
+              <TouchableOpacity
+                style={styles.launchpadItem}
+                onPress={() => navigation.navigate('Songs')}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.launchpadIconBox, { backgroundColor: '#fff1f2' }]}>
+                  <Ionicons name="cloud-upload-outline" size={20} color="#e11d48" />
+                </View>
+                <Text style={styles.launchpadLabel} numberOfLines={1}>Submissions</Text>
+                <Text style={styles.launchpadSub} numberOfLines={1}>{stats.pendingSongs} pending</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.launchpadItem}
+                onPress={() => navigation.navigate('Schedule')}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.launchpadIconBox, { backgroundColor: '#f5f3ff' }]}>
+                  <Ionicons name="list-outline" size={20} color="#7c3aed" />
+                </View>
+                <Text style={styles.launchpadLabel} numberOfLines={1}>Schedule</Text>
+                <Text style={styles.launchpadSub} numberOfLines={1}>Weekly plans</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.launchpadItem}
@@ -280,7 +326,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <Ionicons name="musical-notes-outline" size={20} color="#d97706" />
               </View>
               <Text style={styles.launchpadLabel} numberOfLines={1}>Ministered</Text>
-              <Text style={styles.launchpadSub} numberOfLines={1}>Song catalog</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>Catalog</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -291,20 +337,70 @@ export default function DashboardScreen({ navigation }: any) {
               <View style={[styles.launchpadIconBox, { backgroundColor: '#eef2ff' }]}>
                 <Ionicons name="people-outline" size={20} color="#4f46e5" />
               </View>
-              <Text style={styles.launchpadLabel} numberOfLines={1}>Singers</Text>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>{isChurchMode ? 'Choir' : 'Singers'}</Text>
               <Text style={styles.launchpadSub} numberOfLines={1}>View roster</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.launchpadItem}
-              onPress={() => navigation.navigate('Analytics')}
+              onPress={() => navigation.navigate('Attendance')}
               activeOpacity={0.75}
             >
               <View style={[styles.launchpadIconBox, { backgroundColor: '#ecfdf5' }]}>
-                <Ionicons name="bar-chart-outline" size={20} color="#059669" />
+                <Ionicons name="calendar-number-outline" size={20} color="#059669" />
               </View>
-              <Text style={styles.launchpadLabel} numberOfLines={1}>Analytics</Text>
-              <Text style={styles.launchpadSub} numberOfLines={1}>Insights</Text>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Attendance</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>QR Check-in</Text>
+            </TouchableOpacity>
+
+            {!isChurchMode ? (
+              <TouchableOpacity
+                style={styles.launchpadItem}
+                onPress={() => navigation.navigate('Churches')}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.launchpadIconBox, { backgroundColor: '#f0f9ff' }]}>
+                  <Ionicons name="business-outline" size={20} color="#0284c7" />
+                </View>
+                <Text style={styles.launchpadLabel} numberOfLines={1}>Churches</Text>
+                <Text style={styles.launchpadSub} numberOfLines={1}>Chapters</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.launchpadItem}
+                onPress={() => navigation.navigate('Notifications')}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.launchpadIconBox, { backgroundColor: '#fef3c7' }]}>
+                  <Ionicons name="notifications-outline" size={20} color="#d97706" />
+                </View>
+                <Text style={styles.launchpadLabel} numberOfLines={1}>Broadcast</Text>
+                <Text style={styles.launchpadSub} numberOfLines={1}>Push alerts</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.launchpadItem}
+              onPress={() => navigation.navigate('Calendar')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.launchpadIconBox, { backgroundColor: '#eff6ff' }]}>
+                <Ionicons name="calendar-outline" size={20} color="#2563eb" />
+              </View>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Calendar</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>Schedule</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.launchpadItem}
+              onPress={() => navigation.navigate('MediaLibrary')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.launchpadIconBox, { backgroundColor: '#e0e7ff' }]}>
+                <Ionicons name="folder-open-outline" size={20} color="#4338ca" />
+              </View>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Media</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>R2 Assets</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -597,11 +693,13 @@ const styles = StyleSheet.create({
   },
   launchpadGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
+    rowGap: 14,
   },
   launchpadItem: {
     alignItems: 'center',
-    width: '18%',
+    width: '23%',
   },
   launchpadIconBox: {
     width: 44,

@@ -53,7 +53,13 @@ function MenuItem({ iconName, iconColor, iconBg, label, sub, badge, onPress, des
 
 export default function MoreScreen({ navigation }: any) {
   const { adminUser, signOut } = useAuth();
-  const { activeZone, isAllZones, availableZones } = useZoneContext();
+  const {
+    activeZone, isAllZones, availableZones,
+    isChurchMode, activeChurch, userChurches, toggleRoleMode,
+  } = useZoneContext();
+
+  const hasDualRole = Boolean(adminUser?.hasDualRole) || (userChurches.length > 0 && !adminUser?.isChurchAdmin);
+  const isPureChurchAdmin = Boolean(adminUser?.isChurchAdmin) && !adminUser?.isHQAdmin && !hasDualRole;
 
   async function handleLogout() {
     Alert.alert('Sign Out', 'Are you sure you want to sign out of RehearsalHub Admin Console?', [
@@ -69,12 +75,18 @@ export default function MoreScreen({ navigation }: any) {
     ]);
   }
 
-  const zoneLabel = isAllZones ? `All Zones (${availableZones.length})` : activeZone?.name ?? 'HQ';
+  const zoneLabel = isChurchMode
+    ? (activeChurch?.name || 'Church Choir')
+    : isAllZones
+    ? 'All Zones'
+    : (activeZone?.name ?? 'Your Loveworld Singers');
 
   const roleTitle = adminUser?.isHQAdmin
     ? 'HQ Admin'
-    : (adminUser?.role || '').toLowerCase().includes('church') || (adminUser?.role || '').toLowerCase().includes('subgroup')
-    ? 'Church Coordinator'
+    : isPureChurchAdmin
+    ? 'Church Admin'
+    : hasDualRole
+    ? 'Zonal + Church Admin'
     : 'Zonal Coordinator';
 
   const initial = (adminUser?.name || adminUser?.email || 'A').charAt(0).toUpperCase();
@@ -83,6 +95,7 @@ export default function MoreScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <ZoneHeader title="Admin Console" showBack={false} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
         {/* Profile card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
@@ -94,14 +107,19 @@ export default function MoreScreen({ navigation }: any) {
             </Text>
             <Text style={styles.email} numberOfLines={1}>{adminUser?.email || '—'}</Text>
             <View style={styles.badgeRow}>
-              <View style={[styles.roleBadge, { backgroundColor: adminUser?.isHQAdmin ? '#eef2ff' : '#faf5ff', borderColor: adminUser?.isHQAdmin ? '#c7d2fe' : '#e9d5ff' }]}>
+              <View style={[styles.roleBadge, {
+                backgroundColor: adminUser?.isHQAdmin ? '#eef2ff' : isPureChurchAdmin ? '#fff7ed' : '#faf5ff',
+                borderColor: adminUser?.isHQAdmin ? '#c7d2fe' : isPureChurchAdmin ? '#fed7aa' : '#e9d5ff',
+              }]}>
                 <Ionicons
-                  name={adminUser?.isHQAdmin ? 'shield-checkmark' : 'ribbon-outline'}
+                  name={adminUser?.isHQAdmin ? 'shield-checkmark' : isPureChurchAdmin ? 'home' : 'ribbon-outline'}
                   size={11}
-                  color={adminUser?.isHQAdmin ? '#4f46e5' : '#7c3aed'}
+                  color={adminUser?.isHQAdmin ? '#4f46e5' : isPureChurchAdmin ? '#ea580c' : '#7c3aed'}
                   style={{ marginRight: 4 }}
                 />
-                <Text style={[styles.roleText, { color: adminUser?.isHQAdmin ? '#4f46e5' : '#7c3aed' }]}>
+                <Text style={[styles.roleText, {
+                  color: adminUser?.isHQAdmin ? '#4f46e5' : isPureChurchAdmin ? '#ea580c' : '#7c3aed',
+                }]}>
                   {roleTitle}
                 </Text>
               </View>
@@ -113,7 +131,38 @@ export default function MoreScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Repertoire & Sets (Matching AdminSidebar.tsx) */}
+        {/* ── Dual-Role Scope Switcher Card (only for dual-role admins) ── */}
+        {hasDualRole && (
+          <TouchableOpacity style={styles.scopeCard} onPress={toggleRoleMode} activeOpacity={0.85}>
+            <View style={styles.scopeCardLeft}>
+              <View style={[styles.scopeIconWrap, { backgroundColor: isChurchMode ? '#fff7ed' : '#eef2ff' }]}>
+                <Ionicons
+                  name={isChurchMode ? 'home' : 'shield-half-outline'}
+                  size={20}
+                  color={isChurchMode ? '#ea580c' : '#4f46e5'}
+                />
+              </View>
+              <View>
+                <Text style={styles.scopeTitle}>
+                  {isChurchMode ? '⛪ Church Admin Mode' : '🏛️ Zone Admin Mode'}
+                </Text>
+                <Text style={styles.scopeSub}>
+                  {isChurchMode
+                    ? `Operating as: ${activeChurch?.name || 'Church'}`
+                    : `Operating as: ${activeZone?.name || 'Zone Admin'}`}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.scopeTogglePill, { backgroundColor: isChurchMode ? '#fff7ed' : '#eef2ff' }]}>
+              <Ionicons name="swap-horizontal" size={14} color={isChurchMode ? '#ea580c' : '#4f46e5'} style={{ marginRight: 4 }} />
+              <Text style={[styles.scopeToggleText, { color: isChurchMode ? '#ea580c' : '#4f46e5' }]}>
+                Switch
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* ── Repertoire & Sets ──────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Repertoire & Sets</Text>
         <View style={styles.menuGroup}>
           <MenuItem
@@ -124,14 +173,17 @@ export default function MoreScreen({ navigation }: any) {
             sub="Rehearsal programs, setlists, and running orders"
             onPress={() => navigation.navigate('PraiseNight')}
           />
-          <MenuItem
-            iconName="cloud-upload-outline"
-            iconColor="#e11d48"
-            iconBg="#fff1f2"
-            label="Submitted Songs"
-            sub="Review singer audio submissions and approve"
-            onPress={() => navigation.navigate('Songs')}
-          />
+          {/* Hide Submitted Songs in pure Church Mode */}
+          {!isPureChurchAdmin && !isChurchMode && (
+            <MenuItem
+              iconName="cloud-upload-outline"
+              iconColor="#e11d48"
+              iconBg="#fff1f2"
+              label="Submitted Songs"
+              sub="Review singer audio submissions and approve"
+              onPress={() => navigation.navigate('Songs')}
+            />
+          )}
           <MenuItem
             iconName="musical-notes-outline"
             iconColor="#d97706"
@@ -140,17 +192,20 @@ export default function MoreScreen({ navigation }: any) {
             sub="Master ministry repertoire and vocal arrangements"
             onPress={() => navigation.navigate('MasterLibrary')}
           />
-          <MenuItem
-            iconName="pricetags-outline"
-            iconColor="#059669"
-            iconBg="#ecfdf5"
-            label="Categories & Tags"
-            sub="Manage rehearsal song classifications"
-            onPress={() => navigation.navigate('Categories')}
-          />
+          {/* Hide Categories in pure Church Mode */}
+          {!isPureChurchAdmin && !isChurchMode && (
+            <MenuItem
+              iconName="pricetags-outline"
+              iconColor="#059669"
+              iconBg="#ecfdf5"
+              label="Categories & Tags"
+              sub="Manage rehearsal song classifications"
+              onPress={() => navigation.navigate('Categories')}
+            />
+          )}
         </View>
 
-        {/* Choir & Operations (Matching AdminSidebar.tsx) */}
+        {/* ── Choir & Operations ────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Choir & Operations</Text>
         <View style={styles.menuGroup}>
           <MenuItem
@@ -161,14 +216,17 @@ export default function MoreScreen({ navigation }: any) {
             sub="Singer roster, vocal parts, and permissions"
             onPress={() => navigation.navigate('Members')}
           />
-          <MenuItem
-            iconName="business-outline"
-            iconColor="#0284c7"
-            iconBg="#f0f9ff"
-            label="Churches & Subgroups"
-            sub="Local assemblies, coordinator approvals, and rosters"
-            onPress={() => navigation.navigate('Churches')}
-          />
+          {/* Hide Churches & Subgroups in Church Mode */}
+          {!isPureChurchAdmin && !isChurchMode && (
+            <MenuItem
+              iconName="business-outline"
+              iconColor="#0284c7"
+              iconBg="#f0f9ff"
+              label="Churches & Subgroups"
+              sub="Local assemblies, coordinator approvals, and rosters"
+              onPress={() => navigation.navigate('Churches')}
+            />
+          )}
           <MenuItem
             iconName="calendar-number-outline"
             iconColor="#059669"
@@ -203,16 +261,16 @@ export default function MoreScreen({ navigation }: any) {
           />
         </View>
 
-        {/* System & Tools (Matching AdminSidebar.tsx) */}
-        <Text style={styles.sectionLabel}>System & Tools</Text>
+        {/* ── Support & Calendar (All Roles) ────────────────────────────── */}
+        <Text style={styles.sectionLabel}>Support & Calendar</Text>
         <View style={styles.menuGroup}>
           <MenuItem
-            iconName="bar-chart-outline"
-            iconColor="#059669"
-            iconBg="#ecfdf5"
-            label="Analytics & Insights"
-            sub="Attendance turnout rates and rehearsal trends"
-            onPress={() => navigation.navigate('Analytics')}
+            iconName="calendar-outline"
+            iconColor="#2563eb"
+            iconBg="#eff6ff"
+            label="Rehearsal Calendar"
+            sub="Interactive calendar of rehearsals and key dates"
+            onPress={() => navigation.navigate('Calendar')}
           />
           <MenuItem
             iconName="chatbubbles-outline"
@@ -222,25 +280,34 @@ export default function MoreScreen({ navigation }: any) {
             sub="Direct singer inquiries and feedback"
             onPress={() => navigation.navigate('SupportChat')}
           />
-          <MenuItem
-            iconName="calendar-outline"
-            iconColor="#2563eb"
-            iconBg="#eff6ff"
-            label="Rehearsal Calendar"
-            sub="Interactive calendar of all rehearsals and events"
-            onPress={() => navigation.navigate('Calendar')}
-          />
-          <MenuItem
-            iconName="time-outline"
-            iconColor="#64748b"
-            iconBg="#f1f5f9"
-            label="Activity Logs"
-            sub="Audit trail of coordinator and director actions"
-            onPress={() => navigation.navigate('ActivityLogs')}
-          />
         </View>
 
-        {/* Account */}
+        {/* ── System & Audit (Zonal & HQ Only) ────────────────────────── */}
+        {!isPureChurchAdmin && !isChurchMode && (
+          <>
+            <Text style={styles.sectionLabel}>System & Audit</Text>
+            <View style={styles.menuGroup}>
+              <MenuItem
+                iconName="bar-chart-outline"
+                iconColor="#059669"
+                iconBg="#ecfdf5"
+                label="Analytics & Insights"
+                sub="Attendance turnout rates and rehearsal trends"
+                onPress={() => navigation.navigate('Analytics')}
+              />
+              <MenuItem
+                iconName="time-outline"
+                iconColor="#64748b"
+                iconBg="#f1f5f9"
+                label="Activity Logs"
+                sub="Audit trail of coordinator and director actions"
+                onPress={() => navigation.navigate('ActivityLogs')}
+              />
+            </View>
+          </>
+        )}
+
+        {/* ── Account ───────────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Account</Text>
         <View style={styles.menuGroup}>
           <MenuItem
@@ -263,7 +330,7 @@ export default function MoreScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#f8fafc', // slate-50
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -278,92 +345,144 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    marginBottom: 20,
-    gap: 14,
+    marginBottom: 12,
     shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     backgroundColor: '#7c3aed',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
   avatarText: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '800',
     color: '#ffffff',
   },
   displayName: {
-    color: '#0f172a',
     fontSize: 16,
     fontWeight: '800',
+    color: '#0f172a',
     letterSpacing: -0.3,
   },
   email: {
-    color: '#64748b',
     fontSize: 12,
+    color: '#64748b',
     marginTop: 2,
     marginBottom: 8,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     flexWrap: 'wrap',
   },
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     borderWidth: 1,
   },
   roleText: {
-    fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontSize: 11,
+    fontWeight: '700',
   },
   zoneBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    maxWidth: 150,
   },
   zoneBadgeText: {
-    color: '#475569',
-    fontSize: 10,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  // Scope Switcher Card
+  scopeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 16,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  scopeCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  scopeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  scopeTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  scopeSub: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  scopeTogglePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  scopeToggleText: {
+    fontSize: 12,
     fontWeight: '700',
   },
+  // Section + Menu
   sectionLabel: {
-    color: '#64748b',
     fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontWeight: '700',
+    color: '#94a3b8',
     letterSpacing: 0.8,
-    paddingHorizontal: 4,
+    textTransform: 'uppercase',
     marginBottom: 8,
-    marginTop: 16,
+    marginTop: 4,
+    paddingLeft: 2,
   },
   menuGroup: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
+    marginBottom: 16,
     shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
@@ -371,22 +490,21 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
-    gap: 12,
   },
   menuIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
   menuTextCol: {
     flex: 1,
-    minWidth: 0,
   },
   menuTitleRow: {
     flexDirection: 'row',
@@ -394,28 +512,29 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   menuLabel: {
-    color: '#0f172a',
     fontSize: 14,
     fontWeight: '700',
-  },
-  menuBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-    backgroundColor: '#fef3c7',
-  },
-  menuBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#b45309',
-  },
-  menuSub: {
-    color: '#64748b',
-    fontSize: 11,
-    marginTop: 1,
+    color: '#0f172a',
+    letterSpacing: -0.2,
   },
   destructiveText: {
     color: '#dc2626',
   },
+  menuSub: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  menuBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  menuBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
 });
-

@@ -110,22 +110,17 @@ export default function SupportChatScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title={selectedThread ? selectedThread.userName : "Support Desk"} />
+      <ZoneHeader
+        title={selectedThread ? selectedThread.userName : 'Support Desk'}
+        subtitle={selectedThread ? (selectedThread.userEmail || 'Member Inquiry') : undefined}
+        onBack={selectedThread ? () => setSelectedThread(null) : undefined}
+      />
 
       {selectedThread ? (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          {/* Back button row */}
-          <TouchableOpacity
-            style={styles.backRow}
-            onPress={() => setSelectedThread(null)}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="chevron-back" size={18} color={Colors.accentBright} />
-            <Text style={styles.backText}>Back to all inquiries</Text>
-          </TouchableOpacity>
 
           {/* Conversation list */}
           <FlatList

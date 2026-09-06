@@ -23,7 +23,7 @@ interface ScheduleProgram {
 }
 
 export default function ScheduleScreen() {
-  const { activeZone, isAllZones } = useZoneContext();
+  const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
   const [programs, setPrograms] = useState<ScheduleProgram[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +39,7 @@ export default function ScheduleScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeZone?.id]);
+  }, [activeZone?.id, isChurchMode, activeChurch?.id]);
 
   useEffect(() => {
     setLoading(true);
@@ -51,7 +51,7 @@ export default function ScheduleScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Schedule Manager" />
+        <ZoneHeader title={isChurchMode ? "Church Schedule" : "Schedule Manager"} />
         <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
       </SafeAreaView>
     );

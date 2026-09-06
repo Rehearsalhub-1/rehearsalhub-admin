@@ -88,8 +88,11 @@ export default function SongDetailScreen({ route, navigation }: any) {
     if (!song?.id) return;
     setSaving(true);
     try {
-      if (!isZoneSong) return; // master songs are read-only
-      await apiClient.patch(`/subgroups/songs/${song.id}`, editForm);
+      if (isZoneSong) {
+        await apiClient.patch(`/subgroups/songs/${song.id}`, editForm);
+      } else {
+        await apiClient.patch(`/songs/${song.id}`, editForm);
+      }
       setSong((prev: any) => ({ ...prev, ...editForm }));
       setIsEditing(false);
       Alert.alert('Saved', 'Song details updated.');

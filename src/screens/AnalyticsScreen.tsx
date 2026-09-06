@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,9 +10,11 @@ import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
+import { useAuth } from '../context/AuthContext';
 
-export default function AnalyticsScreen() {
-  const { activeZone, isAllZones } = useZoneContext();
+export default function AnalyticsScreen({ navigation }: any) {
+  const { activeZone, isAllZones, isChurchMode } = useZoneContext();
+  const { adminUser } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,10 +66,35 @@ export default function AnalyticsScreen() {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
+  if (isChurchMode && !adminUser?.isHQAdmin) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Analytics & Reports" />
+        <View style={styles.centerNotice}>
+          <View style={styles.noticeIconWrap}>
+            <Ionicons name="bar-chart-outline" size={44} color="#059669" />
+          </View>
+          <Text style={styles.noticeTitle}>Zonal / HQ Analytics</Text>
+          <Text style={styles.noticeSub}>
+            Deep rehearsal trends, aggregated attendance curves, and song analytics are accessible at the Zonal and HQ level.
+          </Text>
+          <TouchableOpacity
+            style={styles.noticeBackBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.noticeBackBtnText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Analytics" />
+        <ZoneHeader title="Analytics & Reports" />
         <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
       </SafeAreaView>
     );
@@ -77,7 +104,7 @@ export default function AnalyticsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Analytics" />
+      <ZoneHeader title="Analytics & Reports" />
       {eventsError ? (
         <View style={{ margin: 16, padding: 12, backgroundColor: Colors.surface, borderRadius: 10, borderWidth: 1, borderColor: Colors.border }}>
           <Text style={{ color: Colors.textMuted, fontSize: 12, textAlign: 'center' }}>{eventsError}</Text>
@@ -309,6 +336,49 @@ const styles = StyleSheet.create({
   rehearsalCountText: {
     color: '#64748b',
     fontSize: 10,
+    fontWeight: '700',
+  },
+  centerNotice: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    backgroundColor: '#ffffff',
+  },
+  noticeIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: '#ecfdf5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  noticeTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noticeSub: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  noticeBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  noticeBackBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '700',
   },
 });

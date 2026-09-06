@@ -44,7 +44,7 @@ interface AdminRequest {
 
 export default function MembersScreen() {
   const { adminUser } = useAuth();
-  const { activeZone } = useZoneContext();
+  const { activeZone, isChurchMode, activeChurch } = useZoneContext();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [requests, setRequests] = useState<AdminRequest[]>([]);
@@ -58,24 +58,27 @@ export default function MembersScreen() {
 
   const isHQAdmin = !!adminUser?.isHQAdmin;
   const isZoneCoordinator = (adminUser?.role || '').toLowerCase().includes('zone');
-  const canPromote = isHQAdmin || isZoneCoordinator;
+  const canPromote = !isChurchMode && (isHQAdmin || isZoneCoordinator);
 
   const loadData = useCallback(async () => {
     try {
+      const effectiveZoneId = activeZone?.id || 'zone-001';
       const [membersRes, requestsRes] = await Promise.all([
-        api.members.getDirectory(activeZone?.id),
-        isHQAdmin
-          ? api.members.getAdminRequests(activeZone?.id).catch(() => ({ success: true, data: [] }))
+        isChurchMode && activeChurch?.id
+          ? api.churches.getMembers(activeChurch.id)
+          : api.members.getDirectory(effectiveZoneId),
+        isHQAdmin && !isChurchMode
+          ? api.members.getAdminRequests(effectiveZoneId).catch(() => ({ success: true, data: [] }))
           : Promise.resolve({ success: true, data: [] }),
       ]);
 
       const memberList: Member[] = (Array.isArray(membersRes.data) ? membersRes.data : []).map((p: any) => ({
-        id: p.id,
-        firstName: p.firstName || '',
-        lastName: p.lastName || '',
+        id: p.userId || p.id,
+        firstName: p.firstName || (p.name ? p.name.split(' ')[0] : '') || '',
+        lastName: p.lastName || (p.name ? p.name.split(' ').slice(1).join(' ') : '') || '',
         email: p.email || '',
         role: p.role || 'member',
-        zoneId: p.zoneCode || p.zoneName || '',
+        zoneId: p.zoneCode || p.zoneName || activeChurch?.name || '',
         avatarUrl: p.avatarUrl,
         voicePart: p.voicePart || p.designation || 'Singer',
       }));
@@ -88,7 +91,7 @@ export default function MembersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeZone?.id, isHQAdmin]);
+  }, [activeZone?.id, isHQAdmin, isChurchMode, activeChurch?.id, activeChurch?.name]);
 
   useEffect(() => {
     setLoading(true);
@@ -162,11 +165,11 @@ export default function MembersScreen() {
         value: 'coordinators',
         count: members.filter(m => (m.role || '').toLowerCase() !== 'member').length,
       },
-      ...(isHQAdmin
+      ...(isHQAdmin && !isChurchMode
         ? [{ label: 'Role Requests', value: 'requests', count: pendingRequests.length }]
         : []),
     ];
-  }, [members, pendingRequests.length, isHQAdmin]);
+  }, [members, pendingRequests.length, isHQAdmin, isChurchMode]);
 
   const filteredMembers = useMemo(() => {
     let list = members;
@@ -188,14 +191,13 @@ export default function MembersScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Choir Directory" />
+      <ZoneHeader
+        title={isChurchMode ? "Church Choir Roster" : "Choir Directory"}
+        rightElement={<Badge label={`${members.length} Singers`} variant="alto" size="sm" />}
+      />
 
       {/* Control section */}
       <View style={styles.topControl}>
-        <View style={styles.headingRow}>
-          <Text style={styles.screenHeading}>Member Directory</Text>
-          <Badge label={`${members.length} Singers`} variant="alto" size="sm" />
-        </View>
 
         <SearchFilterBar
           searchQuery={search}
@@ -388,7 +390,7 @@ export default function MembersScreen() {
             >
               <View>
                 <Text style={styles.roleOptionTitle}>Church Coordinator</Text>
-                <Text style={styles.roleOptionSub}>Manage local assembly praise nights & attendance</Text>
+                <Text style={styles.roleOptionSub}>Manage local assembly programs & attendance</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
             </TouchableOpacity>

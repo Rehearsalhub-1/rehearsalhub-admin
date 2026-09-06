@@ -92,10 +92,20 @@ export default function CalendarScreen() {
     }
   }
 
+  function getCategoryLabel(cat?: string) {
+    switch (cat) {
+      case 'praisenight': return 'Program';
+      case 'rehearsal':   return 'Rehearsal';
+      case 'recording':   return 'Recording';
+      case 'deadline':    return 'Deadline';
+      default:            return 'Program';
+    }
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Calendar" />
+        <ZoneHeader title="Rehearsal Calendar" />
         <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
       </SafeAreaView>
     );
@@ -103,22 +113,23 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Calendar" />
+      <ZoneHeader
+        title="Rehearsal Calendar"
+        rightElement={
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setCreateModal(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={15} color="#fff" style={{ marginRight: 3 }} />
+            <Text style={styles.addBtnText}>Schedule</Text>
+          </TouchableOpacity>
+        }
+      />
 
-      {/* Top Bar with Add Button */}
+      {/* Filter / Count Toolbar */}
       <View style={styles.topRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.heading}>Rehearsals & Events</Text>
-          <Text style={styles.sub}>Scheduled Praise Nights, sessions, and deadlines</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => setCreateModal(true)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={16} color="#fff" style={{ marginRight: 4 }} />
-          <Text style={styles.addBtnText}>Schedule</Text>
-        </TouchableOpacity>
+        <Text style={styles.countText}>{events.length} scheduled rehearsals & deadlines</Text>
       </View>
 
       <FlatList
@@ -143,7 +154,7 @@ export default function CalendarScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
                   <View style={[styles.catBadge, { borderColor: catColor + '30', backgroundColor: catColor + '12' }]}>
-                    <Text style={[styles.catBadgeText, { color: catColor }]}>{item.category || 'Rehearsal'}</Text>
+                    <Text style={[styles.catBadgeText, { color: catColor }]}>{getCategoryLabel(item.category)}</Text>
                   </View>
                 </View>
                 <Text style={styles.eventDate}>
@@ -177,7 +188,7 @@ export default function CalendarScreen() {
               style={styles.modalInput}
               value={title}
               onChangeText={setTitle}
-              placeholder="e.g. Praise Night #19 Rehearsal"
+              placeholder="e.g. Special Program Rehearsal"
               placeholderTextColor={Colors.textMuted}
             />
 
@@ -212,7 +223,7 @@ export default function CalendarScreen() {
                   activeOpacity={0.75}
                 >
                   <Text style={[styles.catOptionText, category === cat && styles.catOptionTextActive]}>
-                    {cat.toUpperCase()}
+                    {getCategoryLabel(cat).toUpperCase()}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -243,7 +254,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
   },
   heading: {
     color: Colors.textPrimary,

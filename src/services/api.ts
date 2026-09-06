@@ -22,11 +22,13 @@ export const api = {
 
   // ── Dashboard Metrics ────────────────────────────────────────────────────
   dashboard: {
-    getStats: async (zoneId?: string) => {
+    getStats: async (zoneId?: string, churchId?: string) => {
       const zoneParam = zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : '';
       const [zoneSongsRes, membersRes, programsRes, submittedRes] = await Promise.all([
         apiClient.get<any>(`/songs/zone${zoneParam}`).catch(() => ({ data: [] })),
-        apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => ({ data: [] })),
+        churchId
+          ? apiClient.get<any>(`/subgroups/${churchId}/members`).catch(() => ({ data: [] }))
+          : apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => ({ data: [] })),
         apiClient.get<any>(`/programs${zoneParam}`).catch(() => ({ data: [] })),
         apiClient.get<any>(`/submitted-songs${zoneParam}`).catch(() => ({ data: [] })),
       ]);
@@ -62,8 +64,16 @@ export const api = {
       apiClient.get<{ success: boolean; data: any[] }>(`/songs/praise-night?praiseNightId=${encodeURIComponent(praiseNightId)}`),
     setActiveSong: (songId: string) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isActive: true }),
+    toggleActive: (songId: string, isActive: boolean) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isActive }),
     toggleHeard: (songId: string, isHeard: boolean) =>
-      apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isHeard }),
+      apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isHeard, status: isHeard ? 'heard' : 'unheard' }),
+    create: (data: Record<string, any>) =>
+      apiClient.post<{ success: boolean; data?: any }>('/songs', data),
+    update: (songId: string, data: Record<string, any>) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/songs/${songId}`, data),
+    delete: (songId: string) =>
+      apiClient.delete<{ success: boolean }>(`/songs/${songId}`),
     createSubgroupSong: (data: Record<string, any>) =>
       apiClient.post<{ success: boolean; data?: any }>('/subgroups/songs', data),
     updateSubgroupSong: (songId: string, data: Record<string, any>) =>
@@ -74,8 +84,20 @@ export const api = {
 
   // ── Programs & Rehearsal Events ──────────────────────────────────────────
   programs: {
-    getAll: (zoneId?: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/programs${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
+    getAll: (paramsOrZoneId?: string | { zoneId?: string; category?: string; groupId?: string; subGroupId?: string; includeChurch?: boolean }) => {
+      const params = new URLSearchParams();
+      if (typeof paramsOrZoneId === 'string') {
+        if (paramsOrZoneId) params.append('zoneId', paramsOrZoneId);
+      } else if (paramsOrZoneId) {
+        if (paramsOrZoneId.zoneId) params.append('zoneId', paramsOrZoneId.zoneId);
+        if (paramsOrZoneId.category) params.append('category', paramsOrZoneId.category);
+        if (paramsOrZoneId.groupId) params.append('groupId', paramsOrZoneId.groupId);
+        if (paramsOrZoneId.subGroupId) params.append('subGroupId', paramsOrZoneId.subGroupId);
+        if (paramsOrZoneId.includeChurch) params.append('includeChurch', 'true');
+      }
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return apiClient.get<{ success: boolean; data: any[] }>(`/programs${query}`);
+    },
     getById: (programId: string) =>
       apiClient.get<{ success: boolean; data: any }>(`/programs/${programId}`),
     create: (data: Record<string, any>) =>
@@ -126,6 +148,10 @@ export const api = {
 
   // ── Churches & Subgroups ─────────────────────────────────────────────────
   churches: {
+    mine: () =>
+      apiClient.get<{ success: boolean; data: any[] }>('/subgroups/mine'),
+    coordinated: () =>
+      apiClient.get<{ success: boolean; data: any[] }>('/subgroups/coordinated'),
     getAll: (zoneId?: string) =>
       apiClient.get<{ success: boolean; data: any[] }>(`/subgroups${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     getRequests: (zoneId?: string) =>
@@ -146,21 +172,33 @@ export const api = {
       apiClient.delete<{ success: boolean }>(`/subgroups/members?subGroupId=${encodeURIComponent(subgroupId)}&userId=${encodeURIComponent(userId)}`),
   },
 
+  // ── Organizations / Zones ────────────────────────────────────────────────
+  organizations: {
+    getAll: () =>
+      apiClient.get<{ success: boolean; data: any[] }>('/organizations'),
+    getMine: () =>
+      apiClient.get<{ success: boolean; data: any }>('/members/mine'),
+  },
+
   // ── Attendance Tracking ──────────────────────────────────────────────────
   attendance: {
-    getAll: (zoneId?: string, programId?: string, date?: string) => {
+    getAll: (zoneId?: string, programId?: string, date?: string, subGroupId?: string) => {
       const params = new URLSearchParams();
       if (zoneId) params.append('zoneId', zoneId);
+      if (subGroupId) params.append('subGroupId', subGroupId);
       if (programId) params.append('programId', programId);
       if (date) params.append('date', date);
       const query = params.toString() ? `?${params.toString()}` : '';
       return apiClient.get<{ success: boolean; data: any[] }>(`/attendance${query}`);
     },
-    getActiveCode: () =>
-      apiClient.get<{ success: boolean; data: { code?: string; active?: boolean } }>('/attendance/code'),
-    setActiveCode: (code: string, validMinutes = 60, zoneId?: string) =>
+    getActiveCode: (zoneId?: string) =>
+      apiClient.get<{ success: boolean; data: { code?: string; active?: boolean } }>(
+        `/attendance/code${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`
+      ),
+    setActiveCode: (code: string, active = true, zoneId?: string, validMinutes = 60) =>
       apiClient.post<{ success: boolean; data: { code?: string; active?: boolean } }>('/attendance/code', {
         code,
+        active,
         validMinutes,
         zoneId,
       }),

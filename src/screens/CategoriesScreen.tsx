@@ -8,6 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useZoneContext } from '../context/ZoneContext';
+import { useAuth } from '../context/AuthContext';
+import ZoneHeader from '../components/ZoneHeader';
 
 interface Category {
   id: string;
@@ -18,7 +21,9 @@ interface Category {
 
 const PRESET_COLORS = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
-export default function CategoriesScreen() {
+export default function CategoriesScreen({ navigation }: any) {
+  const { isChurchMode } = useZoneContext();
+  const { adminUser } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,6 +31,9 @@ export default function CategoriesScreen() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
+
+  const [songs, setSongs] = useState<any[]>([]);
+  const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
 
   async function fetchCategories() {
     try {
@@ -39,8 +47,18 @@ export default function CategoriesScreen() {
     }
   }
 
+  async function fetchSongs() {
+    try {
+      const res = await api.songs.getMasterSongs();
+      setSongs(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   useEffect(() => {
     fetchCategories();
+    fetchSongs();
   }, []);
 
   // Live updates via WebSocket
@@ -92,37 +110,130 @@ export default function CategoriesScreen() {
     ]);
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={Colors.accent} /></View>;
+  if (isChurchMode && !adminUser?.isHQAdmin) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Categories & Tags" showZonePicker={false} />
+        <View style={styles.centerNotice}>
+          <View style={styles.noticeIconWrap}>
+            <Ionicons name="pricetags-outline" size={44} color="#059669" />
+          </View>
+          <Text style={styles.noticeTitle}>Central Taxonomy</Text>
+          <Text style={styles.noticeSub}>
+            Rehearsal song categories and tags are defined centrally at the Zonal & HQ Admin level to maintain consistent taxonomy across programs.
+          </Text>
+          <TouchableOpacity
+            style={styles.noticeBackBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.noticeBackBtnText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Categories & Tags" showZonePicker={false} />
+        <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
+      <ZoneHeader
+        title="Categories & Tags"
+        showZonePicker={false}
+        rightElement={
+          <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
+            <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 3 }} />
+            <Text style={styles.addBtnText}>New</Text>
+          </TouchableOpacity>
+        }
+      />
+
       <View style={styles.topBar}>
-        <Text style={styles.count}>{categories.length} categories configured</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
-          <Ionicons name="add" size={16} color="#ffffff" style={{ marginRight: 4 }} />
-          <Text style={styles.addBtnText}>New Category</Text>
-        </TouchableOpacity>
+        <Text style={styles.count}>{categories.length} classifications configured</Text>
       </View>
 
       <FlatList
         data={categories}
         keyExtractor={i => i.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchCategories(); }} tintColor={Colors.accent} />}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={[styles.dot, { backgroundColor: item.color || '#7c3aed' }]} />
-            <Text style={styles.catName}>{item.name}</Text>
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
-                <Text style={styles.editBtnText}>Edit</Text>
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchCategories();
+              fetchSongs();
+            }}
+            tintColor={Colors.accent}
+          />
+        }
+        renderItem={({ item }) => {
+          const isExpanded = expandedCatId === item.id;
+          const matchingSongs = songs.filter(
+            s => (s.category || '').trim().toLowerCase() === item.name.trim().toLowerCase()
+          );
+
+          return (
+            <View style={styles.card}>
+              <TouchableOpacity
+                style={styles.cardHeader}
+                onPress={() => setExpandedCatId(isExpanded ? null : item.id)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.dot, { backgroundColor: item.color || '#7c3aed' }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.catName}>{item.name}</Text>
+                  <Text style={styles.songCount}>{matchingSongs.length} songs</Text>
+                </View>
+                <View style={styles.actions}>
+                  <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
+                    <Text style={styles.editBtnText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(item.id)}>
+                    <Text style={styles.delBtnText}>Delete</Text>
+                  </TouchableOpacity>
+                  <Ionicons
+                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color="#94a3b8"
+                    style={{ marginLeft: 4 }}
+                  />
+                </View>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(item.id)}>
-                <Text style={styles.delBtnText}>Delete</Text>
-              </TouchableOpacity>
+
+              {isExpanded && (
+                <View style={styles.expandedSongList}>
+                  {matchingSongs.length === 0 ? (
+                    <Text style={styles.emptyCategoryText}>No songs tagged under "{item.name}" yet.</Text>
+                  ) : (
+                    matchingSongs.map((s, idx) => (
+                      <View key={s.id || idx} style={styles.songRow}>
+                        <Ionicons name="musical-note" size={14} color={item.color || Colors.accent} style={{ marginRight: 8 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.songTitle} numberOfLines={1}>{s.title || 'Untitled'}</Text>
+                          <Text style={styles.songMeta}>
+                            {s.key ? `Key: ${s.key}` : ''}
+                            {s.tempo ? ` · ${s.tempo} BPM` : ''}
+                            {s.leadSinger ? ` · Lead: ${s.leadSinger}` : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
             </View>
-          </View>
-        )}
+          );
+        }}
       />
 
       {/* Add / Edit Modal */}
@@ -175,18 +286,52 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   list: { paddingHorizontal: 16, gap: 10, paddingBottom: 40 },
   card: {
-    backgroundColor: '#ffffff', borderRadius: 16, padding: 16,
+    backgroundColor: '#ffffff', borderRadius: 16, padding: 14,
     borderWidth: 1, borderColor: '#e2e8f0',
-    flexDirection: 'row', alignItems: 'center', gap: 12,
     shadowColor: '#64748b', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
+  cardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+  },
   dot: { width: 14, height: 14, borderRadius: 7 },
-  catName: { color: '#0f172a', fontSize: 14, fontWeight: '700', flex: 1 },
-  actions: { flexDirection: 'row', gap: 8 },
+  catName: { color: '#0f172a', fontSize: 14, fontWeight: '700' },
+  songCount: { color: '#94a3b8', fontSize: 11, fontWeight: '600', marginTop: 1 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   editBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe' },
   editBtnText: { color: '#7c3aed', fontSize: 12, fontWeight: '700' },
   delBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
   delBtnText: { color: '#dc2626', fontSize: 12, fontWeight: '700' },
+  expandedSongList: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    gap: 8,
+  },
+  emptyCategoryText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontStyle: 'italic',
+    paddingVertical: 6,
+  },
+  songRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+  },
+  songTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  songMeta: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
   modal: { backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, borderWidth: 1, borderColor: '#e2e8f0' },
@@ -201,4 +346,47 @@ const styles = StyleSheet.create({
   cancelBtnText: { color: '#334155', fontSize: 14, fontWeight: '700' },
   saveBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#7c3aed', alignItems: 'center' },
   saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  centerNotice: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    backgroundColor: '#ffffff',
+  },
+  noticeIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: '#ecfdf5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  noticeTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noticeSub: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  noticeBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  noticeBackBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

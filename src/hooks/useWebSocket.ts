@@ -16,7 +16,7 @@ function matchesResource(subscribedResource: string, incomingResource: string): 
     (RESOURCE_ALIASES[subscribedResource] || []).includes(incomingResource);
 }
 
-const WS_URL = (process.env.EXPO_PUBLIC_BACKEND_URL ?? '')
+const WS_URL = (process.env.EXPO_PUBLIC_BACKEND_URL || 'https://rehearsalhub-api-production-6a17.up.railway.app')
   .replace(/\/+$/, '')
   .replace(/^http/, 'ws');
 

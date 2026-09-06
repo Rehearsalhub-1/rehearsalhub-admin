@@ -31,11 +31,15 @@ const ALLOWED_STUDIO_ROLES = [
   'super_admin',
   'admin',
   'hq_admin',
+  'boss',
+  'org_admin',
   'zone_admin',
   'zone_coordinator',
   'church_coordinator',
   'subgroup_coordinator',
   'subgroup_admin',
+  'group_admin',
+  'coordinator',
 ];
 
 export default function LoginScreen({ navigation }: Props) {
@@ -63,12 +67,6 @@ export default function LoginScreen({ navigation }: Props) {
 
       if (retryRes.success && retryRes.data) {
         const { accessToken: jwtToken, refreshToken, user } = retryRes.data;
-        const userRole = (user.role || '').toLowerCase().trim();
-        if (!ALLOWED_STUDIO_ROLES.includes(userRole)) {
-          await clearTokens();
-          Alert.alert('Access Restricted', 'This account does not have Coordinator or Admin privileges.');
-          return;
-        }
         setMultipleAccounts(null);
         await storeTokens(jwtToken, refreshToken, user.id);
         await refreshUser();
@@ -148,17 +146,6 @@ export default function LoginScreen({ navigation }: Props) {
         }
 
         const { accessToken: jwtToken, refreshToken, user } = res.data;
-        const userRole = (user.role || '').toLowerCase().trim();
-
-        if (!ALLOWED_STUDIO_ROLES.includes(userRole)) {
-          await clearTokens();
-          Alert.alert(
-            'Access Restricted',
-            'Your KingsChat account does not have Coordinator or Admin privileges. Please use the RehearsalHub singer app or contact your zonal coordinator.'
-          );
-          return;
-        }
-
         await storeTokens(jwtToken, refreshToken, user.id);
         await refreshUser();
         navigation.replace('MainTabs');
@@ -193,17 +180,6 @@ export default function LoginScreen({ navigation }: Props) {
       }
 
       const { accessToken, refreshToken, user } = result.data;
-      const userRole = (user.role || '').toLowerCase().trim();
-
-      if (!ALLOWED_STUDIO_ROLES.includes(userRole)) {
-        await clearTokens();
-        Alert.alert(
-          'Access Restricted',
-          'This app is for approved Coordinators and Leadership. Please use the RehearsalHub singer app or contact your zonal coordinator.'
-        );
-        return;
-      }
-
       await storeTokens(accessToken, refreshToken, user.id);
       await refreshUser();
       navigation.replace('MainTabs');

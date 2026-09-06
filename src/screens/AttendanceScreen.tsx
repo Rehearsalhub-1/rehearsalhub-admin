@@ -38,7 +38,7 @@ export interface AttendanceRecord {
 }
 
 export default function AttendanceScreen({ navigation }: any) {
-  const { activeZone } = useZoneContext();
+  const { activeZone, isChurchMode, activeChurch } = useZoneContext();
 
   const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,9 +60,10 @@ export default function AttendanceScreen({ navigation }: any) {
 
   const fetchAttendance = useCallback(async () => {
     try {
+      const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
       const [attRes, codeRes] = await Promise.all([
-        api.attendance.getAll(activeZone?.id).catch(() => ({ data: [] as AttendanceRecord[] })),
-        api.attendance.getActiveCode().catch(() => null),
+        api.attendance.getAll(scopeId).catch(() => ({ data: [] as AttendanceRecord[] })),
+        api.attendance.getActiveCode(scopeId).catch(() => null),
       ]);
 
       const records = Array.isArray(attRes.data) ? attRes.data : [];
@@ -79,7 +80,7 @@ export default function AttendanceScreen({ navigation }: any) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeZone?.id]);
+  }, [activeZone?.id, isChurchMode, activeChurch?.id]);
 
   useEffect(() => {
     setLoading(true);
@@ -98,7 +99,8 @@ export default function AttendanceScreen({ navigation }: any) {
     }
     setSettingCode(true);
     try {
-      const res = await api.attendance.setActiveCode(newCode.trim().toUpperCase(), 60, activeZone?.id);
+      const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
+      const res = await api.attendance.setActiveCode(newCode.trim().toUpperCase(), true, scopeId);
       if (res?.data?.active && res.data.code) {
         setActiveCode(res.data.code);
         setCodeModalVisible(false);
@@ -106,7 +108,7 @@ export default function AttendanceScreen({ navigation }: any) {
         Alert.alert('Code Active', `Passcode "${res.data.code}" is now active for rehearsal check-ins.`);
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to activate passcode.');
+      Alert.alert('Error', e.message || 'Failed to activate passcode');
     } finally {
       setSettingCode(false);
     }
@@ -120,7 +122,8 @@ export default function AttendanceScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await api.attendance.setActiveCode('', 0, activeZone?.id);
+            const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
+            await api.attendance.setActiveCode('', false, scopeId);
             setActiveCode(null);
             Alert.alert('Closed', 'Check-in passcode has been closed.');
           } catch (e: any) {
@@ -138,12 +141,13 @@ export default function AttendanceScreen({ navigation }: any) {
     }
     setSubmittingManual(true);
     try {
+      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
       await api.attendance.recordCheckIn({
         user_name: manualName.trim(),
         eventName: manualEvent.trim() || 'Rehearsal',
         status: 'present',
         checkInTime: new Date().toISOString(),
-        zoneId: activeZone?.id,
+        zoneId: scopeId,
       });
       setManualModalVisible(false);
       setManualName('');
@@ -179,7 +183,7 @@ export default function AttendanceScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Rehearsal Attendance" />
+      <ZoneHeader title={isChurchMode ? "Church Attendance" : "Rehearsal Attendance"} />
 
       {/* Passcode & Check-In Control Card */}
       <View style={styles.topCardWrapper}>
@@ -388,12 +392,12 @@ export default function AttendanceScreen({ navigation }: any) {
             </View>
 
             <Text style={styles.modalSub}>
-              Enter a 4-6 character passcode (e.g. PRAISE, SAT27, CHOIR) for singers to check in today:
+              Enter a 4-6 character passcode (e.g. REHEARSE, SAT27, CHOIR) for singers to check in today:
             </Text>
 
             <TextInput
               style={styles.codeInput}
-              placeholder="e.g. PRAISE"
+              placeholder="e.g. REHEARSE"
               placeholderTextColor={Colors.textMuted}
               value={newCode}
               onChangeText={t => setNewCode(t.toUpperCase())}

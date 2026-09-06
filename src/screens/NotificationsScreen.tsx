@@ -43,7 +43,7 @@ type AudienceValue = AudienceOption['value'];
 
 export default function NotificationsScreen() {
   const { adminUser } = useAuth();
-  const { activeZone, isAllZones } = useZoneContext();
+  const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
 
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -80,8 +80,11 @@ export default function NotificationsScreen() {
         actionUrl: actionUrl.trim() || undefined,
       };
 
-      // Zone scoping
-      if (activeZone && effectiveAudience !== 'individual') {
+      // Scope targeting
+      if (isChurchMode && activeChurch) {
+        payload.targetSubGroupId = activeChurch.id;
+        payload.targetChurchId = activeChurch.id;
+      } else if (activeZone && effectiveAudience !== 'individual') {
         payload.targetZoneId = activeZone.id;
       }
 
@@ -114,17 +117,18 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Send Notification" />
+      <ZoneHeader title={isChurchMode ? "Church Choir Broadcast" : "Broadcast Notifications"} />
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.heading}>Broadcast Announcement</Text>
         <Text style={styles.sub}>
-          {isAllZones
-            ? 'Sending to all zones — select a zone above to narrow audience.'
-            : `Target: ${activeZone?.name ?? 'Assigned Zone'}`}
+          {isChurchMode
+            ? `Target Audience: ${activeChurch?.name || 'Local Church Choir'}`
+            : isAllZones
+            ? 'Sending to all choir zones — select a zone to narrow audience.'
+            : `Target Audience: ${activeZone?.name ?? 'Assigned Zone'}`}
         </Text>
 
         {/* Title */}

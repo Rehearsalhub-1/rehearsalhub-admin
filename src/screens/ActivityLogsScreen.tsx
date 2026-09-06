@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  ActivityIndicator, RefreshControl
+  ActivityIndicator, RefreshControl, TouchableOpacity
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
+import ZoneHeader from '../components/ZoneHeader';
+import { useZoneContext } from '../context/ZoneContext';
+import { useAuth } from '../context/AuthContext';
 
 interface ActivityLog {
   id: string;
@@ -28,7 +31,9 @@ function getLogIcon(type: string): keyof typeof Ionicons.glyphMap {
   }
 }
 
-export default function ActivityLogsScreen() {
+export default function ActivityLogsScreen({ navigation }: any) {
+  const { isChurchMode } = useZoneContext();
+  const { adminUser } = useAuth();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,10 +64,43 @@ export default function ActivityLogsScreen() {
     } catch { return '—'; }
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>;
+  if (isChurchMode && !adminUser?.isHQAdmin) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Activity Logs" showZonePicker={false} />
+        <View style={styles.centerNotice}>
+          <View style={styles.noticeIconWrap}>
+            <Ionicons name="time-outline" size={44} color="#64748b" />
+          </View>
+          <Text style={styles.noticeTitle}>Zonal / HQ Audit Logs</Text>
+          <Text style={styles.noticeSub}>
+            System audit logs and administrator activity history are restricted to Zonal and HQ administrators.
+          </Text>
+          <TouchableOpacity
+            style={styles.noticeBackBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.noticeBackBtnText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Activity Logs" showZonePicker={false} />
+        <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
+      <ZoneHeader title="Activity Logs" showZonePicker={false} />
       <FlatList
         data={logs}
         keyExtractor={i => i.id}
@@ -118,5 +156,48 @@ const styles = StyleSheet.create({
   meta: { color: '#475569', fontSize: 12, marginBottom: 2 },
   time: { color: '#94a3b8', fontSize: 11, fontWeight: '500' },
   emptyText: { color: '#94a3b8', fontSize: 14 },
+  centerNotice: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    backgroundColor: '#ffffff',
+  },
+  noticeIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  noticeTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noticeSub: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  noticeBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#64748b',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  noticeBackBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });
 

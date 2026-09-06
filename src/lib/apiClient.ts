@@ -11,6 +11,22 @@ export class SessionExpiredError extends Error {
   }
 }
 
+type SessionExpiredHandler = () => void;
+let _sessionExpiredHandlers: SessionExpiredHandler[] = [];
+
+export function onSessionExpired(handler: SessionExpiredHandler): () => void {
+  _sessionExpiredHandlers.push(handler);
+  return () => {
+    _sessionExpiredHandlers = _sessionExpiredHandlers.filter(h => h !== handler);
+  };
+}
+
+export function notifySessionExpired(): void {
+  _sessionExpiredHandlers.forEach(h => {
+    try { h(); } catch (e) { console.error('[apiClient] Session expired handler error:', e); }
+  });
+}
+
 const apiGetCache = new Map<string, any>();
 
 export function clearCache(): void {
@@ -87,14 +103,21 @@ async function refreshSession(): Promise<string> {
         body: JSON.stringify({ refreshToken, userId }),
       });
 
-      if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
         await clearTokens();
         throw new SessionExpiredError();
       }
 
+      if (!res.ok) {
+        throw new Error(`Server temporarily unavailable (${res.status})`);
+      }
+
       const body = await res.json();
-      await storeTokens(body.data.accessToken, body.data.refreshToken, userId);
-      return body.data.accessToken;
+      if (body?.data?.accessToken) {
+        await storeTokens(body.data.accessToken, body.data.refreshToken || refreshToken, userId);
+        return body.data.accessToken;
+      }
+      throw new Error('Invalid refresh response');
     } finally {
       _refreshPromise = null;
     }
@@ -143,35 +166,43 @@ async function request<T>(
     const isAuthRoute = path.startsWith('/auth/login') || path.startsWith('/auth/refresh');
 
     if (res.status === 401 && !isAuthRoute && !retried) {
-      const newToken = await refreshSession();
-      const retryController = new AbortController();
-      const retryTimeoutId = setTimeout(() => retryController.abort(), timeoutMs);
-
-      const retryRes = await fetch(`${BASE_URL}${path}`, {
-        method,
-        headers: { ...headers, Authorization: `Bearer ${newToken}` },
-        signal: retryController.signal,
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-      });
-
-      clearTimeout(retryTimeoutId);
-
-      if (retryRes.status === 401) {
-        await clearTokens();
-        throw new SessionExpiredError();
-      }
-
-      let data: any = null;
       try {
-        data = await retryRes.json();
-      } catch {
-        data = { success: retryRes.ok };
-      }
+        const newToken = await refreshSession();
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => retryController.abort(), timeoutMs);
 
-      if (method === 'GET' && data?.success !== false) {
-        apiGetCache.set(path, data);
+        const retryRes = await fetch(`${BASE_URL}${path}`, {
+          method,
+          headers: { ...headers, Authorization: `Bearer ${newToken}` },
+          signal: retryController.signal,
+          ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        });
+
+        clearTimeout(retryTimeoutId);
+
+        if (retryRes.status === 401 || retryRes.status === 403) {
+          await clearTokens();
+          throw new SessionExpiredError();
+        }
+
+        let data: any = null;
+        try {
+          data = await retryRes.json();
+        } catch {
+          data = { success: retryRes.ok };
+        }
+
+        if (method === 'GET' && data?.success !== false) {
+          apiGetCache.set(path, data);
+        }
+        return data as T;
+      } catch (refreshErr) {
+        if (refreshErr instanceof SessionExpiredError) {
+          throw refreshErr;
+        }
+        console.warn(`[apiClient] Refresh attempt failed for ${path}:`, refreshErr);
+        throw refreshErr;
       }
-      return data as T;
     }
 
     let json: any = null;

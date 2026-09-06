@@ -1,4 +1,4 @@
-// Executive Web Admin Design Tokens — mirrors Loveworld Singers Web Admin Portal
+// Web Admin Design Tokens — mirrors Loveworld Singers Web Admin Portal
 
 export const Colors = {
   // Web Admin Light Theme
