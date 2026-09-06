@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  SafeAreaView, ScrollView, Alert, ActivityIndicator,
+  ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useAuth } from '../context/AuthContext';
@@ -86,9 +87,7 @@ export default function NotificationsScreen() {
 
       // Individual targeting — resolve email to userId
       if (effectiveAudience === 'individual' && targetEmail.trim()) {
-        const res = await apiClient.get<{ success: boolean; data: any[] }>(
-          `/profiles?email=${encodeURIComponent(targetEmail.trim().toLowerCase())}`
-        ).catch(() => null);
+        const res = await api.members.getDirectory(undefined, 10, targetEmail.trim().toLowerCase()).catch(() => null);
         const profile = Array.isArray(res?.data) ? res.data[0] : null;
         if (!profile) {
           Alert.alert('Not found', 'No member found with that email.');
@@ -99,7 +98,7 @@ export default function NotificationsScreen() {
         payload.targetUserId = profile.id;
       }
 
-      await apiClient.post('/notifications/broadcast', payload);
+      await api.notifications.broadcast(payload as any);
 
       Alert.alert('Sent!', 'Notification dispatched successfully.');
       setTitle('');
@@ -270,52 +269,72 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   container: { padding: 20 },
-  heading: { color: Colors.textPrimary, fontSize: 20, fontWeight: '800', marginBottom: 4 },
-  sub: { color: Colors.textMuted, fontSize: 13, marginBottom: 20, lineHeight: 18 },
-  label: { color: Colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: 8, marginTop: 18 },
+  heading: { color: Colors.textPrimary, fontSize: 18, fontWeight: '800', letterSpacing: -0.3, marginBottom: 4 },
+  sub: { color: Colors.textMuted, fontSize: 12, marginBottom: 20, lineHeight: 18 },
+  label: { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 8, marginTop: 18 },
   optional: { color: Colors.textMuted, fontWeight: '400' },
   input: {
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 12,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: Colors.textPrimary,
     fontSize: 14,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  textarea: { height: 100, paddingTop: 12 },
+  textarea: { height: 110, paddingTop: 12 },
   optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   optionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-  },
-  optionText: { color: Colors.textMuted, fontSize: 12, fontWeight: '600' },
-  preview: { marginTop: 24 },
-  previewLabel: { color: Colors.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  previewCard: {
-    backgroundColor: Colors.card,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 12,
-    padding: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 4,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  previewTitle: { color: Colors.textPrimary, fontSize: 14, fontWeight: '700' },
-  previewMessage: { color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  optionText: { color: Colors.textMuted, fontSize: 12, fontWeight: '700' },
+  preview: { marginTop: 24 },
+  previewLabel: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+  previewCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 6,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  previewTitle: { color: Colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  previewMessage: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
   sendBtn: {
     backgroundColor: Colors.accent,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 28,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  sendBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  sendBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '800', letterSpacing: 0.2 },
 });

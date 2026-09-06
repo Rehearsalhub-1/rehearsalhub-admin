@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl, Alert, TextInput, Modal
+  ActivityIndicator, RefreshControl, Alert, TextInput, Modal
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
@@ -57,10 +58,9 @@ export default function ChurchesScreen({ navigation }: any) {
 
   const fetchChurches = useCallback(async () => {
     try {
-      const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
       const [churchesRes, reqRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: Church[] }>(`/subgroups${zoneParam}`).catch(() => ({ data: [] })),
-        apiClient.get<{ success: boolean; data: Church[] }>(`/subgroups/requests${zoneParam}`).catch(() => ({ data: [] })),
+        api.churches.getAll(activeZone?.id).catch(() => ({ data: [] as Church[] })),
+        api.churches.getRequests(activeZone?.id).catch(() => ({ data: [] as Church[] })),
       ]);
 
       const churchList = Array.isArray(churchesRes.data) ? churchesRes.data : [];
@@ -91,7 +91,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
     setCreating(true);
     try {
-      await apiClient.post('/subgroups', {
+      await api.churches.create({
         name: churchName.trim(),
         code: churchCode.trim().toUpperCase(),
         zoneId: activeZone?.id || adminUser?.zoneId || 'zone-001',
@@ -110,7 +110,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
   async function handleApprove(churchId: string) {
     try {
-      await apiClient.post(`/subgroups/${churchId}/approve`, {});
+      await api.churches.approve(churchId);
       Alert.alert('Approved', 'Church approved and activated.');
       fetchChurches();
     } catch (e: any) {
@@ -126,7 +126,7 @@ export default function ChurchesScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           try {
-            await apiClient.post(`/subgroups/${churchId}/reject`, { reason: 'Declined by coordinator' });
+            await api.churches.reject(churchId, 'Declined by coordinator');
             fetchChurches();
           } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to reject');
@@ -144,7 +144,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
     setAssigning(true);
     try {
-      await apiClient.post(`/subgroups/${selectedChurch.id}/coordinators`, {
+      await api.churches.addCoordinator(selectedChurch.id, {
         identifier: coordinatorEmail.trim().toLowerCase(),
       });
       setAssignModal(false);
@@ -167,8 +167,8 @@ export default function ChurchesScreen({ navigation }: any) {
     setSearchDirectory('');
     try {
       const [membersRes, dirRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: any[] }>(`/subgroups/${church.id}/members`).catch(() => ({ data: [] })),
-        apiClient.get<{ success: boolean; data: any[] }>(`/profiles/directory?zoneId=${encodeURIComponent(church.zoneId || activeZone?.id || 'zone-001')}`).catch(() => ({ data: [] })),
+        api.churches.getMembers(church.id).catch(() => ({ data: [] })),
+        api.members.getDirectory(church.zoneId || activeZone?.id || 'zone-001').catch(() => ({ data: [] })),
       ]);
       setChurchMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
       setDirectory(Array.isArray(dirRes.data) ? dirRes.data : []);
@@ -183,12 +183,12 @@ export default function ChurchesScreen({ navigation }: any) {
     if (!selectedChurch) return;
     setActionUserId(userId);
     try {
-      await apiClient.post('/subgroups/members', {
+      await api.churches.addMember({
         subGroupId: selectedChurch.id,
         userId,
         role: 'member',
       });
-      const membersRes = await apiClient.get<{ success: boolean; data: any[] }>(`/subgroups/${selectedChurch.id}/members`);
+      const membersRes = await api.churches.getMembers(selectedChurch.id);
       setChurchMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
       fetchChurches();
     } catch (e: any) {
@@ -208,7 +208,7 @@ export default function ChurchesScreen({ navigation }: any) {
         onPress: async () => {
           setActionUserId(userId);
           try {
-            await apiClient.delete(`/subgroups/members?subGroupId=${encodeURIComponent(selectedChurch.id)}&userId=${encodeURIComponent(userId)}`);
+            await api.churches.removeMember(selectedChurch.id, userId);
             setChurchMembers(prev => prev.filter(m => m.userId !== userId && m.id !== userId));
             fetchChurches();
           } catch (e: any) {
@@ -496,27 +496,27 @@ export default function ChurchesScreen({ navigation }: any) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
-                backgroundColor: showAddPicker ? Colors.surface : Colors.accent,
+                backgroundColor: showAddPicker ? '#f1f5f9' : Colors.accent,
                 paddingVertical: 10,
                 borderRadius: 12,
                 marginVertical: 10,
                 borderWidth: showAddPicker ? 1 : 0,
-                borderColor: Colors.border,
+                borderColor: '#e2e8f0',
               }}
               onPress={() => setShowAddPicker(!showAddPicker)}
               activeOpacity={0.8}
             >
-              <Ionicons name={showAddPicker ? "close" : "person-add"} size={16} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+              <Ionicons name={showAddPicker ? "close" : "person-add"} size={16} color={showAddPicker ? Colors.textPrimary : '#fff'} />
+              <Text style={{ color: showAddPicker ? Colors.textPrimary : '#fff', fontSize: 12, fontWeight: '700' }}>
                 {showAddPicker ? 'Close Singer Picker' : 'Add Singer to Church'}
               </Text>
             </TouchableOpacity>
 
             {/* Singer Picker */}
             {showAddPicker && (
-              <View style={{ backgroundColor: Colors.surface, padding: 10, borderRadius: 12, marginBottom: 12, maxHeight: 200, borderWidth: 1, borderColor: Colors.border }}>
+              <View style={{ backgroundColor: '#f8fafc', padding: 10, borderRadius: 12, marginBottom: 12, maxHeight: 200, borderWidth: 1, borderColor: '#e2e8f0' }}>
                 <TextInput
-                  style={[styles.modalInput, { marginBottom: 8, height: 36, fontSize: 12 }]}
+                  style={[styles.modalInput, { marginBottom: 8, height: 38, fontSize: 12 }]}
                   value={searchDirectory}
                   onChangeText={setSearchDirectory}
                   placeholder="Search singer by name/email..."
@@ -533,7 +533,7 @@ export default function ChurchesScreen({ navigation }: any) {
                   })}
                   keyExtractor={p => p.id}
                   renderItem={({ item: person }) => (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: Colors.textPrimary, fontSize: 12, fontWeight: '700' }}>
                           {person.first_name || person.firstName || 'Singer'} {person.last_name || person.lastName || ''}
@@ -541,7 +541,7 @@ export default function ChurchesScreen({ navigation }: any) {
                         <Text style={{ color: Colors.textMuted, fontSize: 10 }}>{person.email || person.alias || ''}</Text>
                       </View>
                       <TouchableOpacity
-                        style={{ backgroundColor: Colors.accent, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 }}
+                        style={{ backgroundColor: Colors.accent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 }}
                         onPress={() => handleAddChurchMember(person.id)}
                         disabled={actionUserId === person.id}
                       >
@@ -570,10 +570,10 @@ export default function ChurchesScreen({ navigation }: any) {
                   const prof = m.profile || {};
                   const name = [prof.firstName || prof.first_name, prof.lastName || prof.last_name].filter(Boolean).join(' ') || prof.email || 'Singer';
                   return (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ color: Colors.accentBright, fontWeight: '800', fontSize: 12 }}>
+                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#f3e8ff', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ color: '#7c3aed', fontWeight: '800', fontSize: 12 }}>
                             {name[0]?.toUpperCase() || 'S'}
                           </Text>
                         </View>
@@ -608,30 +608,34 @@ export default function ChurchesScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
-  emptyText: { color: Colors.textMuted, fontSize: 13 },
+  emptyText: { color: Colors.textMuted, fontSize: 13, fontWeight: '500' },
 
   tabRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.background,
   },
   tabBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: Colors.surface,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
   },
   tabBtnActive: {
     backgroundColor: Colors.accent,
     borderColor: Colors.accent,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabBtnText: {
     color: Colors.textMuted,
@@ -647,19 +651,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
     marginVertical: 10,
-    gap: 8,
+    gap: 10,
   },
   searchWrap: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 42,
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 44,
     gap: 8,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
@@ -667,48 +676,58 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   addBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
   churchCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: '#ffffff',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     gap: 12,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   churchIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#f3e8ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   churchName: {
     color: Colors.textPrimary,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
     maxWidth: 180,
   },
   codeBadge: {
-    backgroundColor: Colors.surface,
-    paddingHorizontal: 6,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
   },
   codeBadgeText: {
-    color: Colors.textSecondary,
+    color: '#475569',
     fontSize: 10,
     fontWeight: '700',
   },
@@ -719,22 +738,27 @@ const styles = StyleSheet.create({
   },
   assignBtn: {
     padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    borderRadius: 10,
+    backgroundColor: '#f3e8ff',
   },
 
   pendingCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: '#ffffff',
     padding: 16,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     gap: 10,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   pendingTitle: {
     color: Colors.textPrimary,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   pendingMeta: {
     color: Colors.textMuted,
@@ -742,30 +766,31 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   pendingEmail: {
-    color: Colors.info,
+    color: Colors.accent,
     fontSize: 11,
+    fontWeight: '600',
     marginTop: 2,
   },
   pendingActions: {
     flexDirection: 'row',
     gap: 8,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   approveBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: Colors.success + '15',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#ecfdf5',
     borderWidth: 1,
-    borderColor: Colors.success + '40',
+    borderColor: '#a7f3d0',
   },
   approveText: {
-    color: Colors.success,
+    color: '#059669',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -774,14 +799,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: Colors.danger + '15',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: Colors.danger + '40',
+    borderColor: '#fecaca',
   },
   rejectText: {
-    color: Colors.danger,
+    color: '#dc2626',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -789,26 +814,32 @@ const styles = StyleSheet.create({
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 22,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   modalTitle: {
     color: Colors.textPrimary,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   inputLabel: {
     color: Colors.textSecondary,
@@ -817,9 +848,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   modalInput: {
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -828,14 +859,20 @@ const styles = StyleSheet.create({
   },
   modalSubmitBtn: {
     backgroundColor: Colors.accent,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   modalSubmitText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
 });

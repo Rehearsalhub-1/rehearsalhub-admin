@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  SafeAreaView, ActivityIndicator, RefreshControl
+  ActivityIndicator, RefreshControl
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 
 interface ActivityLog {
@@ -34,7 +35,7 @@ export default function ActivityLogsScreen() {
 
   async function fetchLogs() {
     try {
-      const result = await apiClient.get<{ success: boolean; data: ActivityLog[] }>('/activity-logs');
+      const result = await api.activityLogs.getAll();
       setLogs(Array.isArray(result.data) ? result.data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); setRefreshing(false); }
@@ -72,7 +73,7 @@ export default function ActivityLogsScreen() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.iconContainer}>
-              <Ionicons name={getLogIcon(item.type)} size={18} color={Colors.accentBright} />
+              <Ionicons name={getLogIcon(item.type)} size={18} color="#7c3aed" />
             </View>
             <View style={styles.info}>
               <Text style={styles.action}>{item.action || item.message || 'Activity'}</Text>
@@ -85,7 +86,7 @@ export default function ActivityLogsScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.center}>
-            <Ionicons name="analytics-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 10 }} />
+            <Ionicons name="analytics-outline" size={36} color="#cbd5e1" style={{ marginBottom: 10 }} />
             <Text style={styles.emptyText}>No activity logs found</Text>
           </View>
         }
@@ -95,26 +96,27 @@ export default function ActivityLogsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: '#f8fafc' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
-  list: { padding: 16, gap: 10, paddingBottom: 20 },
+  list: { padding: 16, gap: 10, paddingBottom: 40 },
   card: {
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: '#ffffff', borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: '#e2e8f0',
     flexDirection: 'row', gap: 12, alignItems: 'flex-start',
+    shadowColor: '#64748b', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#f5f3ff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
   info: { flex: 1 },
-  action: { color: Colors.textPrimary, fontSize: 14, fontWeight: '600', marginBottom: 3 },
-  meta: { color: Colors.textSecondary, fontSize: 12, marginBottom: 2 },
-  time: { color: Colors.textMuted, fontSize: 11 },
-  emptyText: { color: Colors.textMuted, fontSize: 14 },
+  action: { color: '#0f172a', fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  meta: { color: '#475569', fontSize: 12, marginBottom: 2 },
+  time: { color: '#94a3b8', fontSize: 11, fontWeight: '500' },
+  emptyText: { color: '#94a3b8', fontSize: 14 },
 });
+

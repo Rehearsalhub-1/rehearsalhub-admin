@@ -28,14 +28,6 @@ import LiveConductorScreen from '../screens/LiveConductorScreen';
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
-const headerOpts = {
-  headerShown: true,
-  headerStyle: { backgroundColor: Colors.background },
-  headerTintColor: Colors.textPrimary,
-  headerTitleStyle: { color: Colors.textPrimary, fontWeight: '700' as const },
-  headerShadowVisible: false,
-};
-
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -114,23 +106,23 @@ export default function AppNavigator({ initialRoute = 'Login' }: { initialRoute?
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
 
-      {/* Feature Screens */}
-      <Stack.Screen name="Songs" component={SubmittedSongsScreen} options={{ ...headerOpts, title: 'Submitted Songs' }} />
-      <Stack.Screen name="PraiseNight" component={PraiseNightScreen} options={{ ...headerOpts, title: 'Programs' }} />
-      <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ ...headerOpts, title: 'Schedule Manager' }} />
-      <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ ...headerOpts, title: 'Attendance' }} />
-      <Stack.Screen name="Churches" component={ChurchesScreen} options={{ ...headerOpts, title: 'Churches & Subgroups' }} />
-      <Stack.Screen name="SongDetail" component={SongDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="ProgramSongs"   component={ProgramSongsScreen}  options={{ headerShown: false }} />
-      <Stack.Screen name="LiveConductor"  component={LiveConductorScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Analytics" component={AnalyticsScreen} options={{ ...headerOpts, title: 'Analytics & Reports' }} />
-      <Stack.Screen name="Calendar" component={CalendarScreen} options={{ ...headerOpts, title: 'Rehearsal Calendar' }} />
-      <Stack.Screen name="MediaLibrary" component={MediaScreen} options={{ ...headerOpts, title: 'Media Assets' }} />
-      <Stack.Screen name="SupportChat" component={SupportChatScreen} options={{ ...headerOpts, title: 'Support Desk' }} />
-      <Stack.Screen name="MasterLibrary" component={MasterLibraryScreen} options={{ ...headerOpts, title: 'All Ministered' }} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ ...headerOpts, title: 'Broadcast Notification' }} />
-      <Stack.Screen name="Categories" component={CategoriesScreen} options={{ ...headerOpts, title: 'Categories' }} />
-      <Stack.Screen name="ActivityLogs" component={ActivityLogsScreen} options={{ ...headerOpts, title: 'Activity Logs' }} />
+      {/* Feature Screens — All use unified ZoneHeader */}
+      <Stack.Screen name="Songs" component={SubmittedSongsScreen} />
+      <Stack.Screen name="PraiseNight" component={PraiseNightScreen} />
+      <Stack.Screen name="Schedule" component={ScheduleScreen} />
+      <Stack.Screen name="Attendance" component={AttendanceScreen} />
+      <Stack.Screen name="Churches" component={ChurchesScreen} />
+      <Stack.Screen name="SongDetail" component={SongDetailScreen} />
+      <Stack.Screen name="ProgramSongs" component={ProgramSongsScreen} />
+      <Stack.Screen name="LiveConductor" component={LiveConductorScreen} />
+      <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+      <Stack.Screen name="Calendar" component={CalendarScreen} />
+      <Stack.Screen name="MediaLibrary" component={MediaScreen} />
+      <Stack.Screen name="SupportChat" component={SupportChatScreen} />
+      <Stack.Screen name="MasterLibrary" component={MasterLibraryScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Categories" component={CategoriesScreen} />
+      <Stack.Screen name="ActivityLogs" component={ActivityLogsScreen} />
     </Stack.Navigator>
   );
 }

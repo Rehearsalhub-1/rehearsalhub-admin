@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl, Modal, TextInput, Alert
+  ActivityIndicator, RefreshControl, Modal, TextInput, Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../lib/apiClient';
 import { Colors } from '../constants/Colors';
@@ -84,10 +85,10 @@ export default function CalendarScreen() {
 
   function getCategoryColor(cat?: string) {
     switch (cat) {
-      case 'praisenight': return Colors.accentBright;
-      case 'recording':   return Colors.warning;
-      case 'deadline':    return Colors.danger;
-      default:            return Colors.info;
+      case 'praisenight': return '#7c3aed';
+      case 'recording':   return '#d97706';
+      case 'deadline':    return '#e11d48';
+      default:            return '#2563eb';
     }
   }
 
@@ -106,17 +107,17 @@ export default function CalendarScreen() {
 
       {/* Top Bar with Add Button */}
       <View style={styles.topRow}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.heading}>Rehearsals & Events</Text>
-          <Text style={styles.sub}>Scheduled Praise Nights, sessions, and vocal deadlines</Text>
+          <Text style={styles.sub}>Scheduled Praise Nights, sessions, and deadlines</Text>
         </View>
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() => setCreateModal(true)}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={18} color="#fff" style={{ marginRight: 4 }} />
-          <Text style={styles.addBtnText}>Add</Text>
+          <Ionicons name="add" size={16} color="#fff" style={{ marginRight: 4 }} />
+          <Text style={styles.addBtnText}>Schedule</Text>
         </TouchableOpacity>
       </View>
 
@@ -141,7 +142,7 @@ export default function CalendarScreen() {
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
-                  <View style={[styles.catBadge, { borderColor: catColor + '50', backgroundColor: catColor + '15' }]}>
+                  <View style={[styles.catBadge, { borderColor: catColor + '30', backgroundColor: catColor + '12' }]}>
                     <Text style={[styles.catBadgeText, { color: catColor }]}>{item.category || 'Rehearsal'}</Text>
                   </View>
                 </View>
@@ -165,7 +166,7 @@ export default function CalendarScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Schedule Calendar Event</Text>
+              <Text style={styles.modalTitle}>Schedule Event</Text>
               <TouchableOpacity onPress={() => setCreateModal(false)}>
                 <Ionicons name="close" size={22} color={Colors.textMuted} />
               </TouchableOpacity>
@@ -199,18 +200,18 @@ export default function CalendarScreen() {
             />
 
             <Text style={styles.inputLabel}>Event Category</Text>
-            <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
               {(['rehearsal', 'praisenight', 'recording', 'deadline'] as const).map(cat => (
                 <TouchableOpacity
                   key={cat}
                   style={[
                     styles.catOptionBtn,
-                    category === cat && { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
+                    category === cat && styles.catOptionBtnActive,
                   ]}
                   onPress={() => setCategory(cat)}
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.catOptionText, category === cat && { color: Colors.accentBright, fontWeight: '700' }]}>
+                  <Text style={[styles.catOptionText, category === cat && styles.catOptionTextActive]}>
                     {cat.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
@@ -235,7 +236,7 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
-  emptyText: { color: Colors.textMuted, fontSize: 13 },
+  emptyText: { color: Colors.textMuted, fontSize: 13, fontWeight: '500' },
 
   topRow: {
     flexDirection: 'row',
@@ -243,26 +244,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   heading: {
     color: Colors.textPrimary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   sub: {
     color: Colors.textMuted,
     fontSize: 11,
-    marginTop: 1,
+    marginTop: 2,
   },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   addBtnText: {
     color: '#fff',
@@ -272,42 +277,47 @@ const styles = StyleSheet.create({
 
   eventCard: {
     flexDirection: 'row',
-    backgroundColor: Colors.card,
-    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     overflow: 'hidden',
     padding: 14,
     gap: 12,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   categoryStrip: {
     width: 4,
-    borderRadius: 2,
+    borderRadius: 4,
     marginVertical: -2,
   },
   eventTitle: {
     color: Colors.textPrimary,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
     flex: 1,
     marginRight: 8,
   },
   catBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1,
   },
   catBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
     textTransform: 'uppercase',
   },
   eventDate: {
     color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: 3,
   },
   eventLocation: {
     color: Colors.textMuted,
@@ -317,26 +327,32 @@ const styles = StyleSheet.create({
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 22,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   modalTitle: {
     color: Colors.textPrimary,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   inputLabel: {
     color: Colors.textSecondary,
@@ -345,9 +361,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   modalInput: {
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -355,28 +371,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   catOptionBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  catOptionBtnActive: {
+    borderColor: Colors.accent,
+    backgroundColor: '#f3e8ff',
   },
   catOptionText: {
     color: Colors.textMuted,
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  catOptionTextActive: {
+    color: '#7c3aed',
   },
   modalSubmitBtn: {
     backgroundColor: Colors.accent,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   modalSubmitText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
 });

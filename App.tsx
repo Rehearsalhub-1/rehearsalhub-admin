@@ -13,11 +13,11 @@ import { Colors } from './src/constants/Colors';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const NavTheme = {
-  dark: true,
+  dark: false,
   colors: {
     primary:      Colors.accent,
     background:   Colors.background,
-    card:         Colors.background,
+    card:         Colors.card,
     text:         Colors.textPrimary,
     border:       Colors.border,
     notification: Colors.accent,
@@ -57,7 +57,7 @@ function AuthGate() {
 
   return (
     <SafeAreaProvider style={{ flex: 1, backgroundColor: Colors.background }}>
-      <StatusBar style="light" backgroundColor={Colors.background} />
+      <StatusBar style="dark" backgroundColor={Colors.background} />
       <NavigationContainer theme={NavTheme}>
         <AppNavigator initialRoute={isAdmin ? 'MainTabs' : 'Login'} />
       </NavigationContainer>

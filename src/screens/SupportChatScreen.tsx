@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl, TextInput, KeyboardAvoidingView, Platform
+  ActivityIndicator, RefreshControl, TextInput, KeyboardAvoidingView, Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
@@ -43,8 +45,7 @@ export default function SupportChatScreen() {
 
   const fetchThreads = useCallback(async () => {
     try {
-      const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const res = await apiClient.get<{ success: boolean; data: SupportThread[] }>(`/support${zoneParam}`).catch(() => ({ data: [] }));
+      const res = await api.support.getThreads(activeZone?.id).catch(() => ({ data: [] }));
       const threadList = Array.isArray(res.data) ? res.data : [];
       setThreads(threadList);
     } catch (e) {
@@ -63,7 +64,7 @@ export default function SupportChatScreen() {
   async function openThread(thread: SupportThread) {
     setSelectedThread(thread);
     try {
-      const res = await apiClient.get<{ success: boolean; data: Message[] }>(`/support/${thread.id}/messages`).catch(() => ({ data: [] }));
+      const res = await api.support.getMessages(thread.id).catch(() => ({ data: [] }));
       setMessages(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.error('[SupportChat] messages error:', e);
@@ -79,7 +80,7 @@ export default function SupportChatScreen() {
         text: replyText.trim(),
         senderName: adminUser?.name || adminUser?.email?.split('@')[0] || 'Coordinator',
       };
-      await apiClient.post(`/support/${selectedThread.id}/messages`, payload);
+      await api.support.sendMessage(selectedThread.id, payload);
       setMessages(prev => [
         ...prev,
         {
@@ -230,43 +231,48 @@ const styles = StyleSheet.create({
   threadCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: '#ffffff',
     padding: 14,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     gap: 12,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   threadAvatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderRadius: 14,
+    backgroundColor: '#f5f3ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: Colors.accentBright,
+    color: '#7c3aed',
     fontSize: 15,
     fontWeight: '800',
   },
   threadName: {
-    color: Colors.textPrimary,
+    color: '#0f172a',
     fontSize: 14,
     fontWeight: '700',
   },
   threadTime: {
-    color: Colors.textMuted,
+    color: '#94a3b8',
     fontSize: 11,
   },
   threadSubject: {
-    color: Colors.textSecondary,
+    color: '#334155',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
   },
   threadSnippet: {
-    color: Colors.textMuted,
+    color: '#64748b',
     fontSize: 11,
     marginTop: 1,
   },
@@ -279,28 +285,28 @@ const styles = StyleSheet.create({
   },
   msgCoordinator: {
     alignSelf: 'flex-end',
-    backgroundColor: Colors.accent,
+    backgroundColor: '#7c3aed',
     borderBottomRightRadius: 2,
   },
   msgSender: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.surface,
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     borderBottomLeftRadius: 2,
   },
   msgSenderName: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#64748b',
     fontSize: 10,
     fontWeight: '700',
   },
   msgText: {
-    color: '#ffffff',
+    color: '#0f172a',
     fontSize: 13,
     lineHeight: 18,
   },
   msgTime: {
-    color: 'rgba(255,255,255,0.5)',
+    color: '#94a3b8',
     fontSize: 9,
     alignSelf: 'flex-end',
   },
@@ -309,27 +315,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: Colors.card,
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: '#e2e8f0',
     gap: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    color: Colors.textPrimary,
+    color: '#0f172a',
     fontSize: 13,
   },
   sendBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: Colors.accent,
+    backgroundColor: '#7c3aed',
     alignItems: 'center',
     justifyContent: 'center',
   },

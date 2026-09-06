@@ -220,11 +220,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0b0514" />
-
-      {/* Ambient background glows */}
-      <View style={styles.ambientGlowPurple} />
-      <View style={styles.ambientGlowPink} />
+      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -237,96 +233,16 @@ export default function LoginScreen({ navigation }: Props) {
         >
           {/* Header & Branding */}
           <View style={styles.header}>
-            <LinearGradient
-              colors={['#9333ea', '#c084fc']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoBadge}
-            >
-              <Ionicons name="shield-checkmark" size={34} color="#ffffff" />
-            </LinearGradient>
+            <View style={styles.logoBadge}>
+              <Ionicons name="musical-notes" size={30} color={Colors.accent} />
+            </View>
 
-            <Text style={styles.title}>RehearsalHub Studio</Text>
-            <Text style={styles.subtitle}>Coordinator & Leadership Portal</Text>
+            <Text style={styles.title}>LoveWorld Singers</Text>
+            <Text style={styles.subtitle}>Admin Console</Text>
           </View>
 
           {/* Sign In Card */}
           <View style={styles.card}>
-            {/* Identifier Input */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email or Username</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="person-outline" size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={identifier}
-                  onChangeText={setIdentifier}
-                  placeholder="Enter your email or username"
-                  placeholderTextColor={Colors.textMuted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
-
-            {/* Password Input */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={18} color="rgba(255,255,255,0.4)" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor={Colors.textMuted}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  style={styles.eyeBtn}
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={18}
-                    color="rgba(255,255,255,0.5)"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[styles.primaryButton, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={['#9333ea', '#a855f7']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <View style={styles.buttonInner}>
-                  <Text style={styles.buttonText}>Sign In to Studio</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginLeft: 8 }} />
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
             {/* 1-Tap KingsChat Button */}
             <TouchableOpacity
               style={[styles.kingschatButton, kingsChatLoading && styles.buttonDisabled]}
@@ -343,13 +259,81 @@ export default function LoginScreen({ navigation }: Props) {
                 </View>
               )}
             </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or sign in with email</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Identifier Input */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Email or Username</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={identifier}
+                  onChangeText={setIdentifier}
+                  placeholder="admin@loveworld.org"
+                  placeholderTextColor={Colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  placeholderTextColor={Colors.textMuted}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={Colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <View style={styles.buttonInner}>
+                  <Text style={styles.buttonText}>Sign In</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#fff" style={{ marginLeft: 8 }} />
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Security Notice */}
           <View style={styles.footerNotice}>
-            <Ionicons name="lock-closed" size={13} color="rgba(255,255,255,0.35)" style={{ marginRight: 6 }} />
+            <Ionicons name="lock-closed" size={13} color={Colors.textMuted} style={{ marginRight: 6 }} />
             <Text style={styles.footerText}>
-              Restricted to authorized church & zonal coordinators
+              Restricted to authorized choir coordinators & leadership
             </Text>
           </View>
         </ScrollView>
@@ -367,11 +351,11 @@ export default function LoginScreen({ navigation }: Props) {
             <View style={[styles.modalCard, { maxHeight: '80%' }]}>
               <View style={styles.modalHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="people-outline" size={18} color="#a855f7" />
+                  <Ionicons name="people-outline" size={18} color={Colors.accent} />
                   <Text style={styles.modalTitle}>Select Account</Text>
                 </View>
                 <TouchableOpacity onPress={() => setMultipleAccounts(null)} hitSlop={10}>
-                  <Ionicons name="close" size={20} color="#fff" />
+                  <Ionicons name="close" size={20} color={Colors.textPrimary} />
                 </TouchableOpacity>
               </View>
 
@@ -399,9 +383,9 @@ export default function LoginScreen({ navigation }: Props) {
                       disabled={accountSelectLoading}
                       onPress={() => handleSelectAccount(acc.email)}
                       style={{
-                        backgroundColor: 'rgba(255,255,255,0.06)',
+                        backgroundColor: '#ffffff',
                         borderWidth: 1,
-                        borderColor: 'rgba(168, 85, 247, 0.3)',
+                        borderColor: '#e2e8f0',
                         borderRadius: 14,
                         padding: 14,
                         marginBottom: 10,
@@ -412,26 +396,26 @@ export default function LoginScreen({ navigation }: Props) {
                     >
                       <View style={{ flex: 1, marginRight: 10 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{fullName}</Text>
-                          <View style={{ backgroundColor: 'rgba(168, 85, 247, 0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                            <Text style={{ color: '#c084fc', fontSize: 10, fontWeight: '700' }}>{roleBadge}</Text>
+                          <Text style={{ color: Colors.textPrimary, fontSize: 14, fontWeight: '700' }}>{fullName}</Text>
+                          <View style={{ backgroundColor: '#f3e8ff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                            <Text style={{ color: '#7c3aed', fontSize: 10, fontWeight: '700' }}>{roleBadge}</Text>
                           </View>
                         </View>
-                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{acc.email}</Text>
+                        <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{acc.email}</Text>
                         {acc.zoneCode ? (
-                          <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>
+                          <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }}>
                             Zone: {acc.zoneCode}
                           </Text>
                         ) : null}
                       </View>
-                      <Ionicons name="chevron-forward" size={18} color="#a855f7" />
+                      <Ionicons name="chevron-forward" size={18} color={Colors.accent} />
                     </TouchableOpacity>
                   );
                 })}
 
                 {accountSelectLoading && (
                   <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-                    <ActivityIndicator color="#a855f7" size="small" />
+                    <ActivityIndicator color={Colors.accent} size="small" />
                   </View>
                 )}
               </ScrollView>
@@ -446,25 +430,7 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0b0514',
-  },
-  ambientGlowPurple: {
-    position: 'absolute',
-    top: -100,
-    right: -100,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(147, 51, 234, 0.18)',
-  },
-  ambientGlowPink: {
-    position: 'absolute',
-    bottom: -80,
-    left: -80,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(236, 72, 153, 0.12)',
+    backgroundColor: '#f8fafc',
   },
   scrollContent: {
     flexGrow: 1,
@@ -474,73 +440,65 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   logoBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 22,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: '#f3e8ff',
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#9333ea',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 8,
+    marginBottom: 14,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 3,
   },
   title: {
-    color: '#ffffff',
+    color: Colors.textPrimary,
     fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    color: '#c084fc',
-    fontSize: 12,
+    color: Colors.textMuted,
+    fontSize: 11,
     marginTop: 4,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: '#161324',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
-    padding: 22,
+    padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(167, 139, 250, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
+    borderColor: '#e2e8f0',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
     shadowRadius: 20,
-    elevation: 6,
+    elevation: 4,
   },
   fieldGroup: {
-    marginBottom: 18,
+    marginBottom: 16,
   },
   label: {
-    color: 'rgba(255,255,255,0.75)',
+    color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
-    marginBottom: 8,
-  },
-  passwordLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  forgotText: {
-    color: '#c084fc',
-    fontSize: 11,
-    fontWeight: '700',
+    marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: '#e2e8f0',
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 48,
@@ -550,7 +508,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: '#ffffff',
+    color: Colors.textPrimary,
     fontSize: 14,
   },
   eyeBtn: {
@@ -559,15 +517,15 @@ const styles = StyleSheet.create({
   primaryButton: {
     height: 50,
     borderRadius: 14,
-    overflow: 'hidden',
+    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#9333ea',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -586,30 +544,31 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 14,
+    marginVertical: 18,
     gap: 10,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#e2e8f0',
   },
   dividerText: {
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textMuted,
     fontSize: 11,
     fontWeight: '700',
+    textTransform: 'uppercase',
   },
   kingschatButton: {
     height: 50,
     borderRadius: 14,
-    backgroundColor: '#0077FF',
+    backgroundColor: '#007AFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0077FF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   kingschatButtonText: {
     color: '#ffffff',
@@ -621,71 +580,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 28,
+    marginTop: 24,
   },
   footerText: {
-    color: 'rgba(255,255,255,0.4)',
+    color: Colors.textMuted,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#161324',
+    maxWidth: 380,
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(167, 139, 250, 0.25)',
+    borderColor: '#e2e8f0',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomColor: '#f1f5f9',
   },
   modalTitle: {
-    color: '#fff',
-    fontSize: 15,
+    color: Colors.textPrimary,
+    fontSize: 16,
     fontWeight: '800',
   },
   modalSub: {
-    color: 'rgba(255,255,255,0.55)',
+    color: Colors.textSecondary,
     fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 18,
     marginBottom: 14,
-  },
-  modalInput: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: '#fff',
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  modalBtn: {
-    backgroundColor: '#9333ea',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-  },
-  modalBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '800',
   },
 });

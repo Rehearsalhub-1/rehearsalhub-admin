@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
@@ -30,8 +31,7 @@ export default function ScheduleScreen() {
 
   const fetchPrograms = useCallback(async () => {
     try {
-      const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const result = await apiClient.get<{ success: boolean; data: ScheduleProgram[] }>(`/schedule${zoneParam}`);
+      const result = await api.schedule.getAll(activeZone?.id);
       setPrograms(Array.isArray(result.data) ? result.data : []);
     } catch (e) {
       console.error('[Schedule] fetch error:', e);
@@ -47,12 +47,11 @@ export default function ScheduleScreen() {
   }, [fetchPrograms]);
 
   const active = programs.filter((p) => !p.isArchived);
-  const archived = programs.filter((p) => p.isArchived);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Schedule" />
+        <ZoneHeader title="Schedule Manager" />
         <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
       </SafeAreaView>
     );
@@ -69,11 +68,11 @@ export default function ScheduleScreen() {
         activeOpacity={0.75}
       >
         <View style={styles.cardHeader}>
-          <View style={styles.cardIcon}>
+          <View style={[styles.cardIcon, { backgroundColor: item.isArchived ? '#f1f5f9' : '#f5f3ff' }]}>
             <Ionicons
               name={item.isArchived ? 'archive-outline' : 'calendar-outline'}
               size={20}
-              color={item.isArchived ? Colors.textMuted : Colors.accentBright}
+              color={item.isArchived ? '#94a3b8' : '#7c3aed'}
             />
           </View>
           <View style={styles.cardInfo}>
@@ -92,27 +91,34 @@ export default function ScheduleScreen() {
           <Ionicons
             name={isOpen ? 'chevron-up' : 'chevron-down'}
             size={16}
-            color={Colors.textMuted}
+            color="#94a3b8"
           />
         </View>
 
         {isOpen && (
           <View style={styles.detail}>
-            {newSongCount > 0 && (
+            {Array.isArray(item.days) && item.days.length > 0 && (
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>New Songs ({newSongCount})</Text>
-                {(item.newSongs || []).slice(0, 5).map((s: any, i: number) => (
-                  <Text key={i} style={styles.detailItem}>• {typeof s === 'string' ? s : s.title || s.id || 'Unknown'}</Text>
+                <Text style={styles.detailLabel}>Day Schedules ({item.days.length})</Text>
+                {item.days.slice(0, 3).map((d: any, idx: number) => (
+                  <Text key={idx} style={styles.detailItem} numberOfLines={1}>
+                    • {d.dayName || d.date || `Day ${idx + 1}`}: {d.notes || d.theme || 'Rehearsal Session'}
+                  </Text>
                 ))}
-                {newSongCount > 5 && (
-                  <Text style={styles.detailMore}>+{newSongCount - 5} more</Text>
+                {item.days.length > 3 && (
+                  <Text style={styles.detailMore}>+{item.days.length - 3} more days</Text>
                 )}
               </View>
             )}
-            {Array.isArray(item.days) && item.days.length > 0 && (
+
+            {Array.isArray(item.newSongs) && item.newSongs.length > 0 && (
               <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Days Scheduled</Text>
-                <Text style={styles.detailItem}>{item.days.map((d: any) => d.name || d).join(', ')}</Text>
+                <Text style={styles.detailLabel}>Assigned Songs ({item.newSongs.length})</Text>
+                {item.newSongs.slice(0, 3).map((s: any, idx: number) => (
+                  <Text key={idx} style={styles.detailItem} numberOfLines={1}>
+                    • {typeof s === 'string' ? s : s.title || s.name || `Song ${idx + 1}`}
+                  </Text>
+                ))}
               </View>
             )}
           </View>
@@ -123,23 +129,23 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Schedule" />
+      <ZoneHeader title="Schedule Manager" />
       <FlatList
-        data={[...active, ...archived]}
-        keyExtractor={(i) => i.id}
+        data={programs}
+        keyExtractor={(p) => p.id}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPrograms(); }} tintColor={Colors.accent} />
         }
         ListHeaderComponent={
           active.length > 0 ? (
-            <Text style={styles.sectionLabel}>Active ({active.length})</Text>
+            <Text style={styles.sectionLabel}>Active Rehearsal Schedules ({active.length})</Text>
           ) : null
         }
         renderItem={renderItem}
         ListEmptyComponent={
           <View style={styles.center}>
-            <Ionicons name="calendar-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 10 }} />
+            <Ionicons name="calendar-outline" size={36} color="#cbd5e1" style={{ marginBottom: 10 }} />
             <Text style={styles.emptyText}>No schedule programs found</Text>
           </View>
         }
@@ -149,16 +155,16 @@ export default function ScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: '#f8fafc' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
-  emptyText: { color: Colors.textMuted, fontSize: 14 },
+  emptyText: { color: '#94a3b8', fontSize: 14, fontWeight: '500' },
 
   sectionLabel: {
-    color: Colors.textMuted,
+    color: '#64748b',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     paddingHorizontal: 4,
     marginBottom: 8,
     marginTop: 4,
@@ -166,11 +172,16 @@ const styles = StyleSheet.create({
 
   list: { padding: 16, gap: 10, paddingBottom: 40 },
   card: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     overflow: 'hidden',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -181,38 +192,37 @@ const styles = StyleSheet.create({
   cardIcon: {
     width: 38,
     height: 38,
-    borderRadius: 10,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardInfo: { flex: 1 },
-  cardName: { color: Colors.textPrimary, fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  cardMeta: { color: Colors.textMuted, fontSize: 12 },
+  cardName: { color: '#0f172a', fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  cardMeta: { color: '#64748b', fontSize: 12 },
   archivedBadge: {
-    backgroundColor: Colors.textMuted + '22',
+    backgroundColor: '#f1f5f9',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  archivedText: { color: Colors.textMuted, fontSize: 11, fontWeight: '600' },
+  archivedText: { color: '#64748b', fontSize: 11, fontWeight: '700' },
 
   detail: {
     padding: 14,
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.border,
+    borderTopColor: '#f1f5f9',
     gap: 12,
   },
   detailSection: { gap: 4 },
   detailLabel: {
-    color: Colors.textMuted,
+    color: '#64748b',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
-  detailItem: { color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
-  detailMore: { color: Colors.textMuted, fontSize: 12, fontStyle: 'italic' },
+  detailItem: { color: '#334155', fontSize: 13, lineHeight: 18 },
+  detailMore: { color: '#94a3b8', fontSize: 12, fontStyle: 'italic' },
 });

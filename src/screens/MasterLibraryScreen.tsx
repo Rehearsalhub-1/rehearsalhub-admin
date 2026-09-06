@@ -1,13 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl, TextInput, Alert,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
 import { Colors } from '../constants/Colors';
 import ZoneSongFormModal, { ZoneSong } from './ZoneSongFormModal';
 import { useZoneContext } from '../context/ZoneContext';
+import { api } from '../services/api';
+import { GradientCard, Badge, SearchFilterBar, EmptyState } from '../components/ui';
 
 interface MasterSong {
   id: string;
@@ -20,16 +28,19 @@ interface MasterSong {
   publishedByName: string;
 }
 
+const TABS = [
+  { label: 'Master Repertoire', value: 'master' },
+  { label: 'Zonal Repertoire', value: 'zone' },
+];
+
 export default function MasterLibraryScreen({ navigation }: any) {
   const [songs, setSongs] = useState<MasterSong[]>([]);
-  const [filtered, setFiltered] = useState<MasterSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
 
   const { activeZone } = useZoneContext();
-  const TABS = ['master', 'zone'] as const;
-  const [activeTab, setActiveTab] = useState<typeof TABS[number]>('master');
+  const [activeTab, setActiveTab] = useState<'master' | 'zone'>('master');
   const [zoneSongs, setZoneSongs] = useState<ZoneSong[]>([]);
   const [zoneSongsLoading, setZoneSongsLoading] = useState(false);
   const [showZoneForm, setShowZoneForm] = useState(false);
@@ -37,195 +48,365 @@ export default function MasterLibraryScreen({ navigation }: any) {
 
   async function fetchSongs() {
     try {
-      const result = await apiClient.get<{ success: boolean; data: MasterSong[] }>('/songs/master');
+      const result = await api.songs.getMasterSongs();
       const data = Array.isArray(result.data) ? result.data : [];
       setSongs(data);
-      setFiltered(data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
+    } catch (e) {
+      console.error('[MasterLibrary] fetch error:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }
 
   async function fetchZoneSongs() {
     setZoneSongsLoading(true);
     try {
-      const result = await apiClient.get<{ success: boolean; data: ZoneSong[] }>('/songs/zone');
+      const result = await api.songs.getZoneSongs(activeZone?.id);
       setZoneSongs(Array.isArray(result.data) ? result.data : []);
-    } catch (e) { console.error(e); }
-    finally { setZoneSongsLoading(false); }
+    } catch (e) {
+      console.error('[ZoneSongs] fetch error:', e);
+    } finally {
+      setZoneSongsLoading(false);
+    }
   }
 
   useEffect(() => {
     if (activeTab === 'zone') fetchZoneSongs();
-  }, [activeTab]);
-
-  useEffect(() => { fetchSongs(); }, []);
+  }, [activeTab, activeZone?.id]);
 
   useEffect(() => {
-    const q = search.toLowerCase();
-    setFiltered(
-      q ? songs.filter(s =>
-        s.title?.toLowerCase().includes(q) ||
-        s.writer?.toLowerCase().includes(q) ||
-        s.category?.toLowerCase().includes(q)
-      ) : songs
-    );
-  }, [search, songs]);
+    fetchSongs();
+  }, []);
 
   async function handleDeleteZoneSong(song: ZoneSong) {
-    Alert.alert('Delete Zone Song', `Delete "${song.title}"?`, [
+    Alert.alert('Delete Zone Song', `Delete "${song.title}" from regional repertoire?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try {
-          await apiClient.delete(`/subgroups/songs/${song.id}`);
-          setZoneSongs(prev => prev.filter(s => s.id !== song.id));
-        } catch (e: any) { Alert.alert('Error', e.message || 'Failed to delete'); }
-      }},
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.songs.deleteSubgroupSong(song.id);
+            setZoneSongs(prev => prev.filter(s => s.id !== song.id));
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to delete song.');
+          }
+        },
+      },
     ]);
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>;
+  const filteredMaster = useMemo(() => {
+    if (!search.trim()) return songs;
+    const q = search.toLowerCase();
+    return songs.filter(
+      s =>
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.writer || '').toLowerCase().includes(q) ||
+        (s.category || '').toLowerCase().includes(q)
+    );
+  }, [search, songs]);
+
+  const filteredZone = useMemo(() => {
+    if (!search.trim()) return zoneSongs;
+    const q = search.toLowerCase();
+    return zoneSongs.filter(
+      s =>
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.key || '').toLowerCase().includes(q) ||
+        (s.category || '').toLowerCase().includes(q)
+    );
+  }, [search, zoneSongs]);
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Tab bar */}
-      <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
-        {TABS.map(tab => (
-          <TouchableOpacity key={tab} style={{ flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center', backgroundColor: activeTab === tab ? Colors.accent : Colors.surface, borderWidth: 1, borderColor: activeTab === tab ? Colors.accent : Colors.border }} onPress={() => setActiveTab(tab)} activeOpacity={0.75}>
-            <Text style={{ color: activeTab === tab ? '#fff' : Colors.textMuted, fontSize: 12, fontWeight: '700' }}>{tab === 'master' ? 'Master Songs' : 'Zone Songs'}</Text>
-          </TouchableOpacity>
-        ))}
+      {/* Top Controls */}
+      <View style={styles.topSection}>
+        <View style={styles.headerRow}>
+          <Text style={styles.screenHeading}>
+            {activeTab === 'master' ? 'All Ministered Songs' : 'Local Zone Repertoire'}
+          </Text>
+
+          {activeTab === 'zone' && (
+            <TouchableOpacity
+              style={styles.addZoneBtn}
+              onPress={() => {
+                setEditingZoneSong(null);
+                setShowZoneForm(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={16} color="#ffffff" style={{ marginRight: 4 }} />
+              <Text style={styles.addZoneText}>Add Song</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <SearchFilterBar
+          searchQuery={search}
+          onSearchChange={setSearch}
+          placeholder={`Search ${activeTab === 'master' ? songs.length : zoneSongs.length} songs...`}
+          filterOptions={[
+            { label: `Master (${songs.length})`, value: 'master' },
+            { label: `Zonal (${zoneSongs.length})`, value: 'zone' },
+          ]}
+          activeFilter={activeTab}
+          onFilterChange={(v: any) => setActiveTab(v)}
+        />
       </View>
 
+      {/* Content Feed */}
       {activeTab === 'master' ? (
-        <>
-          <View style={styles.searchWrap}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-            <TextInput
-              style={styles.search}
-              value={search}
-              onChangeText={setSearch}
-              placeholder={`Search ${songs.length} master songs...`}
-              placeholderTextColor={Colors.textMuted}
-              autoCapitalize="none"
+        <FlatList
+          data={filteredMaster}
+          keyExtractor={i => i.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchSongs();
+              }}
+              tintColor={Colors.accentBright}
+              colors={[Colors.accentBright]}
             />
-          </View>
-          <FlatList
-            data={filtered}
-            keyExtractor={i => i.id}
-            contentContainerStyle={styles.list}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchSongs(); }} tintColor={Colors.accent} />
-            }
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.card} activeOpacity={0.7}>
-                <View style={styles.row}>
-                  <Text style={styles.title} numberOfLines={1}>{item.title || 'Untitled'}</Text>
-                  {item.audioFile ? (
-                    <View style={styles.audioBadge}>
-                      <Ionicons name="musical-notes" size={12} color={Colors.accentBright} />
-                    </View>
-                  ) : null}
+          }
+          ListEmptyComponent={
+            loading ? (
+              <View style={styles.center}>
+                <ActivityIndicator color={Colors.accentBright} size="large" />
+              </View>
+            ) : (
+              <EmptyState
+                icon="musical-notes-outline"
+                title="No Songs Found"
+                description="Try a different search query."
+              />
+            )
+          }
+          renderItem={({ item }) => (
+            <GradientCard variant="surface" style={styles.songCard}>
+              <View style={styles.songRow}>
+                <View style={styles.songInfo}>
+                  <Text style={styles.songTitle} numberOfLines={1}>
+                    {item.title || 'Untitled Song'}
+                  </Text>
+                  <Text style={styles.songWriter} numberOfLines={1}>
+                    {item.writer ? `✍️ ${item.writer}` : 'Loveworld Singers Repertoire'}
+                  </Text>
+
+                  <View style={styles.tagsRow}>
+                    {item.key ? <Badge label={`Key: ${item.key}`} variant="key" size="sm" /> : null}
+                    {item.tempo ? <Badge label={`${item.tempo} BPM`} variant="tempo" size="sm" /> : null}
+                    {item.category ? (
+                      <View style={styles.catChip}>
+                        <Text style={styles.catChipText}>{item.category}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-                <Text style={styles.meta}>
-                  {item.writer || '—'}
-                  {item.key ? ` · ${item.key}` : ''}
-                  {item.tempo ? ` · ${item.tempo}` : ''}
-                </Text>
-                {item.category ? (
-                  <View style={styles.catBadge}>
-                    <Text style={styles.catBadgeText}>{item.category}</Text>
+
+                {item.audioFile ? (
+                  <View style={styles.audioBadge}>
+                    <Ionicons name="musical-notes" size={16} color={Colors.accentBright} />
                   </View>
                 ) : null}
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              <View style={styles.center}>
-                <Ionicons name="library-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 10 }} />
-                <Text style={styles.emptyText}>No songs found</Text>
               </View>
-            }
-          />
-        </>
-      ) : (
-        <>
-          {zoneSongsLoading ? (
-            <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
-          ) : (
-            <FlatList
-              data={zoneSongs}
-              keyExtractor={i => i.id}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingBottom: 100 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.card}
-                  activeOpacity={0.85}
-                  onLongPress={() => Alert.alert(item.title || 'Zone Song', 'Choose', [
-                    { text: 'Edit', onPress: () => { setEditingZoneSong(item); setShowZoneForm(true); } },
-                    { text: 'Delete', style: 'destructive', onPress: () => handleDeleteZoneSong(item) },
-                    { text: 'Cancel', style: 'cancel' },
-                  ])}
-                >
-                  <View style={styles.row}>
-                    <Text style={styles.title} numberOfLines={1}>{item.title || 'Untitled'}</Text>
-                  </View>
-                  <Text style={styles.meta}>{item.writer || '—'}{item.key ? ` · ${item.key}` : ''}</Text>
-                  {item.category ? <View style={styles.catBadge}><Text style={styles.catBadgeText}>{item.category}</Text></View> : null}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={<View style={styles.center}><Text style={{ color: Colors.textMuted }}>No zone songs yet</Text></View>}
-            />
+            </GradientCard>
           )}
-          {/* FAB for zone songs only */}
-          <TouchableOpacity
-            style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, width: 52, height: 52, borderRadius: 26, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.accent, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}
-            onPress={() => { setEditingZoneSong(null); setShowZoneForm(true); }}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
-        </>
+        />
+      ) : (
+        <FlatList
+          data={filteredZone}
+          keyExtractor={i => i.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={zoneSongsLoading}
+              onRefresh={fetchZoneSongs}
+              tintColor={Colors.accentBright}
+              colors={[Colors.accentBright]}
+            />
+          }
+          ListEmptyComponent={
+            zoneSongsLoading ? (
+              <View style={styles.center}>
+                <ActivityIndicator color={Colors.accentBright} size="large" />
+              </View>
+            ) : (
+              <EmptyState
+                icon="musical-notes-outline"
+                title="No Regional Zone Songs"
+                description="Songs customized specifically for your local zone will appear here."
+                actionLabel="Add Zonal Song"
+                onAction={() => {
+                  setEditingZoneSong(null);
+                  setShowZoneForm(true);
+                }}
+              />
+            )
+          }
+          renderItem={({ item }) => (
+            <GradientCard variant="surface" style={styles.songCard}>
+              <View style={styles.songRow}>
+                <View style={styles.songInfo}>
+                  <Text style={styles.songTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <View style={styles.tagsRow}>
+                    {item.key ? <Badge label={`Key: ${item.key}`} variant="key" size="sm" /> : null}
+                    {item.tempo ? <Badge label={`${item.tempo} BPM`} variant="tempo" size="sm" /> : null}
+                  </View>
+                </View>
+
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={styles.iconActionBtn}
+                    onPress={() => {
+                      setEditingZoneSong(item);
+                      setShowZoneForm(true);
+                    }}
+                  >
+                    <Ionicons name="pencil-outline" size={18} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.iconActionBtn}
+                    onPress={() => handleDeleteZoneSong(item)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#f87171" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </GradientCard>
+          )}
+        />
       )}
-      <ZoneSongFormModal
-        visible={showZoneForm}
-        editSong={editingZoneSong}
-        onClose={() => setShowZoneForm(false)}
-        onSaved={fetchZoneSongs}
-      />
+
+      {/* Zone Song Modal */}
+      {showZoneForm && (
+        <ZoneSongFormModal
+          visible={showZoneForm}
+          onClose={() => {
+            setShowZoneForm(false);
+            setEditingZoneSong(null);
+          }}
+          onSaved={() => {
+            setShowZoneForm(false);
+            setEditingZoneSong(null);
+            fetchZoneSongs();
+          }}
+          editSong={editingZoneSong}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60 },
-  searchWrap: {
+  safe: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  center: {
+    paddingVertical: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topSection: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    marginHorizontal: 16,
-    marginVertical: 12,
-    backgroundColor: Colors.inputBackground,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  screenHeading: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.3,
+  },
+  addZoneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  addZoneText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+    gap: 10,
+  },
+  songCard: {
+    borderRadius: 16,
+  },
+  songRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  songInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  songTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 3,
+  },
+  songWriter: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  catChip: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  catChipText: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  audioBadge: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    height: 42,
+    backgroundColor: '#faf5ff',
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  search: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 13,
+  iconActionBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
   },
-  list: { paddingHorizontal: 16, gap: 10, paddingBottom: 20 },
-  card: {
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.border,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  title: { color: Colors.textPrimary, fontSize: 14, fontWeight: '700', flex: 1, marginRight: 8 },
-  audioBadge: { backgroundColor: Colors.accentSubtle, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3 },
-  meta: { color: Colors.textMuted, fontSize: 12, marginBottom: 6 },
-  catBadge: { backgroundColor: Colors.surface, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' },
-  catBadgeText: { color: Colors.textSecondary, fontSize: 11, fontWeight: '600' },
-  emptyText: { color: Colors.textMuted, fontSize: 14 },
 });

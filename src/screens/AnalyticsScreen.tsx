@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  SafeAreaView, ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
@@ -41,7 +43,7 @@ export default function AnalyticsScreen() {
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const res = await apiClient.get<{ success: boolean; data: any[]; count?: number }>('/analytics/events?limit=100').catch(() => null);
+      const res = await api.analytics.getEvents(100).catch(() => null);
       if (res?.success !== false && Array.isArray(res?.data)) {
         setEvents(res.data);
         setEventsError(null);
@@ -166,7 +168,7 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
+  safe: { flex: 1, backgroundColor: '#f8fafc' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, gap: 14, paddingBottom: 40 },
 
@@ -176,35 +178,45 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: Colors.card,
-    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   kpiValue: {
-    color: Colors.textPrimary,
+    color: '#0f172a',
     fontSize: 18,
     fontWeight: '900',
     marginTop: 4,
   },
   kpiLabel: {
-    color: Colors.textMuted,
+    color: '#64748b',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
 
   card: {
-    backgroundColor: Colors.card,
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
     gap: 14,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -212,7 +224,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardTitle: {
-    color: Colors.textPrimary,
+    color: '#0f172a',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -233,23 +245,23 @@ const styles = StyleSheet.create({
   barTrack: {
     width: 14,
     height: 90,
-    backgroundColor: Colors.surface,
+    backgroundColor: '#f1f5f9',
     borderRadius: 7,
     justifyContent: 'flex-end',
     overflow: 'hidden',
   },
   barFill: {
-    backgroundColor: Colors.accent,
+    backgroundColor: '#7c3aed',
     borderRadius: 7,
     width: '100%',
   },
   barValue: {
-    color: Colors.textMuted,
+    color: '#94a3b8',
     fontSize: 10,
     fontWeight: '700',
   },
   barLabel: {
-    color: Colors.textSecondary,
+    color: '#475569',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -260,40 +272,42 @@ const styles = StyleSheet.create({
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: '#f8fafc',
     padding: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     gap: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   rankBadge: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    backgroundColor: '#f5f3ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   rankText: {
-    color: Colors.accentBright,
+    color: '#7c3aed',
     fontSize: 11,
     fontWeight: '800',
   },
   songTitle: {
-    color: Colors.textPrimary,
+    color: '#0f172a',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     flex: 1,
   },
   rehearsalCountBadge: {
-    backgroundColor: Colors.card,
+    backgroundColor: '#ffffff',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#e2e8f0',
   },
   rehearsalCountText: {
-    color: Colors.textMuted,
+    color: '#64748b',
     fontSize: 10,
     fontWeight: '700',
   },

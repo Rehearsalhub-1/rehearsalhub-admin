@@ -1,15 +1,23 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, ActivityIndicator, RefreshControl, TextInput, Linking, Alert,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Linking,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as SecureStore from 'expo-secure-store';
-import { apiClient } from '../lib/apiClient';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
+import { api } from '../services/api';
+import { GradientCard, Badge, SearchFilterBar, EmptyState } from '../components/ui';
 
 interface MediaItem {
   id: string;
@@ -19,9 +27,15 @@ interface MediaItem {
   size?: number;
   uploadedAt?: string;
   folder?: string;
+  views?: number;
 }
 
-const MEDIA_FILTERS = ['all', 'audio', 'document', 'video'] as const;
+const MEDIA_FILTERS = [
+  { label: 'All Files', value: 'all' },
+  { label: 'Audio Tracks', value: 'audio' },
+  { label: 'Videos', value: 'video' },
+  { label: 'Documents', value: 'document' },
+];
 
 export function inferMediaType(mimeType: string): 'audio' | 'video' | 'image' | 'document' {
   if (mimeType.startsWith('audio/')) return 'audio';
@@ -36,15 +50,13 @@ export default function MediaScreen() {
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<typeof MEDIA_FILTERS[number]>('all');
+  const [filter, setFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
-  const BASE_URL = (process.env.EXPO_PUBLIC_BACKEND_URL ?? '').replace(/\/+$/, '').replace(/\/api$/, '');
 
   const fetchMedia = useCallback(async () => {
     try {
-      const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const res = await apiClient.get<{ success: boolean; data: MediaItem[] }>(`/media${zoneParam}`).catch(() => ({ data: [] }));
+      const res = await api.media.getAll(activeZone?.id);
       setMediaList(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.error('[Media] fetch error:', e);
@@ -59,53 +71,73 @@ export default function MediaScreen() {
     fetchMedia();
   }, [fetchMedia]);
 
-  const filtered = mediaList.filter(item => {
-    const matchType = filter === 'all' || item.type === filter;
-    const q = search.toLowerCase();
-    const matchSearch = !q || item.name.toLowerCase().includes(q) || (item.folder && item.folder.toLowerCase().includes(q));
-    return matchType && matchSearch;
-  });
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchMedia();
+  };
+
+  const filtered = useMemo(() => {
+    return mediaList.filter(item => {
+      const matchType = filter === 'all' || item.type === filter;
+      const q = search.toLowerCase();
+      const matchSearch =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        (item.folder && item.folder.toLowerCase().includes(q));
+      return matchType && matchSearch;
+    });
+  }, [mediaList, filter, search]);
 
   function getMediaIcon(type: string): keyof typeof Ionicons.glyphMap {
     switch (type) {
-      case 'audio': return 'musical-notes-outline';
-      case 'document': return 'document-text-outline';
-      case 'video': return 'videocam-outline';
-      default: return 'folder-outline';
+      case 'audio':
+        return 'musical-notes-outline';
+      case 'document':
+        return 'document-text-outline';
+      case 'video':
+        return 'videocam-outline';
+      case 'image':
+        return 'image-outline';
+      default:
+        return 'folder-outline';
     }
   }
 
   const openMedia = async (item: MediaItem) => {
     if (!item.url) return;
-    await Linking.openURL(item.url).catch(() => {});
+    await Linking.openURL(item.url).catch(() => {
+      Alert.alert('Error', 'Unable to open file URL.');
+    });
   };
 
   async function handleUpload() {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
       if (result.canceled) return;
       const file = result.assets[0];
       setUploading(true);
 
-      const formData = new FormData();
-      formData.append('file', { uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream' } as any);
+      const uploadData = await api.media.upload(
+        {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType ?? 'application/octet-stream',
+        },
+        'rehearsals'
+      );
 
-      const token = await SecureStore.getItemAsync('jwt');
-      const uploadRes = await fetch(`${BASE_URL}/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token ?? ''}` },
-        body: formData,
-      });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData?.error ?? 'Upload failed');
-
-      const fileUrl = uploadData.url ?? uploadData.data?.url ?? '';
-      await apiClient.post('/media', {
+      const fileUrl = uploadData.data?.url || (uploadData as any).url || '';
+      await api.media.create({
         name: file.name,
         url: fileUrl,
         type: inferMediaType(file.mimeType ?? ''),
         zoneId: activeZone?.id,
       });
+
+      Alert.alert('Uploaded', `"${file.name}" uploaded to Cloudflare R2.`);
       fetchMedia();
     } catch (e: any) {
       Alert.alert('Upload Failed', e.message || 'Could not upload file.');
@@ -114,185 +146,200 @@ export default function MediaScreen() {
     }
   }
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Media Assets" />
-        <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Media Assets" />
+      <ZoneHeader title="Cloudflare R2 Media" />
 
-      {/* Filter Tabs */}
-      <View style={styles.filterRow}>
-        {MEDIA_FILTERS.map(f => (
+      {/* Top Header Controls */}
+      <View style={styles.topSection}>
+        <View style={styles.headingRow}>
+          <View>
+            <Text style={styles.screenHeading}>Media Assets Library</Text>
+            <Text style={styles.screenSub}>Rehearsal audio stems, practice videos & lead sheets</Text>
+          </View>
+
           <TouchableOpacity
-            key={f}
-            style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
-            onPress={() => setFilter(f)}
-            activeOpacity={0.75}
+            style={styles.uploadBtn}
+            onPress={handleUpload}
+            disabled={uploading}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
+            {uploading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                <Text style={styles.uploadBtnText}>Upload File</Text>
+              </>
+            )}
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchWrap}>
-        <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search media files, guide tracks, score PDFs..."
-          placeholderTextColor={Colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-          autoCapitalize="none"
+        <SearchFilterBar
+          searchQuery={search}
+          onSearchChange={setSearch}
+          placeholder="Search files by name or folder..."
+          filterOptions={MEDIA_FILTERS}
+          activeFilter={filter}
+          onFilterChange={setFilter}
         />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
-          </TouchableOpacity>
-        )}
       </View>
 
+      {/* Media Files List */}
       <FlatList
         data={filtered}
         keyExtractor={i => i.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, gap: 10 }}
+        contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchMedia(); }} tintColor={Colors.accent} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.accentBright}
+            colors={[Colors.accentBright]}
+          />
         }
         ListEmptyComponent={
-          <View style={styles.center}>
-            <Ionicons name="cloud-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 8 }} />
-            <Text style={styles.emptyText}>No media files in this section</Text>
-          </View>
+          loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color={Colors.accentBright} size="large" />
+            </View>
+          ) : (
+            <EmptyState
+              icon="cloud-upload-outline"
+              title={search ? 'No Matching Files' : 'No Media Assets'}
+              description={
+                search
+                  ? 'Try a different search keyword.'
+                  : 'Upload audio stems, rehearsal scores, or choir practice recordings directly to Cloudflare R2.'
+              }
+              actionLabel="Upload Media File"
+              onAction={handleUpload}
+            />
+          )
         }
         renderItem={({ item }) => (
-          <View style={styles.mediaCard}>
-            <View style={styles.iconWrap}>
-              <Ionicons name={getMediaIcon(item.type)} size={20} color={Colors.accentBright} />
+          <GradientCard variant="surface" style={styles.mediaCard} onPress={() => openMedia(item)}>
+            <View style={styles.mediaRow}>
+              <View style={styles.iconBox}>
+                <Ionicons name={getMediaIcon(item.type)} size={20} color={Colors.accent} />
+              </View>
+
+              <View style={styles.mediaDetails}>
+                <Text style={styles.mediaName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <View style={styles.metaRow}>
+                  <Badge label={item.type.toUpperCase()} variant="key" size="sm" />
+                  {item.folder ? <Text style={styles.folderText}>📁 {item.folder}</Text> : null}
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.openBtn} onPress={() => openMedia(item)}>
+                <Ionicons name="open-outline" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.mediaName} numberOfLines={1}>{item.name}</Text>
-              <Text style={styles.mediaMeta}>
-                {item.folder ? `${item.folder} · ` : ''}
-                {item.type.toUpperCase()}
-                {item.uploadedAt ? ` · ${new Date(item.uploadedAt).toLocaleDateString()}` : ''}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.playBtn} activeOpacity={0.75} onPress={() => openMedia(item)}>
-              <Ionicons name={item.type === 'audio' ? 'play' : 'open-outline'} size={14} color={Colors.accentBright} />
-            </TouchableOpacity>
-          </View>
+          </GradientCard>
         )}
       />
-      <TouchableOpacity
-        style={{ position: 'absolute', bottom: 28, right: 20, zIndex: 100, width: 52, height: 52, borderRadius: 26, backgroundColor: uploading ? Colors.textMuted : Colors.accent, alignItems: 'center', justifyContent: 'center', shadowColor: Colors.accent, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}
-        onPress={handleUpload}
-        disabled={uploading}
-        activeOpacity={0.85}
-      >
-        {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="cloud-upload-outline" size={24} color="#fff" />}
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
-  emptyText: { color: Colors.textMuted, fontSize: 13 },
-
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  filterBtn: {
+  safe: {
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 7,
-    borderRadius: 10,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    backgroundColor: Colors.background,
   },
-  filterBtnActive: {
-    backgroundColor: Colors.accent,
-    borderColor: Colors.accent,
-  },
-  filterText: {
-    color: Colors.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  filterTextActive: {
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 10,
-    backgroundColor: Colors.inputBackground,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 42,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 13,
-  },
-
-  mediaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    gap: 12,
-  },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+  center: {
+    paddingVertical: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mediaName: {
-    color: Colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
+  topSection: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
-  mediaMeta: {
-    color: Colors.textMuted,
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  screenHeading: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    letterSpacing: -0.3,
+  },
+  screenSub: {
     fontSize: 11,
+    color: Colors.textMuted,
     marginTop: 2,
   },
-  playBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  uploadBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+    gap: 10,
+  },
+  mediaCard: {
+    borderRadius: 16,
+  },
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#f3e8ff',
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  mediaDetails: {
+    flex: 1,
+  },
+  mediaName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  folderText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  openBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },

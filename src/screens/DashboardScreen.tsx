@@ -1,416 +1,767 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, SafeAreaView, ActivityIndicator, RefreshControl, Dimensions,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  TextInput,
+  Share,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import ZoneHeader from '../components/ZoneHeader';
-import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
+import { StatTile, Badge } from '../components/ui';
 
-interface Stats {
+interface DashboardStats {
   totalSongs: number;
   pendingSongs: number;
   totalMembers: number;
   activePrograms: number;
 }
 
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  color: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  loading?: boolean;
-}
-
-interface MenuItemProps {
-  label: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  badge?: number;
-  color?: string;
-}
-
-function StatCard({ label, value, color, iconName, loading }: StatCardProps) {
-  return (
-    <View style={[styles.statCard, { borderLeftColor: color }]}>
-      <View style={styles.statTop}>
-        <View style={[styles.statIconContainer, { backgroundColor: `${color}18` }]}>
-          <Ionicons name={iconName} size={18} color={color} />
-        </View>
-        {loading
-          ? <ActivityIndicator size="small" color={color} />
-          : <Text style={[styles.statValue, { color }]}>{value}</Text>
-        }
-      </View>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function MenuItem({ label, iconName, onPress, badge, color = Colors.accentBright }: MenuItemProps) {
-  return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.menuItemLeft}>
-        <View style={[styles.menuIcon, { backgroundColor: `${color}20` }]}>
-          <Ionicons name={iconName} size={20} color={color} />
-        </View>
-        <Text style={styles.menuItemLabel}>{label}</Text>
-      </View>
-      <View style={styles.menuItemRight}>
-        {badge != null && badge > 0 && (
-          <View style={[styles.badge, { backgroundColor: color }]}>
-            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
-          </View>
-        )}
-        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-interface QuickActionProps {
-  label: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  badge?: number;
-}
-
-function QuickAction({ label, iconName, onPress, badge }: QuickActionProps) {
-  return (
-    <TouchableOpacity style={styles.quickAction} onPress={onPress} activeOpacity={0.75}>
-      <View style={{ position: 'relative', alignSelf: 'center' }}>
-        <View style={styles.quickActionIconWrapper}>
-          <Ionicons name={iconName} size={22} color={Colors.accentBright} />
-        </View>
-        {badge != null && badge > 0 && (
-          <View style={styles.quickBadge}>
-            <Text style={styles.quickBadgeText}>{badge > 99 ? '99+' : badge}</Text>
-          </View>
-        )}
-      </View>
-      <Text style={styles.quickActionLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 export default function DashboardScreen({ navigation }: any) {
   const { adminUser } = useAuth();
   const { activeZone, isAllZones } = useZoneContext();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loadingStats, setLoadingStats] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchStats = useCallback(async () => {
+  const [stats, setStats] = useState<DashboardStats>({
+    totalSongs: 0,
+    pendingSongs: 0,
+    totalMembers: 0,
+    activePrograms: 0,
+  });
+
+  const [recentPrograms, setRecentPrograms] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const loadDashboardData = useCallback(async () => {
     try {
-      const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const [zoneSongsRes, membersRes, programsRes] = await Promise.all([
-        apiClient.get<any>(`/songs/zone${zoneParam}`).catch(() => null),
-        apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => null),
-        apiClient.get<any>(`/programs${zoneParam}`).catch(() => null),
+      const [statsRes, progRes, memRes] = await Promise.all([
+        api.dashboard.getStats(activeZone?.id).catch(() => ({
+          totalSongs: 0,
+          pendingSongs: 0,
+          totalMembers: 0,
+          activePrograms: 0,
+        })),
+        api.programs.getAll(activeZone?.id).catch(() => ({ data: [] })),
+        api.members.getDirectory(activeZone?.id).catch(() => ({ data: [] })),
       ]);
 
-      const submittedRes = await apiClient.get<any>(`/submitted-songs${zoneParam}`).catch(() => null);
-      const submitted: any[] = Array.isArray(submittedRes?.data) ? submittedRes.data : [];
-      const members: any[] = Array.isArray(membersRes?.data) ? membersRes.data : [];
-      const programs: any[] = Array.isArray(programsRes?.data) ? programsRes.data : [];
-
       setStats({
-        totalSongs: (Array.isArray(zoneSongsRes?.data) ? zoneSongsRes.data : []).length,
-        pendingSongs: submitted.filter((s: any) => s.status === 'pending').length,
-        totalMembers: members.length,
-        activePrograms: programs.filter((p: any) => (p.status || p.category) === 'ongoing').length,
+        totalSongs: statsRes.totalSongs || 0,
+        pendingSongs: statsRes.pendingSongs || 0,
+        totalMembers: statsRes.totalMembers || (Array.isArray(memRes?.data) ? memRes.data.length : 0),
+        activePrograms: statsRes.activePrograms || (Array.isArray(progRes?.data) ? progRes.data.length : 0),
       });
+
+      const progList = Array.isArray(progRes?.data) ? progRes.data : [];
+      setRecentPrograms(progList.slice(0, 5));
+
+      const memList = Array.isArray(memRes?.data) ? memRes.data : [];
+      setMembers(memList);
     } catch (e) {
-      console.error('[Dashboard] stats error:', e);
+      console.error('[Dashboard] Error loading data:', e);
     } finally {
-      setLoadingStats(false);
+      setLoading(false);
       setRefreshing(false);
     }
   }, [activeZone?.id]);
 
   useEffect(() => {
-    setLoadingStats(true);
-    fetchStats();
-  }, [fetchStats]);
+    setLoading(true);
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchStats();
+    loadDashboardData();
   };
 
-  const greeting = (() => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    return 'Good evening';
-  })();
+  const inviteCode = activeZone?.invitationCode || '';
+  const inviteLink = inviteCode ? `https://singers.loveworld.org/pages/join-zone?code=${inviteCode}` : '';
 
-  const roleTitle = adminUser?.isHQAdmin
-    ? 'HQ Admin'
-    : (adminUser?.role || '').toLowerCase().includes('church') || (adminUser?.role || '').toLowerCase().includes('subgroup')
-    ? 'Church Coordinator'
-    : 'Zonal Coordinator';
+  const handleShareInvite = async () => {
+    if (!inviteLink) return;
+    try {
+      await Share.share({
+        title: 'Join Choir Rehearsal Hub',
+        message: `Join our choir on Loveworld Singers Rehearsal Hub: ${inviteLink}`,
+      });
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
-  const hasHighDemand = (stats?.pendingSongs || 0) > 0;
+  // Filter members by search input
+  const filteredMembers = useMemo(() => {
+    if (!memberSearch.trim()) return members.slice(0, 6);
+    const q = memberSearch.toLowerCase();
+    return members.filter((m: any) => {
+      const name = `${m.first_name || m.firstName || ''} ${m.last_name || m.lastName || ''}`.toLowerCase();
+      const email = String(m.email || '').toLowerCase();
+      const des = String(m.designation || m.role || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || des.includes(q);
+    }).slice(0, 6);
+  }, [members, memberSearch]);
+
+  const liveMetricsLabel = isAllZones
+    ? 'Aggregated Global HQ Metrics'
+    : `${activeZone?.name || 'Zonal Hub'} Live Metrics`;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Dashboard" />
+      <ZoneHeader title="Admin Console" showBack={false} />
       <ScrollView
         style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} colors={[Colors.accent]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.accent}
+            colors={[Colors.accent]}
+          />
         }
       >
-        {/* Welcome banner */}
-        <View style={styles.banner}>
-          <View style={styles.bannerLeft}>
-            <Text style={styles.greeting}>{greeting},</Text>
-            <Text style={styles.adminName}>{adminUser?.name || adminUser?.email?.split('@')[0] || 'Coordinator'}</Text>
-            <View style={styles.rolePill}>
-              <Ionicons
-                name={adminUser?.isHQAdmin ? 'shield-checkmark' : 'location'}
-                size={12}
-                color={Colors.accentBright}
-                style={{ marginRight: 4 }}
-              />
-              <Text style={styles.rolePillText}>{roleTitle}</Text>
-            </View>
-          </View>
-          <View style={styles.zoneIndicator}>
-            <Text style={styles.zoneIndicatorLabel}>Viewing</Text>
-            <Text style={styles.zoneIndicatorValue} numberOfLines={1}>
-              {isAllZones ? 'All Zones' : activeZone?.name ?? '—'}
+        {/* 1. Sleek Action Toolbar matching Web Admin */}
+        <View style={styles.toolbar}>
+          <View style={styles.liveIndicator}>
+            <View style={styles.pulseDot} />
+            <Text style={styles.liveMetricsText} numberOfLines={1}>
+              {liveMetricsLabel}
             </Text>
           </View>
-        </View>
 
-        {/* Stats grid */}
-        <Text style={styles.sectionTitle}>Overview</Text>
-        <View style={styles.statsGrid}>
-          <StatCard label="Total Songs" value={stats?.totalSongs ?? 0} color={Colors.accent} iconName="musical-notes" loading={loadingStats} />
-          <StatCard label="Pending" value={stats?.pendingSongs ?? 0} color={Colors.warning} iconName="document-text" loading={loadingStats} />
-          <StatCard label="Members" value={stats?.totalMembers ?? 0} color={Colors.success} iconName="people" loading={loadingStats} />
-          <StatCard label="Programs" value={stats?.activePrograms ?? 0} color={Colors.info} iconName="mic" loading={loadingStats} />
-        </View>
+          <View style={styles.toolbarActions}>
+            <TouchableOpacity
+              style={styles.toolBtn}
+              onPress={loadDashboardData}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="refresh"
+                size={14}
+                color="#64748b"
+                style={loading ? styles.spinning : undefined}
+              />
+              <Text style={styles.toolBtnText}>Sync</Text>
+            </TouchableOpacity>
 
-        {/* Content Management */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="document-text" size={16} color={Colors.accent} />
-            <Text style={styles.sectionTitle}>Content</Text>
+            {inviteLink ? (
+              <TouchableOpacity
+                style={[styles.toolBtn, styles.inviteBtn]}
+                onPress={handleShareInvite}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={copiedLink ? 'checkmark' : 'share-social-outline'}
+                  size={14}
+                  color="#7c3aed"
+                />
+                <Text style={styles.inviteBtnText}>{copiedLink ? 'Sent' : 'Join Link'}</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              style={styles.primaryActionBtn}
+              onPress={() => navigation.navigate('PraiseNight')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={16} color="#ffffff" />
+              <Text style={styles.primaryActionBtnText}>Program</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.menu}>
-            <MenuItem
-              label="Submissions"
-              iconName="document-text-outline"
-              badge={stats?.pendingSongs}
-              color={Colors.warning}
-              onPress={() => navigation.navigate('Songs')}
+        </View>
+
+        {/* 2. Admin 4 KPI Cards Grid (Matching Web Admin Portal) */}
+        <View style={styles.kpiGrid}>
+          <View style={styles.kpiRow}>
+            <StatTile
+              label="Zone Members"
+              value={stats.totalMembers}
+              icon="people"
+              color="#4f46e5"
+              badgeLabel="DIRECTORY"
+              subtitle="Registered singers"
+              loading={loading}
+              onPress={() => navigation.navigate('Members')}
             />
-            <MenuItem
-              label="All Ministered"
-              iconName="library-outline"
-              onPress={() => navigation.navigate('MasterLibrary')}
-            />
-          </View>
-        </View>
-
-        {/* Events & Programs */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="musical-notes" size={16} color={Colors.accent} />
-            <Text style={styles.sectionTitle}>Events</Text>
-          </View>
-          <View style={styles.menu}>
-            <MenuItem
+            <StatTile
               label="Programs"
-              iconName="musical-notes-outline"
+              value={stats.activePrograms}
+              icon="calendar"
+              color="#7c3aed"
+              badgeLabel="PROGRAMS"
+              subtitle="Active & archived"
+              loading={loading}
               onPress={() => navigation.navigate('PraiseNight')}
             />
-            <MenuItem
-              label="Calendar"
-              iconName="calendar-outline"
-              onPress={() => navigation.navigate('Calendar')}
+          </View>
+
+          <View style={styles.kpiRow}>
+            <StatTile
+              label="Ministered Songs"
+              value={stats.totalSongs}
+              icon="musical-notes"
+              color="#d97706"
+              badgeLabel="SONGS"
+              subtitle="Catalog repertoire"
+              loading={loading}
+              onPress={() => navigation.navigate('MasterLibrary')}
             />
-            <MenuItem
-              label="Schedule"
-              iconName="time-outline"
-              onPress={() => navigation.navigate('Schedule')}
+            <StatTile
+              label="Submissions"
+              value={stats.pendingSongs}
+              icon="sparkles"
+              color="#e11d48"
+              badgeLabel={stats.pendingSongs > 0 ? 'ACTION' : 'UP TO DATE'}
+              subtitle="Awaiting review"
+              loading={loading}
+              onPress={() => navigation.navigate('Songs')}
             />
           </View>
         </View>
 
-        {/* Admin Tools */}
-        <View style={styles.section}>
+        {/* 3. Quick Admin Actions Launchpad (Matching Web Admin Launchpad) */}
+        <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="settings" size={16} color={Colors.accent} />
-            <Text style={styles.sectionTitle}>Management</Text>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="flash-outline" size={16} color="#7c3aed" style={{ marginRight: 6 }} />
+              <Text style={styles.sectionTitle}>Quick Admin Actions</Text>
+            </View>
+            <Text style={styles.sectionSubtitle}>Frequent workflows</Text>
           </View>
-          <View style={styles.menu}>
-            <MenuItem
-              label="Churches"
-              iconName="business-outline"
-              onPress={() => navigation.navigate('Churches')}
-            />
-            <MenuItem
-              label="Analytics"
-              iconName="bar-chart-outline"
+
+          <View style={styles.launchpadGrid}>
+            <TouchableOpacity
+              style={styles.launchpadItem}
+              onPress={() => navigation.navigate('PraiseNight')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.launchpadIconBox, { backgroundColor: '#f5f3ff' }]}>
+                <Ionicons name="calendar-outline" size={20} color="#7c3aed" />
+              </View>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Programs</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>Manage sets</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.launchpadItem}
+              onPress={() => navigation.navigate('Songs')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.launchpadIconBox, { backgroundColor: '#fff1f2' }]}>
+                <Ionicons name="cloud-upload-outline" size={20} color="#e11d48" />
+              </View>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Submissions</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>{stats.pendingSongs} pending</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.launchpadItem}
+              onPress={() => navigation.navigate('MasterLibrary')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.launchpadIconBox, { backgroundColor: '#fffbeb' }]}>
+                <Ionicons name="musical-notes-outline" size={20} color="#d97706" />
+              </View>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Ministered</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>Song catalog</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.launchpadItem}
+              onPress={() => navigation.navigate('Members')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.launchpadIconBox, { backgroundColor: '#eef2ff' }]}>
+                <Ionicons name="people-outline" size={20} color="#4f46e5" />
+              </View>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Singers</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>View roster</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.launchpadItem}
               onPress={() => navigation.navigate('Analytics')}
-            />
-            <MenuItem
-              label="Activity Logs"
-              iconName="history"
-              onPress={() => navigation.navigate('ActivityLogs')}
-            />
-            <MenuItem
-              label="Support Chat"
-              iconName="chatbubbles-outline"
-              onPress={() => navigation.navigate('SupportChat')}
-            />
-            <MenuItem
-              label="Broadcast"
-              iconName="notifications-outline"
-              onPress={() => navigation.navigate('Notifications')}
-            />
+              activeOpacity={0.75}
+            >
+              <View style={[styles.launchpadIconBox, { backgroundColor: '#ecfdf5' }]}>
+                <Ionicons name="bar-chart-outline" size={20} color="#059669" />
+              </View>
+              <Text style={styles.launchpadLabel} numberOfLines={1}>Analytics</Text>
+              <Text style={styles.launchpadSub} numberOfLines={1}>Insights</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={{ height: 40 }} />
+        {/* 4. Recent Programs Section (Matching Web Admin Layout) */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Recent Programs</Text>
+              <Text style={styles.sectionSubtitle}>Most recent rehearsal setlists</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.viewAllBtn}
+              onPress={() => navigation.navigate('PraiseNight')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <Ionicons name="arrow-forward" size={12} color="#7c3aed" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          </View>
+
+          {recentPrograms.length > 0 ? (
+            <View style={styles.listContainer}>
+              {recentPrograms.map((prog, idx) => {
+                const isActive = Boolean(prog.is_active || prog.isActive || prog.status === 'ongoing');
+                const initial = (prog.name || 'P').charAt(0).toUpperCase();
+                const dateStr = prog.date || 'Scheduled';
+
+                return (
+                  <TouchableOpacity
+                    key={prog.id || idx}
+                    style={styles.programRow}
+                    onPress={() => navigation.navigate('ProgramSongs', { program: prog })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.programInitialBox}>
+                      <Text style={styles.programInitialText}>{initial}</Text>
+                    </View>
+
+                    <View style={styles.programDetails}>
+                      <Text style={styles.programName} numberOfLines={1}>
+                        {prog.name || 'Rehearsal Program'}
+                      </Text>
+                      <View style={styles.programMetaRow}>
+                        <Ionicons name="time-outline" size={12} color="#94a3b8" style={{ marginRight: 4 }} />
+                        <Text style={styles.programMetaText}>{dateStr}</Text>
+                        {prog.category ? (
+                          <Text style={styles.programCategoryText}>• {prog.category}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+
+                    <View style={styles.programStatusBadge}>
+                      <Badge
+                        label={isActive ? 'Active' : 'Archived'}
+                        variant={isActive ? 'ongoing' : 'draft'}
+                        size="sm"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.emptyCard}>
+              <Ionicons name="calendar-outline" size={32} color="#cbd5e1" />
+              <Text style={styles.emptyTitle}>No programs found</Text>
+              <Text style={styles.emptySubtitle}>
+                Create a rehearsal program to sync with mobile apps
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyActionBtn}
+                onPress={() => navigation.navigate('PraiseNight')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.emptyActionBtnText}>Create Program</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {/* 5. Members Quick Directory Preview (Matching Web Admin Layout) */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Members</Text>
+              <Text style={styles.sectionSubtitle}>{members.length} total registered</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.viewAllBtn}
+              onPress={() => navigation.navigate('Members')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewAllText}>All</Text>
+              <Ionicons name="arrow-forward" size={12} color="#7c3aed" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Search */}
+          <View style={styles.memberSearchBox}>
+            <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.memberSearchInput}
+              placeholder="Search singers..."
+              placeholderTextColor="#94a3b8"
+              value={memberSearch}
+              onChangeText={setMemberSearch}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.listContainer}>
+            {filteredMembers.map((m, idx) => {
+              const name = `${m.first_name || m.firstName || ''} ${m.last_name || m.lastName || ''}`.trim() || m.display_name || 'Member';
+              const roleDisplay = m.designation || m.role || 'Singer';
+              const isHqRole = m.administration === 'hq_admin' || m.role === 'hq_admin';
+              const initial = name.charAt(0).toUpperCase();
+
+              return (
+                <View key={m.id || idx} style={styles.memberRow}>
+                  <View style={styles.memberAvatar}>
+                    <Text style={styles.memberAvatarText}>{initial}</Text>
+                  </View>
+
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberName} numberOfLines={1}>{name}</Text>
+                    <Text style={styles.memberRole} numberOfLines={1}>{roleDisplay}</Text>
+                  </View>
+
+                  <Badge
+                    label={isHqRole ? 'HQ Admin' : 'Active'}
+                    variant={isHqRole ? 'alto' : 'ongoing'}
+                    size="sm"
+                  />
+                </View>
+              );
+            })}
+
+            {filteredMembers.length === 0 && (
+              <View style={styles.emptyCard}>
+                <Ionicons name="people-outline" size={28} color="#cbd5e1" />
+                <Text style={styles.emptySubtitle}>No singers match your search</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flex: 1 },
-
-  banner: {
+  safe: {
+    flex: 1,
+    backgroundColor: '#f8fafc', // slate-50
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  toolbar: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
+    marginBottom: 16,
+    paddingVertical: 2,
   },
-  bannerLeft: { flex: 1 },
-  greeting: { color: Colors.textMuted, fontSize: 13 },
-  adminName: { color: Colors.textPrimary, fontSize: 24, fontWeight: '700', marginTop: 2, marginBottom: 8 },
-  rolePill: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.accentSubtle,
-    borderRadius: 20,
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10b981', // emerald-500
+    marginRight: 6,
+  },
+  liveMetricsText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569', // slate-600
+  },
+  toolbarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  toolBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: Colors.accentDim,
+    borderColor: '#e2e8f0',
+    gap: 4,
   },
-  rolePillText: { color: Colors.accentBright, fontSize: 12, fontWeight: '600' },
-  zoneIndicator: {
-    alignItems: 'flex-end',
-    maxWidth: 120,
-  },
-  zoneIndicatorLabel: { color: Colors.textMuted, fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  zoneIndicatorValue: { color: Colors.textPrimary, fontSize: 13, fontWeight: '700', marginTop: 2, textAlign: 'right' },
-
-  sectionTitle: {
-    color: Colors.textMuted,
+  toolBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-    marginTop: 4,
-    paddingHorizontal: 20,
+    color: '#475569',
   },
-
-  statsGrid: {
+  inviteBtn: {
+    borderColor: '#ddd6fe',
+    backgroundColor: '#faf5ff',
+  },
+  inviteBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  primaryActionBtn: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 28,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#7c3aed',
+    gap: 3,
   },
-  statCard: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 16,
-    borderLeftWidth: 3,
+  primaryActionBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  kpiGrid: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  kpiRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  sectionContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  statTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  statIconContainer: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: 26, fontWeight: '800' },
-  statLabel: { color: Colors.textMuted, fontSize: 12 },
-
-  // New organized menu styles
-  section: {
-    marginBottom: 24,
-    paddingHorizontal: 16,
+    borderColor: '#e2e8f0',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  menu: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginBottom: 14,
   },
-  menuItemLeft: {
+  sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    gap: 12,
   },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuItemLabel: {
-    color: Colors.textPrimary,
+  sectionTitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: -0.2,
   },
-  menuItemRight: {
+  sectionSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  viewAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#f5f3ff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
-  badge: {
-    backgroundColor: Colors.warning,
-    borderRadius: 8,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  badgeText: {
-    color: '#000',
+  viewAllText: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#7c3aed',
+  },
+  launchpadGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  launchpadItem: {
+    alignItems: 'center',
+    width: '18%',
+  },
+  launchpadIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  launchpadLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  launchpadSub: {
+    fontSize: 9,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 1,
+  },
+  listContainer: {
+    gap: 10,
+  },
+  programRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  programInitialBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  programInitialText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  programDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+  programName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  programMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  programMetaText: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  programCategoryText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7c3aed',
+    marginLeft: 4,
+  },
+  programStatusBadge: {
+    marginLeft: 8,
+  },
+  memberSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 38,
+    marginBottom: 12,
+  },
+  memberSearchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: '#0f172a',
+    height: '100%',
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  memberAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  memberAvatarText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  memberInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  memberName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  memberRole: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 1,
+  },
+  emptyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+  emptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginTop: 8,
+  },
+  emptySubtitle: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  emptyActionBtn: {
+    marginTop: 12,
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  emptyActionBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  spinning: {
+    transform: [{ rotate: '45deg' }],
   },
 });
+

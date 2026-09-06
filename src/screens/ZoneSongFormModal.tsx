@@ -80,25 +80,25 @@ export default function ZoneSongFormModal({ visible, editSong, onClose, onSaved 
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-        <View style={{ backgroundColor: Colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 22 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Text style={{ color: Colors.textPrimary, fontSize: 17, fontWeight: '800' }}>{editSong ? 'Edit Zone Song' : 'Add Zone Song'}</Text>
-            <TouchableOpacity onPress={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' }}>
+        <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <Text style={{ color: Colors.textPrimary, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 }}>{editSong ? 'Edit Zone Song' : 'Add Zone Song'}</Text>
+            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
               <Ionicons name="close" size={22} color={Colors.textMuted} />
             </TouchableOpacity>
           </View>
-          {formError ? <Text style={{ color: Colors.danger, fontSize: 12, marginBottom: 8 }}>{formError}</Text> : null}
+          {formError ? <Text style={{ color: Colors.danger, fontSize: 12, marginBottom: 8, fontWeight: '600' }}>{formError}</Text> : null}
           <ScrollView showsVerticalScrollIndicator={false}>
             {[
               { label: 'Title *', key: 'title', placeholder: 'Song title' },
               { label: 'Writer', key: 'writer', placeholder: 'Composer / songwriter' },
               { label: 'Key', key: 'key', placeholder: 'e.g. C Major' },
-              { label: 'Tempo', key: 'tempo', placeholder: 'e.g. 80' },
+              { label: 'Tempo', key: 'tempo', placeholder: 'e.g. 80 BPM' },
               { label: 'Category', key: 'category', placeholder: 'e.g. Worship' },
             ].map(field => (
               <View key={field.key} style={{ marginBottom: 12 }}>
-                <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>{field.label}</Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{field.label}</Text>
                 <TextInput
                   style={styles.input}
                   value={(form as any)[field.key]}
@@ -125,9 +125,9 @@ export default function ZoneSongFormModal({ visible, editSong, onClose, onSaved 
 
 const styles = StyleSheet.create({
   input: {
-    backgroundColor: Colors.inputBackground,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -136,11 +136,16 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: Colors.accent,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 16,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  saveBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  saveBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '800', letterSpacing: 0.2 },
 });
