@@ -14,6 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MemberManagementModal, { Member } from '../components/MemberManagementModal';
+import { api } from '../services/api';
 
 // ── Realistic Loveworld Singers Personnel Mock Data ─────────────────────────
 const INITIAL_MEMBERS: Member[] = [
