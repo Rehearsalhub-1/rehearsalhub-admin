@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import MemberManagementModal, { Member } from '../components/MemberManagementModal';
 import { api } from '../services/api';
+import { useZoneContext } from '../context/ZoneContext';
 
 // ── Realistic Loveworld Singers Personnel Mock Data ─────────────────────────
 const INITIAL_MEMBERS: Member[] = [
@@ -237,8 +238,10 @@ const INITIAL_MEMBERS: Member[] = [
 
 export default function MembersScreen() {
   const insets = useSafeAreaInsets();
+  const { activeZone, isAllZones } = useZoneContext();
 
   const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Tabs: 'all' | 'pending'
@@ -252,11 +255,96 @@ export default function MembersScreen() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  const fetchMembers = useCallback(async () => {
+    try {
+      const effectiveZoneId = isAllZones ? undefined : (activeZone?.id || 'zone-001');
+      const [dirRes, reqRes] = await Promise.all([
+        api.members.getDirectory(effectiveZoneId).catch(() => ({ data: [] })),
+        api.members.getAdminRequests(effectiveZoneId).catch(() => ({ data: [] })),
+      ]);
+
+      const rawDir = Array.isArray(dirRes?.data) ? dirRes.data : [];
+      const rawReqs = Array.isArray(reqRes?.data) ? reqRes.data : [];
+
+      if (rawDir.length > 0 || rawReqs.length > 0) {
+        const mappedMembers: Member[] = rawDir.map((u: any) => {
+          const firstName = u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer';
+          const lastName = u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '';
+          const r = (u.role || 'member').toLowerCase();
+          return {
+            id: u.id || u.userId,
+            membershipId: u.membershipId || u.membership_id || u.id,
+            first_name: firstName,
+            last_name: lastName,
+            email: u.email || '',
+            username: u.username || '',
+            alias: u.alias || '',
+            phone: u.phone || '',
+            church: u.church || u.churchName || '',
+            designation: u.designation || '',
+            zoneId: u.zoneId || u.organizationId || '',
+            zoneName: u.zoneName || u.organization?.name || '',
+            role: (r.includes('admin') || r === 'boss'
+              ? (r.includes('church') ? 'church_admin' : (r.includes('hq') ? 'hq_admin' : 'zone_admin'))
+              : 'member') as any,
+            isAdmin: r.includes('admin') || r === 'boss',
+            is_active: u.is_active !== false && u.isActive !== false,
+            can_access_ongoing: u.can_access_ongoing !== false,
+            can_access_pre_rehearsal: u.can_access_pre_rehearsal !== false,
+            canAnnotate: u.canAnnotate !== false,
+            canSeeArchive: u.canSeeArchive === true || u.canAccessArchive === true,
+            can_access_archive: u.canSeeArchive === true || u.canAccessArchive === true,
+            hiddenFeatures: u.hiddenFeatures,
+            created_at: u.createdAt || u.created_at,
+            pending_hq_approval: false,
+          };
+        });
+
+        const mappedPending: Member[] = rawReqs.map((req: any) => {
+          const firstName = req.user?.firstName || req.firstName || (req.name || '').split(' ')[0] || 'Applicant';
+          const lastName = req.user?.lastName || req.lastName || (req.name || '').split(' ').slice(1).join(' ') || '';
+          return {
+            id: req.id || req.userId,
+            membershipId: req.membershipId || req.id,
+            first_name: firstName,
+            last_name: lastName,
+            email: req.user?.email || req.email || '',
+            username: req.user?.username || req.username || '',
+            alias: req.user?.alias || req.alias || '',
+            phone: req.user?.phone || req.phone || '',
+            church: req.church || '',
+            zoneId: req.zoneId || '',
+            zoneName: req.zoneName || '',
+            role: 'member' as any,
+            isAdmin: false,
+            is_active: false,
+            pending_hq_approval: true,
+            created_at: req.createdAt || req.created_at,
+          };
+        });
+
+        const existingIds = new Set(mappedMembers.map(m => m.id));
+        const combined = [
+          ...mappedMembers,
+          ...mappedPending.filter(p => !existingIds.has(p.id)),
+        ];
+        setMembers(combined);
+      }
+    } catch (err) {
+      console.warn('[MembersScreen] fetch error:', err);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  }, [activeZone?.id, isAllZones]);
+
+  useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
+
   const onRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 400);
+    fetchMembers();
   };
 
   // Approved vs Pending
@@ -297,12 +385,20 @@ export default function MembersScreen() {
   }, [approvedMembers, roleFilter, search]);
 
   // Approve Pending Request
-  const handleApprove = (member: Member) => {
+  const handleApprove = async (member: Member) => {
     setMembers(prev =>
       prev.map(m =>
         m.id === member.id ? { ...m, pending_hq_approval: false, is_active: true } : m
       )
     );
+    try {
+      await Promise.all([
+        api.members.approve(member.id).catch(() => {}),
+        api.members.approveAdminRequest(member.id).catch(() => {}),
+      ]);
+    } catch (e) {
+      console.warn('Approval sync note:', e);
+    }
     Alert.alert('Approved', `${member.first_name} ${member.last_name} has been approved.`);
   };
 
@@ -316,8 +412,16 @@ export default function MembersScreen() {
         {
           text: 'Decline',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             setMembers(prev => prev.filter(m => m.id !== member.id));
+            try {
+              await Promise.all([
+                api.members.reject(member.id).catch(() => {}),
+                api.members.rejectAdminRequest(member.id).catch(() => {}),
+              ]);
+            } catch (e) {
+              console.warn('Decline sync note:', e);
+            }
           },
         },
       ]
@@ -350,8 +454,22 @@ export default function MembersScreen() {
   // Remove Member
   const handleRemoveFromZone = (id: string) => {
     const target = members.find(m => m.id === id);
-    setMembers(prev => prev.filter(m => m.id !== id));
-    Alert.alert('Removed', `${target?.first_name || 'Member'} was removed.`);
+    Alert.alert(
+      'Remove Member',
+      `Are you sure you want to remove ${target?.first_name || 'this member'} from the zone directory?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setMembers(prev => prev.filter(m => m.id !== id));
+            await api.members.removeFromZone(id).catch(() => {});
+            Alert.alert('Removed', `${target?.first_name || 'Member'} was removed.`);
+          },
+        },
+      ]
+    );
   };
 
   // Export Directory to CSV

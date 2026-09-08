@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import ZoneHeader from '../components/ZoneHeader';
 import { StatTile, Badge } from '../components/ui';
+import { api } from '../services/api';
 
 // ── Realistic Mock Data (Mirroring Web Admin Dashboard) ──────────────────────
 const MOCK_STATS = {
@@ -127,14 +128,57 @@ export default function DashboardScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const zoneId = isAllZones ? undefined : (activeZone?.id || 'zone-001');
+      const churchId = isChurchMode ? activeChurch?.id : undefined;
+
+      const [statsRes, programsRes, membersRes] = await Promise.all([
+        api.dashboard.getStats(zoneId, churchId).catch(() => null),
+        api.programs.getAll(isChurchMode && churchId ? { groupId: churchId, subGroupId: churchId, includeChurch: true } : { zoneId }).catch(() => ({ data: [] })),
+        api.members.getDirectory(zoneId, 10).catch(() => ({ data: [] })),
+      ]);
+
+      if (statsRes) {
+        setStats(prev => ({
+          ...prev,
+          totalMembers: statsRes.totalMembers ?? prev.totalMembers,
+          activePrograms: statsRes.activePrograms ?? prev.activePrograms,
+          totalSongs: statsRes.totalSongs ?? prev.totalSongs,
+          pendingSongs: statsRes.pendingSongs ?? prev.pendingSongs,
+        }));
+      }
+
+      if (Array.isArray(programsRes?.data) && programsRes.data.length > 0) {
+        setRecentPrograms(programsRes.data.slice(0, 4));
+      }
+
+      if (Array.isArray(membersRes?.data) && membersRes.data.length > 0) {
+        setMembers(membersRes.data.slice(0, 5).map((u: any) => ({
+          id: u.id || u.userId,
+          first_name: u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer',
+          last_name: u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '',
+          designation: u.designation || '',
+          role: u.role || 'member',
+          church: u.church || u.churchName || '',
+          is_active: u.is_active !== false,
+        })));
+      }
+    } catch (err) {
+      console.warn('[Dashboard] fetch error:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [activeZone?.id, isAllZones, isChurchMode, activeChurch?.id]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // Instant mock sync
-    setTimeout(() => {
-      setRefreshing(false);
-      Alert.alert('Synced', 'Dashboard metrics refreshed.');
-    }, 400);
-  }, []);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const invitationCode = (activeZone as any)?.code || (activeZone as any)?.invitationCode || 'LZ1-HQ';
 
