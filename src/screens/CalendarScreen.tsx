@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
@@ -17,7 +17,7 @@ interface CalendarEvent {
   startTime?: string;
   endTime?: string;
   location?: string;
-  category?: 'rehearsal' | 'praisenight' | 'recording' | 'deadline';
+  category?: 'rehearsal' | 'program' | 'praisenight' | 'recording' | 'deadline';
   zoneId?: string;
 }
 
@@ -33,13 +33,13 @@ export default function CalendarScreen() {
   const [title, setTitle] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [location, setLocation] = useState('');
-  const [category, setCategory] = useState<'rehearsal' | 'praisenight' | 'recording' | 'deadline'>('rehearsal');
+  const [category, setCategory] = useState<'rehearsal' | 'program' | 'praisenight' | 'recording' | 'deadline'>('rehearsal');
   const [saving, setSaving] = useState(false);
 
   const fetchEvents = useCallback(async () => {
     try {
       const zoneParam = activeZone ? `?zoneId=${activeZone.id}` : '';
-      const res = await apiClient.get<{ success: boolean; data: CalendarEvent[] }>(`/upcoming-events${zoneParam}`).catch(() => ({ data: [] }));
+      const res = await api.calendar.getEvents(activeZone?.id).catch(() => ({ data: [] }));
       const eventList = Array.isArray(res.data) ? res.data : [];
       setEvents(eventList);
     } catch (e) {
@@ -63,7 +63,7 @@ export default function CalendarScreen() {
 
     setSaving(true);
     try {
-      await apiClient.post('/upcoming-events', {
+      await api.calendar.create({
         title: title.trim(),
         date: eventDate.trim() || new Date().toISOString(),
         location: location.trim() || 'Main Rehearsal Hall',
@@ -85,6 +85,7 @@ export default function CalendarScreen() {
 
   function getCategoryColor(cat?: string) {
     switch (cat) {
+      case 'program':
       case 'praisenight': return '#7c3aed';
       case 'recording':   return '#d97706';
       case 'deadline':    return '#e11d48';
@@ -94,6 +95,7 @@ export default function CalendarScreen() {
 
   function getCategoryLabel(cat?: string) {
     switch (cat) {
+      case 'program':
       case 'praisenight': return 'Program';
       case 'rehearsal':   return 'Rehearsal';
       case 'recording':   return 'Recording';
@@ -212,7 +214,7 @@ export default function CalendarScreen() {
 
             <Text style={styles.inputLabel}>Event Category</Text>
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {(['rehearsal', 'praisenight', 'recording', 'deadline'] as const).map(cat => (
+              {(['rehearsal', 'program', 'recording', 'deadline'] as const).map(cat => (
                 <TouchableOpacity
                   key={cat}
                   style={[

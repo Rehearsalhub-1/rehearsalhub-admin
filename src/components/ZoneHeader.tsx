@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useZoneContext, ZoneOption, ChurchOption } from '../context/ZoneContext';
+import { useZoneContext, ChurchOption } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
 
 interface Props {
@@ -24,7 +24,7 @@ interface Props {
   onBack?: () => void;
   /** Optional custom right-hand action component */
   rightElement?: React.ReactNode;
-  /** Whether to show the zone switcher pill (defaults to true) */
+  /** Whether to show the mode pill (defaults to true) */
   showZonePicker?: boolean;
 }
 
@@ -39,21 +39,23 @@ export default function ZoneHeader({
   const navigation = useNavigation<any>();
   const {
     activeZone,
-    availableZones,
     isAllZones,
-    setActiveZone,
     isChurchMode,
     activeChurch,
     userChurches,
+    availableZones,
+    switchZone,
     switchChurch,
+    toggleRoleMode,
     setRoleMode,
   } = useZoneContext();
   const { adminUser } = useAuth();
 
-  const [modalVisible, setModalVisible] = useState(false);
+  const [churchModalVisible, setChurchModalVisible] = useState(false);
 
   const isHQ = adminUser?.isHQAdmin === true;
-  const canSwitch = availableZones.length > 1 || userChurches.length > 0 || isHQ;
+  const hasDualRole = Boolean(adminUser?.hasDualRole);
+  const hasMultipleChurches = userChurches.length > 1;
 
   const scopeTitle = isChurchMode
     ? 'Church Admin'
@@ -63,9 +65,7 @@ export default function ZoneHeader({
 
   const badgeLabel = isChurchMode
     ? (activeChurch?.name || 'Church Choir')
-    : isAllZones
-    ? 'All Zones'
-    : (activeZone?.name ?? 'Your Zone');
+    : (activeZone?.name ?? (isHQ ? 'Loveworld Singers HQ' : 'Your Zone'));
 
   const scopeBadgeColor = isChurchMode ? '#d97706' : isHQ ? '#4f46e5' : '#7c3aed';
   const scopeBadgeBg = isChurchMode ? '#fffbeb' : isHQ ? '#eef2ff' : '#faf5ff';
@@ -78,6 +78,16 @@ export default function ZoneHeader({
       onBack();
     } else if (navigation?.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
+    }
+  }
+
+  function handlePillPress() {
+    if (isChurchMode && hasMultipleChurches) {
+      // In church mode with multiple churches: allow picking which church to administer
+      setChurchModalVisible(true);
+    } else if (hasDualRole) {
+      // Direct 1-tap toggle between Hub Mode and Church Mode (zero confusion)
+      toggleRoleMode();
     }
   }
 
@@ -136,12 +146,8 @@ export default function ZoneHeader({
                 styles.zonePill,
                 isChurchMode ? styles.churchPillActive : styles.zonePillActive,
               ]}
-              onPress={() => {
-                if (canSwitch) {
-                  setModalVisible(true);
-                }
-              }}
-              activeOpacity={canSwitch ? 0.75 : 1}
+              onPress={handlePillPress}
+              activeOpacity={(hasDualRole || (isChurchMode && hasMultipleChurches)) ? 0.75 : 1}
             >
               <Ionicons
                 name={isChurchMode ? 'business-outline' : 'globe-outline'}
@@ -155,7 +161,11 @@ export default function ZoneHeader({
               >
                 {badgeLabel}
               </Text>
-              {canSwitch && (
+              {isChurchMode && hasMultipleChurches ? (
+                <View style={[styles.modeToggleChip, { backgroundColor: '#fef3c7' }]}>
+                  <Ionicons name="chevron-down" size={11} color="#b45309" />
+                </View>
+              ) : hasDualRole ? (
                 <View
                   style={[
                     styles.modeToggleChip,
@@ -163,155 +173,99 @@ export default function ZoneHeader({
                   ]}
                 >
                   <Ionicons
-                    name="chevron-down"
+                    name="swap-horizontal"
                     size={11}
                     color={isChurchMode ? '#b45309' : '#6d28d9'}
                   />
                 </View>
-              )}
+              ) : null}
             </TouchableOpacity>
           ) : null}
         </View>
       </View>
 
-      {/* ── Admin Scope Switcher Modal ── */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          <Pressable style={styles.modalContainer} onPress={e => e.stopPropagation()}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Switch Admin Scope</Text>
-                <Text style={styles.modalSubtitle}>Select the zone or church you want to manage</Text>
+      {/* ── Multi-Church Switcher Modal (Only shown when admin coordinates > 1 church) ── */}
+      {hasMultipleChurches && (
+        <Modal
+          visible={churchModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setChurchModalVisible(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setChurchModalVisible(false)}>
+            <Pressable style={styles.modalContainer} onPress={e => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>Select Church Choir</Text>
+                  <Text style={styles.modalSubtitle}>You coordinate multiple church assemblies</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={() => setChurchModalVisible(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={20} color="#64748b" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.closeBtn}
-                onPress={() => setModalVisible(false)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close" size={20} color="#64748b" />
-              </TouchableOpacity>
-            </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-              {/* Section 1: Verified Hubs & Zones */}
-              {availableZones.length > 0 && (
-                <View style={styles.scopeSection}>
-                  <Text style={styles.sectionHeading}>YOUR REGIONAL & HQ HUBS</Text>
-                  {availableZones.map((z: ZoneOption) => {
-                    const isSelected = !isChurchMode && !isAllZones && activeZone?.id === z.id;
-                    return (
-                      <TouchableOpacity
-                        key={z.id}
-                        style={[styles.scopeItem, isSelected && styles.scopeItemActive]}
-                        onPress={() => {
-                          setActiveZone(z);
-                          setRoleMode('org');
-                          setModalVisible(false);
-                        }}
-                        activeOpacity={0.75}
-                      >
-                        <View style={[styles.scopeItemIcon, { backgroundColor: '#eef2ff' }]}>
-                          <Ionicons name="globe" size={18} color="#4f46e5" />
+              <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
+                {userChurches.map((c: ChurchOption) => {
+                  const isSelected = activeChurch?.id === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.scopeItem, isSelected && styles.scopeItemActiveChurch]}
+                      onPress={() => {
+                        switchChurch(c);
+                        setChurchModalVisible(false);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[styles.scopeItemIcon, { backgroundColor: '#fffbeb' }]}>
+                        <Ionicons name="business" size={18} color="#d97706" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.scopeItemName, isSelected && styles.scopeItemNameActiveChurch]}>
+                          {c.name}
+                        </Text>
+                        <Text style={styles.scopeItemMeta}>
+                          {c.role ? `Role: ${c.role}` : 'Church Choir Assembly'}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.activeCheckBadge}>
+                          <Ionicons name="checkmark-circle" size={18} color="#d97706" />
                         </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.scopeItemName, isSelected && styles.scopeItemNameActive]}>
-                            {z.name}
-                          </Text>
-                          <Text style={styles.scopeItemMeta}>
-                            Code: {z.invitationCode || z.id}
-                          </Text>
-                        </View>
-                        {isSelected && (
-                          <View style={styles.activeCheckBadge}>
-                            <Ionicons name="checkmark-circle" size={18} color="#4f46e5" />
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
 
-              {/* Section 2: Church Choirs (User can belong to > 1 church) */}
-              {userChurches.length > 0 && (
-                <View style={styles.scopeSection}>
-                  <Text style={styles.sectionHeading}>YOUR CHURCH CHOIRS</Text>
-                  {userChurches.map((c: ChurchOption) => {
-                    const isSelected = isChurchMode && activeChurch?.id === c.id;
-                    return (
-                      <TouchableOpacity
-                        key={c.id}
-                        style={[styles.scopeItem, isSelected && styles.scopeItemActiveChurch]}
-                        onPress={() => {
-                          switchChurch(c);
-                          setRoleMode('church');
-                          setModalVisible(false);
-                        }}
-                        activeOpacity={0.75}
-                      >
-                        <View style={[styles.scopeItemIcon, { backgroundColor: '#fffbeb' }]}>
-                          <Ionicons name="business" size={18} color="#d97706" />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.scopeItemName, isSelected && styles.scopeItemNameActiveChurch]}>
-                            {c.name}
-                          </Text>
-                          <Text style={styles.scopeItemMeta}>
-                            {c.role ? `Role: ${c.role}` : 'Local Church Choir'}
-                          </Text>
-                        </View>
-                        {isSelected && (
-                          <View style={styles.activeCheckBadge}>
-                            <Ionicons name="checkmark-circle" size={18} color="#d97706" />
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Section 3: HQ Global Overview (Explicit selection only) */}
-              {isHQ && (
-                <View style={styles.scopeSection}>
-                  <Text style={styles.sectionHeading}>AGGREGATED OVERVIEW</Text>
+                {/* Direct option to switch back to Zone mode */}
+                {hasDualRole && (
                   <TouchableOpacity
-                    style={[styles.scopeItem, isAllZones && !isChurchMode && styles.scopeItemActive]}
+                    style={styles.zoneSwitchItem}
                     onPress={() => {
-                      setActiveZone(null);
                       setRoleMode('org');
-                      setModalVisible(false);
+                      setChurchModalVisible(false);
                     }}
                     activeOpacity={0.75}
                   >
-                    <View style={[styles.scopeItemIcon, { backgroundColor: '#f1f5f9' }]}>
-                      <Ionicons name="layers-outline" size={18} color="#475569" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.scopeItemName}>All Zones (HQ Global Overview)</Text>
-                      <Text style={styles.scopeItemMeta}>
-                        Cross-regional administrative monitoring
-                      </Text>
-                    </View>
-                    {isAllZones && !isChurchMode && (
-                      <View style={styles.activeCheckBadge}>
-                        <Ionicons name="checkmark-circle" size={18} color="#4f46e5" />
-                      </View>
-                    )}
+                    <Ionicons name="globe-outline" size={18} color="#4f46e5" style={{ marginRight: 10 }} />
+                    <Text style={styles.zoneSwitchText}>
+                      Switch to {activeZone?.name || 'Zone Mode'}
+                    </Text>
                   </TouchableOpacity>
-                </View>
-              )}
+                )}
 
-              <View style={{ height: 20 }} />
-            </ScrollView>
+                <View style={{ height: 16 }} />
+              </ScrollView>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      )}
+
+
     </>
   );
 }
@@ -427,7 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
+    maxHeight: '70%',
     paddingBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -467,16 +421,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
   },
-  scopeSection: {
-    marginBottom: 20,
-  },
-  sectionHeading: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#94a3b8',
-    letterSpacing: 0.6,
-    marginBottom: 10,
-  },
   scopeItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -487,13 +431,13 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     marginBottom: 8,
   },
-  scopeItemActive: {
-    borderColor: '#818cf8',
-    backgroundColor: '#f5f3ff',
-  },
   scopeItemActiveChurch: {
     borderColor: '#fcd34d',
     backgroundColor: '#fffbeb',
+  },
+  scopeItemActiveZone: {
+    borderColor: '#c7d2fe',
+    backgroundColor: '#eef2ff',
   },
   scopeItemIcon: {
     width: 36,
@@ -508,11 +452,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1e293b',
   },
-  scopeItemNameActive: {
-    color: '#4338ca',
-  },
   scopeItemNameActiveChurch: {
     color: '#b45309',
+  },
+  scopeItemNameActiveZone: {
+    color: '#4338ca',
   },
   scopeItemMeta: {
     fontSize: 12,
@@ -521,5 +465,22 @@ const styles = StyleSheet.create({
   },
   activeCheckBadge: {
     marginLeft: 8,
+  },
+  zoneSwitchItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    marginTop: 8,
+  },
+  zoneSwitchText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4338ca',
   },
 });

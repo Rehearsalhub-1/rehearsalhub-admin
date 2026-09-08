@@ -18,7 +18,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { apiClient, storeTokens, clearTokens, SessionExpiredError } from '../lib/apiClient';
+import { api, SessionExpiredError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -59,16 +59,12 @@ export default function LoginScreen({ navigation }: Props) {
     if (!savedKcToken) return;
     setAccountSelectLoading(true);
     try {
-      const retryRes = await apiClient.post<{
-        success: boolean;
-        data?: { accessToken: string; refreshToken: string; user: { id: string; email: string; role: string; name?: string } };
-        error?: string;
-      }>('/auth/kingschat-login', { accessToken: savedKcToken, selectedEmail: targetEmail, email: targetEmail });
+      const retryRes = await api.auth.kingschatLogin({ accessToken: savedKcToken, selectedEmail: targetEmail, email: targetEmail });
 
       if (retryRes.success && retryRes.data) {
         const { accessToken: jwtToken, refreshToken, user } = retryRes.data;
         setMultipleAccounts(null);
-        await storeTokens(jwtToken, refreshToken, user.id);
+        await api.auth.storeTokens(jwtToken, refreshToken, user.id);
         await refreshUser();
         navigation.replace('MainTabs');
       } else {
@@ -114,13 +110,7 @@ export default function LoginScreen({ navigation }: Props) {
           return;
         }
 
-        const res = await apiClient.post<{
-          success: boolean;
-          code?: string;
-          accounts?: any[];
-          data?: { accessToken: string; refreshToken: string; user: { id: string; email: string; role: string; name?: string } };
-          error?: string;
-        }>('/auth/kingschat-login', { accessToken });
+        const res = await api.auth.kingschatLogin({ accessToken });
 
         if (!res.success) {
           if (res.code === 'MULTIPLE_ACCOUNTS' && (res as any).accounts?.length > 1) {
@@ -146,7 +136,7 @@ export default function LoginScreen({ navigation }: Props) {
         }
 
         const { accessToken: jwtToken, refreshToken, user } = res.data;
-        await storeTokens(jwtToken, refreshToken, user.id);
+        await api.auth.storeTokens(jwtToken, refreshToken, user.id);
         await refreshUser();
         navigation.replace('MainTabs');
       }
@@ -168,11 +158,7 @@ export default function LoginScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      const result = await apiClient.post<{
-        success: boolean;
-        data?: { accessToken: string; refreshToken: string; user: { id: string; email: string; role: string; name?: string } };
-        error?: string;
-      }>('/auth/login', { email: rawIdentifier, password });
+      const result = await api.auth.login(rawIdentifier, password);
 
       if (!result.success || !result.data) {
         Alert.alert('Login Failed', result.error || 'Invalid credentials');
@@ -180,7 +166,7 @@ export default function LoginScreen({ navigation }: Props) {
       }
 
       const { accessToken, refreshToken, user } = result.data;
-      await storeTokens(accessToken, refreshToken, user.id);
+      await api.auth.storeTokens(accessToken, refreshToken, user.id);
       await refreshUser();
       navigation.replace('MainTabs');
     } catch (error: any) {

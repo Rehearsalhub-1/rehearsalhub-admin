@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,65 +8,211 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  Modal,
   TextInput,
+  Modal,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
-import { useWebSocket } from '../hooks/useWebSocket';
 import { api } from '../services/api';
-import { GradientCard, Badge, SearchFilterBar, EmptyState } from '../components/ui';
+import { EmptyState } from '../components/ui';
+import SubmissionReviewModal, {
+  SongSubmission,
+  SongSubmissionMessage,
+  QUICK_FEEDBACK_CHIPS,
+  getCleanSubmitterName,
+} from '../components/SubmissionReviewModal';
 
-interface Song {
-  id: string;
-  title: string;
-  writer: string;
-  leadSinger?: string;
-  status: string;
-  zoneName: string;
-  zoneId?: string;
-  createdAt: string;
-  notes?: string;
-  rejectNotes?: string;
-  key?: string;
-  tempo?: string;
-  lyrics?: string;
-  audioUrl?: string;
-}
+// ── Realistic Web Admin Submissions Mock ─────────────────────────────────────
+export const INITIAL_SUBMISSIONS: SongSubmission[] = [
+  {
+    id: 'sub-01',
+    title: 'Your Name Be Praised',
+    writer: 'Brother Timothy',
+    artist: 'Timothy & Zonal Choir',
+    category: 'Worship',
+    key: 'Eb',
+    tempo: '78',
+    status: 'pending',
+    zoneName: 'Lagos Zone 1',
+    createdAt: '2026-09-06T14:30:00Z',
+    audioUrl: 'https://cdn.example.com/audio/your-name-praised.mp3',
+    lyrics: `Verse 1:
+In the beauty of Your holiness
+We lift our hands to bless Your name
+Righteous Father, Great I AM
+Forever and ever the same
 
-const FILTERS = [
-  { label: 'All', value: 'all' },
-  { label: 'Pending Review', value: 'pending' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
+Chorus:
+Your name be praised, O Lord
+In all the earth, Your name be praised!`,
+    solfas: `s : d : m | r : - : d | l : - : s |`,
+    notes: 'Composed during personal prayer for the upcoming Midweek Service.',
+    conversation: [
+      {
+        id: 'msg-01',
+        sender: 'user',
+        senderName: 'Bro Timothy',
+        message: 'Good day coordinator, submitted this worship song for your review and guidance.',
+        timestamp: '2026-09-06T14:35:00Z',
+      },
+      {
+        id: 'msg-02',
+        sender: 'admin',
+        senderName: 'Admin Reviewer',
+        message: 'Received Brother Timothy! Listening to the melody now.',
+        timestamp: '2026-09-06T15:00:00Z',
+      },
+    ],
+  },
+  {
+    id: 'sub-02',
+    title: 'Celebrate His Mighty Acts',
+    writer: 'Sister Deborah',
+    artist: 'Deborah K',
+    category: 'Praise',
+    key: 'F',
+    tempo: '124',
+    status: 'pending',
+    zoneName: 'Accra Ghana Zone',
+    createdAt: '2026-09-05T10:15:00Z',
+    audioUrl: 'https://cdn.example.com/audio/celebrate-mighty.mp3',
+    lyrics: `Chorus:
+Celebrate His mighty acts!
+Tell the world what God has done!
+With dancing and shouting, give Him praise!`,
+    notes: 'Fast tempo opener. Needs feedback on whether key F works well for choir unison.',
+    conversation: [
+      {
+        id: 'msg-03',
+        sender: 'user',
+        senderName: 'Sis Deborah',
+        message: 'Recorded a piano guide track. Let me know if the chorus vocal range is okay.',
+        timestamp: '2026-09-05T10:20:00Z',
+      },
+      {
+        id: 'msg-04',
+        sender: 'admin',
+        senderName: 'Admin Reviewer',
+        message: '🎹 Needs piano accompaniment track with clearer accents on beat 2 and 4.',
+        timestamp: '2026-09-05T11:45:00Z',
+      },
+    ],
+  },
+  {
+    id: 'sub-03',
+    title: 'Ever Reigning King',
+    writer: 'Loveworld Singers UK',
+    artist: 'Brother Michael',
+    category: 'Anthem',
+    key: 'C',
+    tempo: '90',
+    status: 'approved',
+    zoneName: 'UK Zone 2',
+    createdAt: '2026-09-04T08:00:00Z',
+    audioUrl: 'https://cdn.example.com/audio/ever-reigning.mp3',
+    lyrics: `Glory to the Lamb upon the throne
+He is high and lifted up!
+He reigns forevermore!`,
+    notes: 'Approved for Sunday Thanksgiving setlist.',
+    conversation: [
+      {
+        id: 'msg-05',
+        sender: 'admin',
+        senderName: 'Admin Reviewer',
+        message: '🎵 Approved for Praise Night! Excellent orchestration.',
+        timestamp: '2026-09-04T12:00:00Z',
+      },
+    ],
+  },
+  {
+    id: 'sub-04',
+    title: 'Great and Marvellous',
+    writer: 'Sister Evelyn',
+    artist: 'Evelyn Voice',
+    category: 'Special',
+    key: 'G',
+    tempo: '100',
+    status: 'rejected',
+    zoneName: 'South Africa Zone 1',
+    createdAt: '2026-09-03T16:20:00Z',
+    audioUrl: 'https://cdn.example.com/audio/great-marvellous.mp3',
+    lyrics: `Great and marvellous are Your deeds, Lord God Almighty!`,
+    rejectNotes: 'The vocal pitch in the chorus is unstable. Please re-record vocals in Key G with a click track.',
+    conversation: [
+      {
+        id: 'msg-06',
+        sender: 'admin',
+        senderName: 'Admin Reviewer',
+        message: '🎙️ Please re-record vocals in Key G with a steady tempo click track.',
+        timestamp: '2026-09-03T18:00:00Z',
+      },
+    ],
+  },
+  {
+    id: 'sub-05',
+    title: 'Shout with Joy to God',
+    writer: 'Brother Caleb',
+    artist: 'Caleb & LW Band',
+    category: 'Praise',
+    key: 'D',
+    tempo: '130',
+    status: 'approved',
+    zoneName: 'Texas USA Zone 1',
+    createdAt: '2026-09-02T11:00:00Z',
+    audioUrl: 'https://cdn.example.com/audio/shout-with-joy.mp3',
+    lyrics: `Make a joyful noise unto the Lord all ye lands!
+Serve the Lord with gladness!`,
+    notes: 'Added into zonal master repertoire.',
+    conversation: [
+      {
+        id: 'msg-07',
+        sender: 'admin',
+        senderName: 'Admin Reviewer',
+        message: '✨ Excellent lyrics & arrangement. Approved!',
+        timestamp: '2026-09-02T13:30:00Z',
+      },
+    ],
+  },
 ];
 
 export default function SubmittedSongsScreen({ navigation }: any) {
-  const { activeZone, isChurchMode } = useZoneContext();
-  const { adminUser } = useAuth();
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<string>('pending');
-  const [search, setSearch] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+  const { activeZone } = useZoneContext();
 
-  // Reject modal state
+  const [songs, setSongs] = useState<SongSubmission[]>(INITIAL_SUBMISSIONS);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Review Studio Modal
+  const [selectedSong, setSelectedSong] = useState<SongSubmission | null>(null);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+
+  // Quick Reject Dialog
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
-  const [rejectingSong, setRejectingSong] = useState<Song | null>(null);
+  const [rejectingSong, setRejectingSong] = useState<SongSubmission | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [submittingAction, setSubmittingAction] = useState(false);
+
+  // Audio stream for quick play on cards
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
 
   const fetchSongs = useCallback(async () => {
     try {
-      const result = await api.submittedSongs.getAll(activeZone?.id || 'zone-001');
-      setSongs(Array.isArray(result.data) ? result.data : []);
+      const result = await api.submittedSongs.getAll(activeZone?.id);
+      if (Array.isArray(result?.data) && result.data.length > 0) {
+        setSongs(result.data);
+      }
     } catch (e) {
-      console.error('[SubmittedSongs] fetch error:', e);
+      console.log('[SubmittedSongs] fetch error note:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,336 +220,628 @@ export default function SubmittedSongsScreen({ navigation }: any) {
   }, [activeZone?.id]);
 
   useEffect(() => {
-    setLoading(true);
     fetchSongs();
   }, [fetchSongs]);
 
-  // Live updates via WebSocket
-  useWebSocket('submitted-songs', 'all', () => { fetchSongs(); }, true);
+  // Audio cleanup
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchSongs();
-  };
+  // Quick audio toggle on song card
+  async function handleToggleQuickAudio(song: SongSubmission) {
+    const url = song.audioUrl || song.rawData?.audioUrl;
+    if (!url) {
+      Alert.alert('No Audio', 'No audio track uploaded with this submission.');
+      return;
+    }
 
-  async function handleApprove(song: Song) {
+    try {
+      if (playingSongId === song.id && soundRef.current) {
+        await soundRef.current.stopAsync().catch(() => {});
+        await soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+        setPlayingSongId(null);
+        return;
+      }
+
+      if (soundRef.current) {
+        await soundRef.current.stopAsync().catch(() => {});
+        await soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
+
+      setPlayingSongId(song.id);
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true },
+        status => {
+          if (status.isLoaded && status.didJustFinish) {
+            setPlayingSongId(null);
+          }
+        }
+      );
+      soundRef.current = sound;
+    } catch (e) {
+      console.log('Quick audio play error:', e);
+      setPlayingSongId(null);
+    }
+  }
+
+  // Handle Approve
+  function handleApproveSong(song: SongSubmission) {
     Alert.alert('Approve Song', `Approve "${song.title}" for choir rehearsals?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Approve',
-        onPress: async () => {
-          try {
-            setSongs(prev => prev.map(s => (s.id === song.id ? { ...s, status: 'approved' } : s)));
-            await api.submittedSongs.approve(song.id);
-            Alert.alert('Approved', `"${song.title}" is now approved for setlists.`);
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to approve song.');
-            fetchSongs();
+        onPress: () => {
+          setSongs(prev =>
+            prev.map(s => (s.id === song.id ? { ...s, status: 'approved' } : s))
+          );
+          if (selectedSong?.id === song.id) {
+            setSelectedSong(prev => (prev ? { ...prev, status: 'approved' } : null));
+          }
+          api.submittedSongs.approve(song.id).catch(() => {});
+        },
+      },
+    ]);
+  }
+
+  // Handle Reject Modal Open
+  function handleOpenRejectModal(song: SongSubmission) {
+    setRejectingSong(song);
+    setRejectReason('');
+    setRejectModalVisible(true);
+  }
+
+  // Confirm Reject
+  function handleConfirmReject() {
+    if (!rejectingSong) return;
+    if (!rejectReason.trim()) {
+      Alert.alert('Feedback Required', 'Please provide a reason or constructive notes.');
+      return;
+    }
+
+    const songId = rejectingSong.id;
+    const notes = rejectReason.trim();
+
+    setSongs(prev =>
+      prev.map(s => (s.id === songId ? { ...s, status: 'rejected', rejectNotes: notes } : s))
+    );
+    if (selectedSong?.id === songId) {
+      setSelectedSong(prev => (prev ? { ...prev, status: 'rejected', rejectNotes: notes } : null));
+    }
+
+    api.submittedSongs.reject(songId, notes).catch(() => {});
+    setRejectModalVisible(false);
+    setRejectingSong(null);
+  }
+
+  // Handle Delete
+  function handleDeleteSong(song: SongSubmission) {
+    Alert.alert('Delete Submission', `Delete "${song.title}" from submission review queue?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setSongs(prev => prev.filter(s => s.id !== song.id));
+          if (selectedSong?.id === song.id) {
+            setSelectedSong(null);
+            setReviewModalVisible(false);
           }
         },
       },
     ]);
   }
 
-  function openRejectModal(song: Song) {
-    setRejectingSong(song);
-    setRejectReason('');
-    setRejectModalVisible(true);
-  }
+  // Handle Send Message in Studio
+  async function handleSendMessage(songId: string, message: string, replyTo?: any) {
+    const newMessage: SongSubmissionMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'admin',
+      senderName: 'Admin Reviewer',
+      message: message.trim(),
+      timestamp: new Date().toISOString(),
+      replyTo: replyTo
+        ? {
+            id: replyTo.id,
+            text: replyTo.message,
+            senderName: replyTo.senderName,
+          }
+        : null,
+    };
 
-  async function handleConfirmReject() {
-    if (!rejectingSong) return;
-    setSubmittingAction(true);
-    try {
-      const songId = rejectingSong.id;
-      setSongs(prev => prev.map(s => (s.id === songId ? { ...s, status: 'rejected', rejectNotes: rejectReason } : s)));
-      await api.submittedSongs.reject(songId, rejectReason.trim());
-      setRejectModalVisible(false);
-      Alert.alert('Declined', 'Song submission has been declined with your notes.');
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to decline song.');
-      fetchSongs();
-    } finally {
-      setSubmittingAction(false);
+    setSongs(prev =>
+      prev.map(s => {
+        if (s.id === songId) {
+          const conversation = [...(s.conversation || []), newMessage];
+          return { ...s, conversation };
+        }
+        return s;
+      })
+    );
+
+    if (selectedSong?.id === songId) {
+      setSelectedSong(prev =>
+        prev ? { ...prev, conversation: [...(prev.conversation || []), newMessage] } : null
+      );
     }
+
+    api.submittedSongs.reply(songId, message.trim(), 'Admin Reviewer', replyTo).catch(() => {});
   }
 
+  // Filtered & Sorted Submissions
+  const filteredSongs = useMemo(() => {
+    return songs.filter(song => {
+      if (filter !== 'all' && (song.status || 'pending') !== filter) {
+        return false;
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const sub = getCleanSubmitterName(song);
+        const matchesTitle = (song.title || '').toLowerCase().includes(q);
+        const matchesWriter = (song.writer || song.artist || '').toLowerCase().includes(q);
+        const matchesSubmitter = sub.name.toLowerCase().includes(q);
+        const matchesCategory = (song.category || '').toLowerCase().includes(q);
+        const matchesKey = (song.key || '').toLowerCase().includes(q);
+        const matchesZone = (song.zoneName || '').toLowerCase().includes(q);
+        if (
+          !matchesTitle &&
+          !matchesWriter &&
+          !matchesSubmitter &&
+          !matchesCategory &&
+          !matchesKey &&
+          !matchesZone
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [songs, filter, searchQuery]);
+
+  // Counts Calculation
   const counts = useMemo(() => {
     return {
       all: songs.length,
-      pending: songs.filter(s => s.status === 'pending').length,
+      pending: songs.filter(s => s.status === 'pending' || !s.status).length,
       approved: songs.filter(s => s.status === 'approved').length,
       rejected: songs.filter(s => s.status === 'rejected').length,
     };
   }, [songs]);
 
-  const filterOptions = useMemo(() => {
-    return [
-      { label: 'All', value: 'all', count: counts.all },
-      { label: 'Pending', value: 'pending', count: counts.pending },
-      { label: 'Approved', value: 'approved', count: counts.approved },
-      { label: 'Rejected', value: 'rejected', count: counts.rejected },
-    ];
-  }, [counts]);
-
-  const filteredSongs = useMemo(() => {
-    let list = songs;
-    if (filter !== 'all') {
-      list = list.filter(s => s.status === filter);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        s =>
-          (s.title || '').toLowerCase().includes(q) ||
-          (s.writer || '').toLowerCase().includes(q) ||
-          (s.zoneName || '').toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [songs, filter, search]);
-
-  if (isChurchMode && !adminUser?.isHQAdmin) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Submitted Songs Review" />
-        <View style={styles.centerNotice}>
-          <View style={styles.noticeIconWrap}>
-            <Ionicons name="cloud-upload-outline" size={44} color="#e11d48" />
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* ── UNIFIED CLEAN CONTROL BAR (Web Admin Parity) ────────────────────── */}
+      <View style={styles.controlBarCard}>
+        {/* Top Branding Row */}
+        <View style={styles.topTitleRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="cloud-upload" size={20} color="#7c3aed" />
+            <Text style={styles.screenHeading}>Submitted Songs</Text>
+            <View style={styles.totalBadge}>
+              <Text style={styles.totalBadgeText}>{counts.all}</Text>
+            </View>
           </View>
-          <Text style={styles.noticeTitle}>Zonal Review Desk</Text>
-          <Text style={styles.noticeSub}>
-            Song submissions are reviewed and approved at the Zonal & HQ Admin level before becoming available in local rehearsal setlists.
-          </Text>
+
+          {/* View Mode Toggle & Refresh */}
+          <View style={styles.viewModeToggleRow}>
+            <View style={styles.toggleSegment}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, viewMode === 'grid' && styles.toggleBtnActive]}
+                onPress={() => setViewMode('grid')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="grid-outline"
+                  size={14}
+                  color={viewMode === 'grid' ? '#7c3aed' : '#64748b'}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+                onPress={() => setViewMode('list')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="list-outline"
+                  size={15}
+                  color={viewMode === 'list' ? '#7c3aed' : '#64748b'}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.refreshIconBtn}
+              onPress={() => {
+                setRefreshing(true);
+                fetchSongs();
+              }}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="refresh" size={16} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Minimal Status Tabs: All | Pending | Approved | Rejected */}
+        <View style={styles.statusTabsRow}>
           <TouchableOpacity
-            style={styles.noticeBackBtn}
-            onPress={() => navigation.goBack()}
+            style={[styles.statusTabBtn, filter === 'all' && styles.statusTabBtnAllActive]}
+            onPress={() => setFilter('all')}
             activeOpacity={0.8}
           >
-            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-            <Text style={styles.noticeBackBtnText}>Back</Text>
+            <Text style={[styles.statusTabText, filter === 'all' && styles.statusTabTextActive]}>
+              All ({counts.all})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statusTabBtn, filter === 'pending' && styles.statusTabBtnPendingActive]}
+            onPress={() => setFilter('pending')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.statusTabText, filter === 'pending' && styles.statusTabTextActive]}>
+              Pending ({counts.pending})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statusTabBtn, filter === 'approved' && styles.statusTabBtnApprovedActive]}
+            onPress={() => setFilter('approved')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.statusTabText, filter === 'approved' && styles.statusTabTextActive]}>
+              Approved ({counts.approved})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.statusTabBtn, filter === 'rejected' && styles.statusTabBtnRejectedActive]}
+            onPress={() => setFilter('rejected')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.statusTabText, filter === 'rejected' && styles.statusTabTextActive]}>
+              Rejected ({counts.rejected})
+            </Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    );
-  }
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ZoneHeader
-        title="Submitted Songs Review"
-        rightElement={
-          counts.pending > 0 ? (
-            <Badge label={`${counts.pending} Pending`} variant="pending" size="sm" />
-          ) : undefined
-        }
-      />
-
-      {/* Control section */}
-      <View style={styles.topSection}>
-
-        <SearchFilterBar
-          searchQuery={search}
-          onSearchChange={setSearch}
-          placeholder="Search by title, submitter, or zone..."
-          filterOptions={filterOptions}
-          activeFilter={filter}
-          onFilterChange={setFilter}
-        />
+        {/* Search Input Bar */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={`Search ${filteredSongs.length} submissions, songwriter, key...`}
+            placeholderTextColor="#94a3b8"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={16} color="#94a3b8" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
-      {/* Songs List */}
+      {/* ── SUBMISSIONS FEED ───────────────────────────────────────────────── */}
       <FlatList
         data={filteredSongs}
         keyExtractor={i => i.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 24) + 30 }
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.accentBright}
-            colors={[Colors.accentBright]}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchSongs();
+            }}
+            tintColor="#7c3aed"
+            colors={['#7c3aed']}
           />
         }
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           loading ? (
             <View style={styles.center}>
-              <ActivityIndicator color={Colors.accentBright} size="large" />
+              <ActivityIndicator color="#7c3aed" size="large" />
             </View>
           ) : (
             <EmptyState
-              icon="document-text-outline"
-              title={search ? 'No Matching Submissions' : `No ${filter} Submissions`}
+              icon="cloud-upload-outline"
+              title="No Submissions Found"
               description={
-                search
-                  ? 'Try searching with a different keyword.'
-                  : 'Choir members who submit new songs will appear here for your review.'
+                searchQuery || filter !== 'all'
+                  ? 'Try changing your search query or status filter.'
+                  : 'Choir members who submit songs for review will appear here.'
               }
             />
           )
         }
         renderItem={({ item }) => {
-          const isPending = item.status === 'pending';
+          const submitter = getCleanSubmitterName(item);
+          const isPending = item.status === 'pending' || !item.status;
           const isApproved = item.status === 'approved';
-          const isExpanded = expandedId === item.id;
+          const isRejected = item.status === 'rejected';
+          const hasAudio = Boolean(item.audioUrl || item.rawData?.audioUrl);
+          const isPlaying = playingSongId === item.id;
+          const commentsCount = (item.conversation || []).length;
 
-          return (
-            <GradientCard
-              variant={isPending ? 'surface' : 'glass'}
-              style={styles.card}
-            >
-              {/* Header */}
-              <View style={styles.cardHeader}>
-                <View style={styles.titleArea}>
-                  <Text style={styles.songTitle} numberOfLines={1}>
-                    {item.title || 'Untitled Song'}
+          if (viewMode === 'list') {
+            /* ── COMPACT LIST ROW ─────────────────────────────────────────── */
+            return (
+              <TouchableOpacity
+                style={styles.listRowCard}
+                onPress={() => {
+                  setSelectedSong(item);
+                  setReviewModalVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowTitleText} numberOfLines={1}>
+                    {item.title}
                   </Text>
-                  <Text style={styles.writerText}>
-                    Submitted by: <Text style={styles.writerHighlight}>{item.writer || 'Member'}</Text>
+                  <Text style={styles.rowSubText} numberOfLines={1}>
+                    By {item.writer || item.artist || 'Unknown'} • {submitter.name}
                   </Text>
                 </View>
 
-                <Badge
-                  label={item.status.toUpperCase()}
-                  variant={isApproved ? 'approved' : isPending ? 'pending' : 'rejected'}
-                  size="sm"
-                />
-              </View>
-
-              {/* Musical metadata tags */}
-              <View style={styles.metaRow}>
-                {item.key ? <Badge label={`Key: ${item.key}`} variant="key" size="sm" /> : null}
-                {item.tempo ? <Badge label={`${item.tempo} BPM`} variant="tempo" size="sm" /> : null}
-                {item.zoneName ? (
-                  <View style={styles.zoneChip}>
-                    <Ionicons name="location-outline" size={12} color={Colors.textMuted} />
-                    <Text style={styles.zoneChipText} numberOfLines={1}>
-                      {item.zoneName}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      isApproved && styles.statusPillApproved,
+                      isRejected && styles.statusPillRejected,
+                      isPending && styles.statusPillPending,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusPillText,
+                        isApproved && styles.statusPillTextApproved,
+                        isRejected && styles.statusPillTextRejected,
+                        isPending && styles.statusPillTextPending,
+                      ]}
+                    >
+                      {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
                     </Text>
                   </View>
-                ) : null}
-                {item.audioUrl ? (
-                  <View style={styles.audioAttachedChip}>
-                    <Ionicons name="volume-high-outline" size={13} color="#34d399" />
-                    <Text style={styles.audioAttachedText}>Audio Attached</Text>
-                  </View>
+
+                  <TouchableOpacity
+                    style={styles.listChatBtn}
+                    onPress={() => {
+                      setSelectedSong(item);
+                      setReviewModalVisible(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chatbubble-ellipses" size={14} color="#7c3aed" />
+                    {commentsCount > 0 && (
+                      <Text style={styles.listChatBtnCount}>{commentsCount}</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          }
+
+          /* ── RICH GRID CARD (Web Admin Parity) ──────────────────────────── */
+          return (
+            <View style={styles.gridCard}>
+              {/* Card Top: Title, Writer & Status */}
+              <View style={styles.cardHeader}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.cardWriter} numberOfLines={1}>
+                    By <Text style={styles.cardWriterBold}>{item.writer || item.artist || 'Unknown'}</Text>
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.statusPill,
+                    isApproved && styles.statusPillApproved,
+                    isRejected && styles.statusPillRejected,
+                    isPending && styles.statusPillPending,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      isApproved && styles.statusPillTextApproved,
+                      isRejected && styles.statusPillTextRejected,
+                      isPending && styles.statusPillTextPending,
+                    ]}
+                  >
+                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Submitter Details Line */}
+              <View style={styles.submitterRow}>
+                <Text style={styles.submitterNameText}>{submitter.name}</Text>
+                {submitter.date ? (
+                  <Text style={styles.submitterDateText}>{submitter.date}</Text>
                 ) : null}
               </View>
 
-              {/* Expandable Lyrics & Submitter Notes */}
-              {(item.lyrics || item.notes || item.rejectNotes) && (
-                <TouchableOpacity
-                  style={styles.expandToggle}
-                  onPress={() => setExpandedId(isExpanded ? null : item.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.expandToggleText}>
-                    {isExpanded ? 'Hide Lyrics & Notes' : 'View Lyrics & Submitter Notes'}
+              {/* Badges: Category, Key, Zone */}
+              <View style={styles.badgesRow}>
+                {item.category ? (
+                  <View style={styles.metaChip}>
+                    <Text style={styles.metaChipText}>{item.category}</Text>
+                  </View>
+                ) : null}
+
+                {item.key ? (
+                  <View style={styles.keyChip}>
+                    <Text style={styles.keyChipText}>Key {item.key}</Text>
+                  </View>
+                ) : null}
+
+                {item.zoneName ? (
+                  <Text style={styles.zoneText} numberOfLines={1}>
+                    📍 {item.zoneName}
                   </Text>
-                  <Ionicons
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color={Colors.accentBright}
-                  />
-                </TouchableOpacity>
-              )}
+                ) : null}
+              </View>
 
-              {isExpanded && (
-                <View style={styles.expandedContent}>
-                  {item.notes ? (
-                    <View style={styles.noteBox}>
-                      <Text style={styles.noteTitle}>Submitter Notes:</Text>
-                      <Text style={styles.noteBody}>{item.notes}</Text>
-                    </View>
-                  ) : null}
-
-                  {item.rejectNotes ? (
-                    <View style={[styles.noteBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.25)' }]}>
-                      <Text style={[styles.noteTitle, { color: '#f87171' }]}>Feedback Given:</Text>
-                      <Text style={[styles.noteBody, { color: '#fca5a5' }]}>{item.rejectNotes}</Text>
-                    </View>
-                  ) : null}
-
-                  {item.lyrics ? (
-                    <View style={styles.lyricsBox}>
-                      <Text style={styles.noteTitle}>Lyrics:</Text>
-                      <Text style={styles.lyricsText}>{item.lyrics}</Text>
-                    </View>
-                  ) : null}
+              {/* 1-Line Lyrics Snippet in Italic Preview Bubble */}
+              {item.lyrics ? (
+                <View style={styles.lyricsSnippetBox}>
+                  <Text style={styles.lyricsSnippetText} numberOfLines={1}>
+                    &quot;{item.lyrics.replace(/\n+/g, ' ')}&quot;
+                  </Text>
                 </View>
-              )}
+              ) : null}
 
-              {/* Action Buttons for Pending submissions */}
-              {isPending && (
-                <View style={styles.actionRow}>
+              {/* Bottom Card Footer Actions */}
+              <View style={styles.cardFooter}>
+                {/* Audio Button */}
+                {hasAudio ? (
                   <TouchableOpacity
-                    style={styles.declineBtn}
-                    onPress={() => openRejectModal(item)}
+                    style={[styles.audioBtn, isPlaying && styles.audioBtnPlaying]}
+                    onPress={() => handleToggleQuickAudio(item)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="close-circle-outline" size={16} color="#f87171" style={{ marginRight: 4 }} />
-                    <Text style={styles.declineBtnText}>Decline</Text>
+                    <Ionicons
+                      name={isPlaying ? 'pause' : 'play'}
+                      size={12}
+                      color={isPlaying ? '#ffffff' : '#475569'}
+                      style={{ marginRight: 3 }}
+                    />
+                    <Text style={[styles.audioBtnText, isPlaying && styles.audioBtnTextPlaying]}>
+                      {isPlaying ? 'Playing' : 'Audio'}
+                    </Text>
                   </TouchableOpacity>
+                ) : (
+                  <Text style={styles.noAudioText}>No audio</Text>
+                )}
 
+                {/* Chat & Decision Buttons */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <TouchableOpacity
-                    style={styles.approveBtn}
-                    onPress={() => handleApprove(item)}
+                    style={styles.chatStudioBtn}
+                    onPress={() => {
+                      setSelectedSong(item);
+                      setReviewModalVisible(true);
+                    }}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="checkmark-circle" size={16} color="#ffffff" style={{ marginRight: 4 }} />
-                    <Text style={styles.approveBtnText}>Approve for Rehearsal</Text>
+                    <Ionicons name="chatbubbles" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
+                    <Text style={styles.chatStudioBtnText}>
+                      Chat {commentsCount > 0 ? `(${commentsCount})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {isPending && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.quickRejectBtn}
+                        onPress={() => handleOpenRejectModal(item)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="close" size={14} color="#e11d48" />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.quickApproveBtn}
+                        onPress={() => handleApproveSong(item)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.quickApproveBtnText}>Approve</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.quickDeleteBtn}
+                    onPress={() => handleDeleteSong(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={14} color="#cbd5e1" />
                   </TouchableOpacity>
                 </View>
-              )}
-            </GradientCard>
+              </View>
+            </View>
           );
         }}
       />
 
-      {/* Decline Feedback Modal */}
-      <Modal visible={rejectModalVisible} transparent animationType="fade" onRequestClose={() => setRejectModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Decline Song Submission</Text>
-              <TouchableOpacity onPress={() => setRejectModalVisible(false)}>
-                <Ionicons name="close" size={24} color={Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+      {/* ── INTERACTIVE REVIEW STUDIO MODAL ─────────────────────────────────── */}
+      <SubmissionReviewModal
+        visible={reviewModalVisible}
+        song={selectedSong}
+        onClose={() => setReviewModalVisible(false)}
+        onApprove={song => {
+          handleApproveSong(song);
+          setReviewModalVisible(false);
+        }}
+        onReject={(song, notes) => {
+          setSongs(prev =>
+            prev.map(s => (s.id === song.id ? { ...s, status: 'rejected', rejectNotes: notes } : s))
+          );
+          if (selectedSong?.id === song.id) {
+            setSelectedSong(prev => (prev ? { ...prev, status: 'rejected', rejectNotes: notes } : null));
+          }
+          api.submittedSongs.reject(song.id, notes).catch(() => {});
+          setReviewModalVisible(false);
+        }}
+        onSendMessage={handleSendMessage}
+      />
 
-            <Text style={styles.modalSub}>
-              Provide constructive feedback to the singer explaining why this song cannot be scheduled:
+      {/* ── QUICK DECLINE MODAL ────────────────────────────────────────────── */}
+      <Modal visible={rejectModalVisible} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.rejectCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Ionicons name="alert-circle" size={18} color="#e11d48" style={{ marginRight: 6 }} />
+              <Text style={styles.rejectCardTitle}>Decline Song Submission</Text>
+            </View>
+            <Text style={styles.rejectCardSub}>
+              Provide guidance so the songwriter can revise and resubmit.
             </Text>
 
             <TextInput
-              style={styles.feedbackInput}
-              placeholder="e.g. Needs harmonization revision, tempo adjustment, or lyrics alignment..."
-              placeholderTextColor={Colors.textMuted}
+              style={styles.rejectTextInput}
+              placeholder="e.g. Please re-record vocals with backing piano..."
+              placeholderTextColor="#94a3b8"
+              multiline
+              numberOfLines={3}
               value={rejectReason}
               onChangeText={setRejectReason}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
+              autoFocus
             />
 
-            <View style={styles.modalActionRow}>
+            <View style={styles.rejectActionsRow}>
               <TouchableOpacity
-                style={styles.modalCancelBtn}
+                style={styles.rejectCancelBtn}
                 onPress={() => setRejectModalVisible(false)}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.rejectCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.modalConfirmDeclineBtn}
+                style={styles.rejectConfirmBtn}
                 onPress={handleConfirmReject}
-                disabled={submittingAction}
               >
-                {submittingAction ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.modalConfirmDeclineText}>Confirm Decline</Text>
-                )}
+                <Text style={styles.rejectConfirmBtnText}>Decline</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -416,301 +854,419 @@ export default function SubmittedSongsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
   center: {
     paddingVertical: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topSection: {
+  controlBarCard: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 10,
+    gap: 10,
   },
-  headingRow: {
+  topTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
   },
-  screenTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.textPrimary,
+  screenHeading: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#0f172a',
     letterSpacing: -0.3,
+  },
+  totalBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 8,
+  },
+  totalBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748b',
+  },
+  viewModeToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  toggleSegment: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 2,
+  },
+  toggleBtn: {
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  refreshIconBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusTabsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  statusTabBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  statusTabBtnAllActive: {
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
+  },
+  statusTabBtnPendingActive: {
+    backgroundColor: '#f59e0b',
+    borderColor: '#f59e0b',
+  },
+  statusTabBtnApprovedActive: {
+    backgroundColor: '#10b981',
+    borderColor: '#10b981',
+  },
+  statusTabBtnRejectedActive: {
+    backgroundColor: '#e11d48',
+    borderColor: '#e11d48',
+  },
+  statusTabText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  statusTabTextActive: {
+    color: '#ffffff',
+    fontWeight: '800',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    height: 36,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 12.5,
+    color: '#0f172a',
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
-    gap: 12,
+    paddingTop: 10,
+    gap: 10,
   },
-  card: {
-    borderRadius: 16,
+  gridCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+    elevation: 1,
+    gap: 7,
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    justifyContent: 'space-between',
   },
-  titleArea: {
-    flex: 1,
-    marginRight: 10,
-  },
-  songTitle: {
-    fontSize: 17,
+  cardTitle: {
+    fontSize: 14,
     fontWeight: '800',
-    color: Colors.textPrimary,
-    letterSpacing: -0.3,
+    color: '#0f172a',
   },
-  writerText: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  writerHighlight: {
-    color: Colors.accentBright,
-    fontWeight: '700',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
-  },
-  zoneChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  zoneChipText: {
+  cardWriter: {
     fontSize: 11,
-    color: Colors.textMuted,
-    marginLeft: 4,
+    color: '#94a3b8',
+    marginTop: 1,
   },
-  audioAttachedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  cardWriterBold: {
+    fontWeight: '600',
+    color: '#475569',
   },
-  audioAttachedText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#34d399',
-    marginLeft: 4,
+  statusPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  expandToggle: {
+  statusPillPending: {
+    backgroundColor: '#fffbeb',
+  },
+  statusPillApproved: {
+    backgroundColor: '#ecfdf5',
+  },
+  statusPillRejected: {
+    backgroundColor: '#fff1f2',
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  statusPillTextPending: {
+    color: '#b45309',
+  },
+  statusPillTextApproved: {
+    color: '#047857',
+  },
+  statusPillTextRejected: {
+    color: '#e11d48',
+  },
+  submitterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    marginTop: 4,
+    borderTopColor: '#f8fafc',
   },
-  expandToggleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.accentBright,
-  },
-  expandedContent: {
-    paddingTop: 8,
-    paddingBottom: 4,
-    gap: 8,
-  },
-  noteBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  noteTitle: {
+  submitterNameText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    marginBottom: 4,
+    fontWeight: '600',
+    color: '#475569',
   },
-  noteBody: {
-    fontSize: 13,
-    color: '#334155',
-    lineHeight: 18,
+  submitterDateText: {
+    fontSize: 10,
+    color: '#94a3b8',
   },
-  lyricsBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  lyricsText: {
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 18,
-    fontFamily: 'monospace',
-  },
-  actionRow: {
+  badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 10,
-    paddingTop: 10,
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  metaChip: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  metaChipText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  keyChip: {
+    backgroundColor: '#fffbeb',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  keyChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#b45309',
+  },
+  zoneText: {
+    fontSize: 10,
+    color: '#94a3b8',
+    maxWidth: 140,
+  },
+  lyricsSnippetBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  lyricsSnippetText: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    color: '#64748b',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
-  declineBtn: {
+  audioBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-  },
-  declineBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#dc2626',
-  },
-  approveBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#10b981',
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  approveBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  modalBox: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  modalSub: {
-    fontSize: 13,
-    color: '#64748b',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  feedbackInput: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    padding: 12,
-    color: '#0f172a',
-    fontSize: 14,
-    height: 100,
-    marginBottom: 16,
-  },
-  modalActionRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 12,
     backgroundColor: '#f1f5f9',
-    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  modalCancelText: {
-    fontSize: 14,
+  audioBtnPlaying: {
+    backgroundColor: '#7c3aed',
+  },
+  audioBtnText: {
+    fontSize: 10.5,
     fontWeight: '700',
-    color: '#334155',
+    color: '#475569',
   },
-  modalConfirmDeclineBtn: {
-    flex: 1.3,
-    paddingVertical: 11,
-    borderRadius: 12,
-    backgroundColor: '#ef4444',
-    alignItems: 'center',
-  },
-  modalConfirmDeclineText: {
-    fontSize: 14,
-    fontWeight: '700',
+  audioBtnTextPlaying: {
     color: '#ffffff',
   },
-  centerNotice: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    backgroundColor: '#ffffff',
+  noAudioText: {
+    fontSize: 10.5,
+    color: '#94a3b8',
+    fontStyle: 'italic',
   },
-  noticeIconWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
+  chatStudioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f3ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4.5,
+    borderRadius: 7,
+  },
+  chatStudioBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  quickRejectBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
     backgroundColor: '#fff1f2',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  noticeTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 8,
-    textAlign: 'center',
+  quickApproveBtn: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 7,
   },
-  noticeSub: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
+  quickApproveBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
   },
-  noticeBackBtn: {
+  quickDeleteBtn: {
+    padding: 4,
+  },
+  listRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e11d48',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    backgroundColor: '#ffffff',
     borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    gap: 8,
   },
-  noticeBackBtnText: {
-    color: '#ffffff',
-    fontSize: 14,
+  rowTitleText: {
+    fontSize: 13,
     fontWeight: '700',
+    color: '#0f172a',
+  },
+  rowSubText: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  listChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f3ff',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 3,
+  },
+  listChatBtnCount: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#7c3aed',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  rejectCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    maxWidth: 360,
+    gap: 8,
+  },
+  rejectCardTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  rejectCardSub: {
+    fontSize: 11,
+    color: '#64748b',
+    lineHeight: 15,
+  },
+  rejectTextInput: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    padding: 10,
+    height: 70,
+    fontSize: 12,
+    color: '#0f172a',
+    textAlignVertical: 'top',
+  },
+  rejectActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 4,
+  },
+  rejectCancelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+  },
+  rejectCancelBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  rejectConfirmBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#e11d48',
+  },
+  rejectConfirmBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 });

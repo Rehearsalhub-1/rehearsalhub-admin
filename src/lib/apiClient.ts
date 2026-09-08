@@ -245,7 +245,7 @@ async function request<T>(
   }
 }
 
-/** Multipart FormData upload for Cloudflare R2 */
+/** Multipart FormData upload for media files and assets */
 async function uploadRequest<T>(
   path: string,
   formData: FormData,

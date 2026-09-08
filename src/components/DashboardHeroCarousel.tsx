@@ -42,7 +42,7 @@ const SLIDES: SlideItem[] = [
     subtitle: 'Manage running orders, vocal keys & setlists',
     actionText: 'Programs',
     iconName: 'musical-notes',
-    route: 'PraiseNight',
+    route: 'Programs',
   },
   {
     id: 'slide-submissions',
@@ -55,7 +55,7 @@ const SLIDES: SlideItem[] = [
     subtitle: 'Review member audio demos & approve into library',
     actionText: 'Submissions',
     iconName: 'cloud-upload-outline',
-    route: 'Songs',
+    route: 'SubmittedSongs',
   },
   {
     id: 'slide-master',
@@ -116,7 +116,7 @@ const SLIDES: SlideItem[] = [
     tagBg: 'rgba(37, 99, 235, 0.9)',
     tagColor: '#ffffff',
     tagBorder: 'rgba(96, 165, 250, 0.5)',
-    title: 'Cloudflare R2 Media Hub',
+    title: 'Rehearsal Media Hub',
     subtitle: 'Practice videos, isolated audio stems & lead sheets',
     actionText: 'Media Assets',
     iconName: 'folder-open-outline',
@@ -199,19 +199,6 @@ const SLIDES: SlideItem[] = [
     actionText: 'Support',
     iconName: 'chatbubbles-outline',
     route: 'SupportChat',
-  },
-  {
-    id: 'slide-logs',
-    image: require('../../assets/banners/banner1.jpg'),
-    tag: 'AUDIT LOGS',
-    tagBg: 'rgba(100, 116, 139, 0.9)',
-    tagColor: '#ffffff',
-    tagBorder: 'rgba(148, 163, 184, 0.5)',
-    title: 'Coordinator Activity Logs',
-    subtitle: 'Audit trail of song approvals, edits & permissions',
-    actionText: 'Activity',
-    iconName: 'time-outline',
-    route: 'ActivityLogs',
   },
 ];
 

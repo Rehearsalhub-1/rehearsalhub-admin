@@ -77,9 +77,7 @@ export default function MoreScreen({ navigation }: any) {
 
   const zoneLabel = isChurchMode
     ? (activeChurch?.name || 'Church Choir')
-    : isAllZones
-    ? 'All Zones'
-    : (activeZone?.name ?? 'Your Loveworld Singers');
+    : (activeZone?.name ?? (adminUser?.isHQAdmin ? 'Loveworld Singers HQ' : 'Your Zone'));
 
   const roleTitle = adminUser?.isHQAdmin
     ? 'HQ Admin'
@@ -162,6 +160,23 @@ export default function MoreScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
+        {/* ── Executive Oversight (HQ Admins Only) ────────────────────── */}
+        {adminUser?.isHQAdmin && (
+          <>
+            <Text style={styles.sectionLabel}>Executive Oversight</Text>
+            <View style={styles.menuGroup}>
+              <MenuItem
+                iconName="earth-outline"
+                iconColor="#4f46e5"
+                iconBg="#eef2ff"
+                label="Global Executive Overview"
+                sub="Ministry-wide statistics, zone breakdown & global directory"
+                onPress={() => navigation.navigate('Analytics')}
+              />
+            </View>
+          </>
+        )}
+
         {/* ── Repertoire & Sets ──────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Repertoire & Sets</Text>
         <View style={styles.menuGroup}>
@@ -171,7 +186,7 @@ export default function MoreScreen({ navigation }: any) {
             iconBg="#f5f3ff"
             label="Programs"
             sub="Rehearsal programs, setlists, and running orders"
-            onPress={() => navigation.navigate('PraiseNight')}
+            onPress={() => navigation.navigate('Programs')}
           />
           {/* Hide Submitted Songs in pure Church Mode */}
           {!isPureChurchAdmin && !isChurchMode && (
@@ -181,7 +196,7 @@ export default function MoreScreen({ navigation }: any) {
               iconBg="#fff1f2"
               label="Submitted Songs"
               sub="Review singer audio submissions and approve"
-              onPress={() => navigation.navigate('Songs')}
+              onPress={() => navigation.navigate('SubmittedSongs')}
             />
           )}
           <MenuItem
@@ -216,8 +231,8 @@ export default function MoreScreen({ navigation }: any) {
             sub="Singer roster, vocal parts, and permissions"
             onPress={() => navigation.navigate('Members')}
           />
-          {/* Hide Churches & Subgroups in Church Mode */}
-          {!isPureChurchAdmin && !isChurchMode && (
+          {/* Hide Churches & Subgroups in Church Mode or for HQ Admins */}
+          {!isPureChurchAdmin && !isChurchMode && !adminUser?.isHQAdmin && (
             <MenuItem
               iconName="business-outline"
               iconColor="#0284c7"
@@ -232,8 +247,16 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#059669"
             iconBg="#ecfdf5"
             label="Attendance Manager"
-            sub="Session passcodes, QR codes, and check-in feed"
+            sub="Camera QR scanner, cumulative stats & check-in feed"
             onPress={() => navigation.navigate('Attendance')}
+          />
+          <MenuItem
+            iconName="navigate-circle-outline"
+            iconColor="#0284c7"
+            iconBg="#e0f2fe"
+            label="Geofence & Venue Clock-in"
+            sub="GPS venue boundary & mobile rehearsal check-in"
+            onPress={() => navigation.navigate('Geofence')}
           />
           <MenuItem
             iconName="list-outline"
@@ -248,7 +271,7 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#2563eb"
             iconBg="#eff6ff"
             label="Media Assets"
-            sub="Cloudflare R2 rehearsal videos and audio stems"
+            sub="Videos, audio stems, photos & sheet music"
             onPress={() => navigation.navigate('MediaLibrary')}
           />
           <MenuItem
@@ -282,10 +305,10 @@ export default function MoreScreen({ navigation }: any) {
           />
         </View>
 
-        {/* ── System & Audit (Zonal & HQ Only) ────────────────────────── */}
+        {/* ── System & Analytics (Zonal & HQ Only) ────────────────────── */}
         {!isPureChurchAdmin && !isChurchMode && (
           <>
-            <Text style={styles.sectionLabel}>System & Audit</Text>
+            <Text style={styles.sectionLabel}>System & Analytics</Text>
             <View style={styles.menuGroup}>
               <MenuItem
                 iconName="bar-chart-outline"
@@ -294,14 +317,6 @@ export default function MoreScreen({ navigation }: any) {
                 label="Analytics & Insights"
                 sub="Attendance turnout rates and rehearsal trends"
                 onPress={() => navigation.navigate('Analytics')}
-              />
-              <MenuItem
-                iconName="time-outline"
-                iconColor="#64748b"
-                iconBg="#f1f5f9"
-                label="Activity Logs"
-                sub="Audit trail of coordinator and director actions"
-                onPress={() => navigation.navigate('ActivityLogs')}
               />
             </View>
           </>

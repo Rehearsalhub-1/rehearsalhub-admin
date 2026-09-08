@@ -13,6 +13,8 @@ export const api = {
     me: () => apiClient.get<{ success: boolean; data: any }>('/auth/me'),
     login: (identifier: string, password: string) =>
       apiClient.post<{ success: boolean; data?: any; error?: string }>('/auth/login', { identifier, password }),
+    kingschatLogin: (data: Record<string, any>) =>
+      apiClient.post<{ success: boolean; code?: string; accounts?: any[]; data?: any; error?: string }>('/auth/kingschat-login', data),
     logout: (refreshToken?: string) =>
       apiClient.post<{ success: boolean }>('/auth/logout', { refreshToken }).catch(() => ({ success: true })),
     storeTokens: (accessToken: string, refreshToken: string, userId: string = '') =>
@@ -23,9 +25,10 @@ export const api = {
   // ── Dashboard Metrics ────────────────────────────────────────────────────
   dashboard: {
     getStats: async (zoneId?: string, churchId?: string) => {
-      const zoneParam = zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : '';
-      const [zoneSongsRes, membersRes, programsRes, submittedRes] = await Promise.all([
+      const zoneParam = zoneId && zoneId !== 'all' ? `?zoneId=${encodeURIComponent(zoneId)}` : '';
+      const [zoneSongsRes, masterSongsRes, membersRes, programsRes, submittedRes] = await Promise.all([
         apiClient.get<any>(`/songs/zone${zoneParam}`).catch(() => ({ data: [] })),
+        apiClient.get<any>('/songs/master').catch(() => ({ data: [] })),
         churchId
           ? apiClient.get<any>(`/subgroups/${churchId}/members`).catch(() => ({ data: [] }))
           : apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => ({ data: [] })),
@@ -33,8 +36,11 @@ export const api = {
         apiClient.get<any>(`/submitted-songs${zoneParam}`).catch(() => ({ data: [] })),
       ]);
 
-      const songs = Array.isArray(zoneSongsRes?.data) ? zoneSongsRes.data : [];
+      const zoneSongs = Array.isArray(zoneSongsRes?.data) ? zoneSongsRes.data : [];
+      const masterSongs = Array.isArray(masterSongsRes?.data) ? masterSongsRes.data : [];
+      const totalSongsCount = masterSongs.length + zoneSongs.length;
       const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
+      const totalMembersCount = membersRes?.totalCount ?? membersRes?.count ?? members.length;
       const programs = Array.isArray(programsRes?.data) ? programsRes.data : [];
       const submitted = Array.isArray(submittedRes?.data) ? submittedRes.data : [];
 
@@ -42,10 +48,10 @@ export const api = {
       const upcomingPrograms = programs.filter((p: any) => (p.status || p.category) === 'pre-rehearsal');
 
       return {
-        totalSongs: songs.length,
-        pendingSongs: submitted.filter((s: any) => s.status === 'pending').length,
-        totalMembers: members.length,
-        activePrograms: activePrograms.length,
+        totalSongs: totalSongsCount,
+        pendingSongs: submitted.filter((s: any) => s.status === 'pending' || !s.status).length,
+        totalMembers: totalMembersCount,
+        activePrograms: programs.length,
         currentLiveProgram: activePrograms[0] || upcomingPrograms[0] || null,
         recentSubmissions: submitted.slice(0, 5),
       };
@@ -60,6 +66,8 @@ export const api = {
       apiClient.get<{ success: boolean; data: any[] }>(`/songs/zone${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     getById: (songId: string) =>
       apiClient.get<{ success: boolean; data: any }>(`/songs/${songId}`),
+    getProgramSongs: (programId: string) =>
+      apiClient.get<{ success: boolean; data: any[] }>(`/songs/praise-night?praiseNightId=${encodeURIComponent(programId)}`),
     getPraiseNightSongs: (praiseNightId: string) =>
       apiClient.get<{ success: boolean; data: any[] }>(`/songs/praise-night?praiseNightId=${encodeURIComponent(praiseNightId)}`),
     setActiveSong: (songId: string) =>
@@ -125,14 +133,21 @@ export const api = {
       apiClient.patch<{ success: boolean; data?: any }>(`/submitted-songs/${id}`, { status: 'approved' }),
     reject: (id: string, reason?: string) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/submitted-songs/${id}`, { status: 'rejected', rejectNotes: reason }),
+    reply: (id: string, message: string, senderName?: string, replyTo?: any) =>
+      apiClient.post<{ success: boolean; data?: any }>(`/submitted-songs/${id}/reply`, { message, senderName, replyTo }),
   },
 
   // ── Members & Profiles ───────────────────────────────────────────────────
   members: {
+    getGlobalMembers: (search?: string) =>
+      apiClient.get<{ success: boolean; count: number; data: any[] }>(`/members?scope=global${search ? `&search=${encodeURIComponent(search)}` : ''}`),
     getDirectory: (zoneId?: string, limit = 500, search = '') => {
       const params = new URLSearchParams();
       params.append('limit', String(limit));
-      if (zoneId) params.append('zoneId', zoneId);
+      if (zoneId) {
+        params.append('zone_code', zoneId);
+        params.append('zoneId', zoneId);
+      }
       if (search) params.append('search', search);
       return apiClient.get<{ success: boolean; data: any[] }>(`/profiles/directory?${params.toString()}`);
     },
@@ -140,6 +155,22 @@ export const api = {
       apiClient.get<{ success: boolean; data: any[] }>(`/members/admin-requests${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     updateRole: (userId: string, role: string) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/members/${userId}`, { role }),
+    updateProfile: (id: string, data: Record<string, any>) =>
+      apiClient.patch<{ success: boolean; error?: string; data?: any }>(`/profiles/${encodeURIComponent(id)}`, data),
+    suspend: (id: string) =>
+      apiClient.post<{ success: boolean }>(`/profiles/${encodeURIComponent(id)}/suspend`, {}),
+    reactivate: (id: string) =>
+      apiClient.post<{ success: boolean }>(`/profiles/${encodeURIComponent(id)}/reactivate`, {}),
+    ban: (id: string) =>
+      apiClient.post<{ success: boolean }>(`/profiles/${encodeURIComponent(id)}/ban`, {}),
+    removeFromZone: (id: string) =>
+      apiClient.post<{ success: boolean }>(`/profiles/${encodeURIComponent(id)}/remove-from-zone`, {}),
+    delete: (id: string) =>
+      apiClient.delete<{ success: boolean }>(`/profiles/${encodeURIComponent(id)}`),
+    approve: (id: string) =>
+      apiClient.post<{ success: boolean }>(`/profiles/${encodeURIComponent(id)}/approve`, {}),
+    reject: (id: string, reason?: string) =>
+      apiClient.post<{ success: boolean }>(`/profiles/${encodeURIComponent(id)}/reject`, { reason }),
     approveAdminRequest: (requestId: string) =>
       apiClient.post<{ success: boolean }>(`/members/admin-requests/${requestId}/approve`, {}),
     rejectAdminRequest: (requestId: string) =>
@@ -206,9 +237,22 @@ export const api = {
       apiClient.post<{ success: boolean; data?: any }>('/attendance', data),
     deleteRecord: (id: string) =>
       apiClient.delete<{ success: boolean }>(`/attendance/${id}`),
+    getSession: (zoneId?: string) =>
+      apiClient.get<{ success: boolean; data: { zoneId: string; isOpen: boolean; lastToggledAt: string | null; toggledBy: string | null } }>(
+        `/attendance/session${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`
+      ),
+    toggleSession: (zoneId: string, isOpen: boolean) =>
+      apiClient.post<{ success: boolean; data: { zoneId: string; isOpen: boolean; lastToggledAt: string; toggledBy: string } }>(
+        '/attendance/session/toggle',
+        { zoneId, isOpen }
+      ),
+    checkIn: (payload: { userId?: string; eventName?: string; qrCode?: string; zoneId?: string; programId?: string }) =>
+      apiClient.post<{ success: boolean; data: any }>('/attendance/check-in', payload),
+    createManual: (payload: { name: string; eventName?: string; zoneId?: string }) =>
+      apiClient.post<{ success: boolean; data: any }>('/attendance/manual', payload),
   },
 
-  // ── Media & Cloudflare R2 Uploads ────────────────────────────────────────
+  // ── Media Assets & Cloud Uploads ────────────────────────────────────────
   media: {
     getAll: (zoneId?: string, limit = 100, type?: string) => {
       const params = new URLSearchParams();
@@ -219,6 +263,8 @@ export const api = {
     },
     create: (data: Record<string, any>) =>
       apiClient.post<{ success: boolean; data?: any }>('/media', data),
+    update: (mediaId: string, data: Record<string, any>) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/media/${mediaId}`, data).catch(() => ({ success: true })),
     delete: (mediaId: string) =>
       apiClient.delete<{ success: boolean }>(`/media/${mediaId}`),
     upload: async (file: { uri: string; name: string; type: string }, folder = 'rehearsals') => {
@@ -240,7 +286,9 @@ export const api = {
     broadcast: (payload: { title: string; message: string; priority?: string; category?: string; targetAudience?: string }) =>
       apiClient.post<{ success: boolean }>('/notifications/broadcast', payload),
     send: (payload: Record<string, any>) =>
-      apiClient.post<{ success: boolean }>('/notifications', payload),
+      apiClient.post<{ success: boolean; recipientCount?: number }>('/notifications', payload),
+    getSent: () =>
+      apiClient.get<{ success: boolean; count: number; data: any[] }>('/notifications/sent'),
   },
 
   // ── Rehearsal Schedules ──────────────────────────────────────────────────
@@ -287,6 +335,8 @@ export const api = {
 
   // ── Analytics ────────────────────────────────────────────────────────────
   analytics: {
+    getOverview: () =>
+      apiClient.get<{ success: boolean; data: { totalSingers: number; totalZones: number; totalChurches: number; globalAttendanceRate: number; totalAttendanceRecords: number } }>('/analytics/overview'),
     getEvents: (limit = 100) =>
       apiClient.get<{ success: boolean; data: any[] }>(`/analytics/events?limit=${limit}`),
   },
@@ -299,9 +349,26 @@ export const api = {
       apiClient.get<{ success: boolean; data: any }>(`/organizations/${id}`),
   },
 
+  // ── Settings & Geofence ───────────────────────────────────────────────────
+  settings: {
+    get: (key: string) =>
+      apiClient.get<{ success: boolean; data: any }>(`/settings/${encodeURIComponent(key)}`),
+    update: (key: string, data: Record<string, any>) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/settings/${encodeURIComponent(key)}`, data),
+  },
+
+  // ── Calendar & Upcoming Events ──────────────────────────────────────────
+  calendar: {
+    getEvents: (zoneId?: string) =>
+      apiClient.get<{ success: boolean; data: any[] }>(`/upcoming-events${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
+    create: (data: Record<string, any>) =>
+      apiClient.post<{ success: boolean; data?: any }>('/upcoming-events', data),
+  },
+
   // ── Health ───────────────────────────────────────────────────────────────
   health: () =>
     apiClient.get<{ status: string }>('/health').catch(() => null),
 };
 
+export { SessionExpiredError } from '../lib/apiClient';
 export default api;

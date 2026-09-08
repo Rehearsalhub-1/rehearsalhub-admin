@@ -142,59 +142,6 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         }
       }
 
-      // 4. Resolve verified user zones (ONLY zones the user actually belongs to)
-      const userZones: ZoneOption[] = [];
-      for (const mem of allMemberships) {
-        const zId =
-          mem.organizationId ||
-          mem.organization_id ||
-          mem.zoneId ||
-          mem.zone_id ||
-          mem.hqGroupId ||
-          mem.hq_group_id ||
-          mem.zoneCode ||
-          mem.zone_code ||
-          mem.id;
-        const orgName =
-          mem.organization?.name ||
-          mem.organizationName ||
-          mem.zoneName ||
-          mem.hqGroupName ||
-          mem.name ||
-          zId;
-        const orgCode =
-          mem.organization?.slug ||
-          mem.organization?.code ||
-          mem.zoneCode ||
-          mem.invitationCode ||
-          zId;
-
-        if (zId) {
-          const matched =
-            dbZones.find(
-              (z: any) =>
-                String(z.id) === String(zId) ||
-                (z.invitationCode && String(z.invitationCode).toLowerCase() === String(zId).toLowerCase()) ||
-                (z.name && String(z.name).toLowerCase() === String(orgName).toLowerCase())
-            ) ||
-            STATIC_CONFIG_ZONES.find(
-              (z: any) =>
-                String(z.id) === String(zId) ||
-                (z.invitationCode && String(z.invitationCode).toLowerCase() === String(zId).toLowerCase()) ||
-                (z.name && String(z.name).toLowerCase() === String(orgName).toLowerCase())
-            ) || { id: String(zId), name: orgName, invitationCode: orgCode };
-
-          if (!userZones.some(z => String(z.id) === String(matched.id))) {
-            userZones.push({
-              id: matched.id,
-              name: matched.name,
-              invitationCode: matched.invitationCode || matched.id,
-              role: mem.role || 'member',
-            });
-          }
-        }
-      }
-
       const isHqUser =
         rawRole === 'hq_admin' ||
         rawRole === 'admin' ||
@@ -203,25 +150,47 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         rawRole === 'org_admin' ||
         Boolean(raw.hasHqAccess || raw.has_hq_access);
 
-      // If user is HQ admin, ensure HQ Zone ('zone-001') is included
-      if (isHqUser && !userZones.some(z => z.id === 'zone-001')) {
-        userZones.unshift({
-          id: 'zone-001',
-          name: 'Your Loveworld Singers',
-          invitationCode: 'ZONE001',
-          role: 'hq_admin',
-        });
-      }
-
-      // If no zones extracted from memberships, fallback to raw.zoneId
-      if (userZones.length === 0 && raw.zoneId) {
-        const fallback =
-          STATIC_CONFIG_ZONES.find(z => z.id === raw.zoneId || z.invitationCode === raw.zoneId) || {
-            id: raw.zoneId,
-            name: raw.zoneId,
-            invitationCode: raw.zoneId,
+      // 4. Resolve the admin's zones
+      // Rule: Zonal admins are locked to ONE zone (can admin multiple churches).
+      // HQ Admins are locked to Loveworld Singers HQ (their own choir at LCA). HQ is a real zone.
+      let userZones: ZoneOption[];
+      if (isHqUser) {
+        const hqZone =
+          dbZones.find((z: any) => z.isHq || z.id === 'zone-001' || z.region === 'Headquarters') ||
+          STATIC_CONFIG_ZONES.find((z: any) => z.id === 'zone-001') || {
+            id: 'zone-001',
+            name: 'Loveworld Singers HQ',
+            invitationCode: 'ZONE001',
+            role: 'hq_admin',
           };
-        userZones.push(fallback);
+        userZones = [
+          {
+            id: hqZone.id,
+            name: hqZone.name || 'Loveworld Singers HQ',
+            invitationCode: hqZone.invitationCode || 'ZONE001',
+            role: 'hq_admin',
+          },
+        ];
+      } else {
+        const adminMem = allMemberships.find(m => {
+          const r = (m.role || '').toLowerCase();
+          return r.includes('admin') || r.includes('coordinator') || r.includes('leader');
+        });
+        const targetZoneId = adminMem?.organizationId || adminMem?.zoneId || raw.zoneId || 'zone-001';
+        const matched =
+          dbZones.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId) ||
+          STATIC_CONFIG_ZONES.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId) || {
+            id: targetZoneId,
+            name: targetZoneId || 'Your Zone',
+            invitationCode: targetZoneId || '',
+          };
+        const lockedZone: ZoneOption = {
+          id: matched.id,
+          name: matched.name,
+          invitationCode: matched.invitationCode || matched.id,
+          role: adminMem?.role || 'zone_admin',
+        };
+        userZones = [lockedZone];
       }
 
       // 5. Resolve user churches (support MULTIPLE churches)
@@ -281,16 +250,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       const isPureChurchAdmin = isChurchAdmin && !isHqUser && !isZoneAdmin;
       const hasDualRole = (isHqUser || isZoneAdmin) && (isChurchAdmin || userChurches.length > 0);
 
-      // 7. Resolve default active zone (NEVER null by default)
+      // 7. Resolve default active zone
       const currentActiveZone = get().activeZone;
       const defaultZone =
         (currentActiveZone && userZones.find(z => z.id === currentActiveZone.id)) ||
-        userZones.find(z => z.id === raw.zoneId) ||
-        userZones[0] || {
-          id: 'zone-001',
-          name: 'Your Loveworld Singers',
-          invitationCode: 'ZONE001',
-        };
+        userZones[0] ||
+        null;
+      const isAllZones = false;
 
       // 8. Resolve default active church
       const currentActiveChurch = get().activeChurch;
@@ -306,8 +272,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       // 10. Seed Tenant Scope Headers for API client
       apiClient.setMobileTenantScope({
-        zoneId: defaultZone.id,
-        zoneCode: defaultZone.invitationCode,
+        zoneId: defaultZone?.id || null,
+        zoneCode: defaultZone?.invitationCode || null,
         scope: isChurchMode ? 'global' : 'zone',
       });
 
@@ -316,7 +282,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         email: raw.email,
         name: raw.name || raw.firstName || (raw.email ? raw.email.split('@')[0] : 'Administrator'),
         role: rawRole || (isHqUser ? 'hq_admin' : isZoneAdmin ? 'zone_admin' : 'coordinator'),
-        zoneId: defaultZone.id,
+        zoneId: defaultZone?.id || null,
         isHQAdmin: isHqUser,
         isZoneAdmin,
         isChurchAdmin,
@@ -345,24 +311,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   switchZone: (zone: ZoneOption | null) => {
-    const { adminUser, isChurchMode } = get();
-    if (!zone) {
-      // Only HQ admin can choose to view across all zones
-      if (adminUser?.isHQAdmin) {
-        set({ activeZone: null, isAllZones: true });
-        apiClient.setMobileTenantScope({
-          zoneId: null,
-          zoneCode: null,
-          scope: 'global',
-        });
-      }
-      return;
-    }
+    const { isChurchMode, availableZones } = get();
+    const targetZone = (zone && availableZones.find(z => z.id === zone.id)) || availableZones[0] || null;
+    if (!targetZone) return;
 
-    set({ activeZone: zone, isAllZones: false });
+    set({ activeZone: targetZone, isAllZones: false });
     apiClient.setMobileTenantScope({
-      zoneId: zone.id,
-      zoneCode: zone.invitationCode,
+      zoneId: targetZone.id,
+      zoneCode: targetZone.invitationCode,
       scope: isChurchMode ? 'global' : 'zone',
     });
   },

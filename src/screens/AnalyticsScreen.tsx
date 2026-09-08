@@ -1,60 +1,125 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView,
-  ActivityIndicator, RefreshControl, TouchableOpacity,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
+  TouchableOpacity,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
+
 import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
-import { useZoneContext } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
+import MemberManagementModal, { Member } from '../components/MemberManagementModal';
 
 export default function AnalyticsScreen({ navigation }: any) {
-  const { activeZone, isAllZones, isChurchMode } = useZoneContext();
   const { adminUser } = useAuth();
+  const isHQ = adminUser?.isHQAdmin === true;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [events, setEvents] = useState<any[]>([]);
-  const [eventsError, setEventsError] = useState<string | null>(null);
-
-  const [stats, setStats] = useState<any>({
-    totalMembers: 0,
-    activeAttendanceRate: 88,
-    totalSessions: 14,
-    totalSongsRehearsed: 42,
-    topSongs: [
-      { id: '1', title: 'Great is Thy Faithfulness', rehearsals: 18 },
-      { id: '2', title: 'Holy Are You Lord', rehearsals: 15 },
-      { id: '3', title: 'We Lift Our Voices', rehearsals: 12 },
-      { id: '4', title: 'Grace and Favor', rehearsals: 9 },
-    ],
-    attendanceTrend: [
-      { day: 'Mon', count: 42 },
-      { day: 'Tue', count: 56 },
-      { day: 'Wed', count: 78 },
-      { day: 'Thu', count: 64 },
-      { day: 'Fri', count: 91 },
-      { day: 'Sat', count: 120 },
-      { day: 'Sun', count: 110 },
-    ],
+  const [overview, setOverview] = useState({
+    totalSingers: 0,
+    totalZones: 0,
+    totalChurches: 0,
+    globalAttendanceRate: 0,
   });
+  const [zonesList, setZonesList] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  const fetchAnalytics = useCallback(async () => {
+  // Member Management Drawer State
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const handleSelectMember = (raw: any) => {
+    const names = (raw.userName || raw.name || '').trim().split(' ');
+    const firstName = raw.firstName || names[0] || 'Singer';
+    const lastName = raw.lastName || names.slice(1).join(' ') || '';
+
+    const memberData: Member = {
+      id: raw.id || raw.userId,
+      membershipId: raw.membershipId || raw.id,
+      first_name: firstName,
+      last_name: lastName,
+      email: raw.userEmail || raw.email || '',
+      username: raw.username || raw.userName || '',
+      alias: raw.alias || '',
+      phone: raw.phone || '',
+      church: raw.churchName || raw.church || '',
+      zoneId: raw.zoneId || raw.organizationId || '',
+      zoneName: raw.zoneName || raw.organization?.name || '',
+      role: raw.role || 'member',
+      isAdmin: raw.isAdmin || raw.role === 'zone_admin' || raw.role === 'church_admin',
+      is_active: raw.is_active !== false,
+      can_access_ongoing: true,
+      can_access_pre_rehearsal: true,
+      canAnnotate: true,
+      canSeeArchive: true,
+    };
+    setSelectedMember(memberData);
+    setModalVisible(true);
+  };
+
+  const handleSaveMember = async (updated: Member) => {
     try {
-      const res = await api.analytics.getEvents(100).catch(() => null);
-      if (res?.success !== false && Array.isArray(res?.data)) {
-        setEvents(res.data);
-        setEventsError(null);
-      } else if (res?.success === false) {
-        setEventsError('Analytics data is only available to HQ administrators.');
+      if (updated.role) {
+        await api.members.updateRole(updated.id, updated.role);
       }
+      await api.members.updateProfile(updated.id, {
+        role: updated.role,
+        is_active: updated.is_active,
+        church: updated.church,
+        canSeeArchive: updated.canSeeArchive,
+        can_access_archive: updated.can_access_archive,
+        can_access_ongoing: updated.can_access_ongoing,
+        can_access_pre_rehearsal: updated.can_access_pre_rehearsal,
+        canAnnotate: updated.canAnnotate,
+        hiddenFeatures: updated.hiddenFeatures,
+      });
+      // Update local search results
+      setSearchResults(prev =>
+        prev.map(m => ((m.id || m.userId) === updated.id ? { ...m, role: updated.role, churchName: updated.church } : m))
+      );
+      Alert.alert('Updated', `${updated.first_name}'s role and access passes were updated successfully.`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to update member role.');
+    }
+  };
+
+  const handleRemoveMember = async (id: string) => {
+    try {
+      await api.members.removeFromZone(id);
+      setSearchResults(prev => prev.filter(m => (m.id || m.userId) !== id));
+      Alert.alert('Removed', 'Member was removed from their zone successfully.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to remove member from zone.');
+    }
+  };
+
+  const fetchGlobalData = useCallback(async () => {
+    try {
+      const [overviewRes, zonesRes] = await Promise.all([
+        api.analytics.getOverview().catch(() => null),
+        api.zones.getAll().catch(() => ({ data: [] })),
+      ]);
+
+      if (overviewRes?.data) {
+        setOverview(overviewRes.data);
+      }
+
+      const rawZones = Array.isArray(zonesRes?.data) ? zonesRes.data : [];
+      setZonesList(rawZones);
     } catch (e) {
-      console.error('[Analytics] fetch error:', e);
-      setEventsError('Could not load analytics data.');
+      console.error('[GlobalOverview] fetch error:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,21 +127,53 @@ export default function AnalyticsScreen({ navigation }: any) {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+    if (isHQ) {
+      setLoading(true);
+      fetchGlobalData();
+    }
+  }, [isHQ, fetchGlobalData]);
 
-  if (isChurchMode && !adminUser?.isHQAdmin) {
+  // Global Member Search handler
+  useEffect(() => {
+    if (!isHQ) return;
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await api.members.getGlobalMembers(searchQuery.trim());
+        if (res?.data && Array.isArray(res.data)) {
+          setSearchResults(res.data);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (err) {
+        console.warn('[GlobalOverview] Member search error:', err);
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, isHQ]);
+
+  // Restricted Access Guard for non-HQ admins
+  if (!isHQ) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Analytics & Reports" />
+        <ZoneHeader title="Executive Overview" />
         <View style={styles.centerNotice}>
           <View style={styles.noticeIconWrap}>
-            <Ionicons name="bar-chart-outline" size={44} color="#059669" />
+            <Ionicons name="shield-outline" size={44} color="#6366f1" />
           </View>
-          <Text style={styles.noticeTitle}>Zonal / HQ Analytics</Text>
+          <Text style={styles.noticeTitle}>HQ Leadership Only</Text>
           <Text style={styles.noticeSub}>
-            Deep rehearsal trends, aggregated attendance curves, and song analytics are accessible at the Zonal and HQ level.
+            The Global Executive Overview provides ministry-wide aggregated metrics across all zones and churches. This console is strictly reserved for Loveworld Singers Headquarters leadership.
           </Text>
           <TouchableOpacity
             style={styles.noticeBackBtn}
@@ -84,7 +181,7 @@ export default function AnalyticsScreen({ navigation }: any) {
             activeOpacity={0.8}
           >
             <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-            <Text style={styles.noticeBackBtnText}>Back</Text>
+            <Text style={styles.noticeBackBtnText}>Back to Console</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -94,102 +191,228 @@ export default function AnalyticsScreen({ navigation }: any) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Analytics & Reports" />
-        <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
+        <ZoneHeader title="Global Executive Overview" />
+        <View style={styles.center}>
+          <ActivityIndicator color="#4f46e5" size="large" />
+          <Text style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>Loading Ministry Metrics...</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  const maxAttendance = Math.max(...stats.attendanceTrend.map((t: any) => t.count), 1);
-
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Analytics & Reports" />
-      {eventsError ? (
-        <View style={{ margin: 16, padding: 12, backgroundColor: Colors.surface, borderRadius: 10, borderWidth: 1, borderColor: Colors.border }}>
-          <Text style={{ color: Colors.textMuted, fontSize: 12, textAlign: 'center' }}>{eventsError}</Text>
-        </View>
-      ) : null}
-
+      <ZoneHeader title="Global Executive Overview" />
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchAnalytics(); }} tintColor={Colors.accent} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchGlobalData();
+            }}
+            tintColor="#4f46e5"
+          />
         }
       >
-        {/* KPI Overview Grid */}
-        <View style={styles.kpiGrid}>
-          <View style={styles.kpiCard}>
-            <Ionicons name="analytics-outline" size={20} color={Colors.accent} />
-            <Text style={styles.kpiValue}>{events.length}</Text>
-            <Text style={styles.kpiLabel}>Events Logged</Text>
+        {/* Banner */}
+        <View style={styles.bannerCard}>
+          <View style={styles.bannerIcon}>
+            <Ionicons name="earth" size={24} color="#4f46e5" />
           </View>
-
-          <View style={styles.kpiCard}>
-            <Ionicons name="pie-chart-outline" size={20} color={Colors.accentBright} />
-            <Text style={styles.kpiValue}>{stats.activeAttendanceRate}%</Text>
-            <Text style={styles.kpiLabel}>Avg Attendance</Text>
-          </View>
-
-          <View style={styles.kpiCard}>
-            <Ionicons name="musical-notes-outline" size={20} color={Colors.success} />
-            <Text style={styles.kpiValue}>{stats.totalSongsRehearsed}</Text>
-            <Text style={styles.kpiLabel}>Songs Rehearsed</Text>
-          </View>
-
-          <View style={styles.kpiCard}>
-            <Ionicons name="calendar-outline" size={20} color={Colors.info} />
-            <Text style={styles.kpiValue}>{stats.totalSessions}</Text>
-            <Text style={styles.kpiLabel}>Sessions Held</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bannerTitle}>Worldwide Ministry Scope</Text>
+            <Text style={styles.bannerSub}>
+              Aggregated personnel, zone distribution, and global attendance metrics.
+            </Text>
           </View>
         </View>
 
-        {/* Weekly Attendance Curve / Bar Chart */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="trending-up-outline" size={18} color={Colors.accentBright} />
-            <Text style={styles.cardTitle}>Weekly Rehearsal Attendance</Text>
+        {/* ── Worldwide KPI Cards (4 Cards) ───────────────────────────────── */}
+        <View style={styles.kpiGrid}>
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconWrap, { backgroundColor: '#eef2ff' }]}>
+              <Ionicons name="people" size={20} color="#4f46e5" />
+            </View>
+            <Text style={styles.kpiValue}>{overview.totalSingers}</Text>
+            <Text style={styles.kpiLabel}>Total Singers</Text>
+            <Text style={styles.kpiMeta}>All zones combined</Text>
           </View>
 
-          <View style={styles.chartContainer}>
-            {stats.attendanceTrend.map((item: any) => {
-              const heightPct = Math.round((item.count / maxAttendance) * 100);
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconWrap, { backgroundColor: '#faf5ff' }]}>
+              <Ionicons name="globe-outline" size={20} color="#7c3aed" />
+            </View>
+            <Text style={styles.kpiValue}>{overview.totalZones || zonesList.length}</Text>
+            <Text style={styles.kpiLabel}>Global Zones</Text>
+            <Text style={styles.kpiMeta}>Active ministry regions</Text>
+          </View>
+
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconWrap, { backgroundColor: '#fff7ed' }]}>
+              <Ionicons name="business-outline" size={20} color="#ea580c" />
+            </View>
+            <Text style={styles.kpiValue}>{overview.totalChurches}</Text>
+            <Text style={styles.kpiLabel}>Church Choirs</Text>
+            <Text style={styles.kpiMeta}>Local assemblies</Text>
+          </View>
+
+          <View style={styles.kpiCard}>
+            <View style={[styles.kpiIconWrap, { backgroundColor: '#ecfdf5' }]}>
+              <Ionicons name="checkmark-circle-outline" size={20} color="#059669" />
+            </View>
+            <Text style={styles.kpiValue}>{overview.globalAttendanceRate}%</Text>
+            <Text style={styles.kpiLabel}>Global Attendance</Text>
+            <Text style={styles.kpiMeta}>Ministry-wide average</Text>
+          </View>
+        </View>
+
+        {/* ── Global Member Search ────────────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="search" size={18} color="#4f46e5" />
+            <Text style={styles.cardTitle}>Global Singer Lookup</Text>
+          </View>
+          <Text style={styles.cardDesc}>
+            Search any singer across all global zones and local church choirs.
+          </Text>
+
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={18} color="#94a3b8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name, email, or KingsChat..."
+              placeholderTextColor="#94a3b8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              clearButtonMode="while-editing"
+            />
+            {searching && <ActivityIndicator size="small" color="#4f46e5" />}
+          </View>
+
+          {/* Search Results List */}
+          {searchQuery.trim().length > 0 && (
+            <View style={styles.resultsContainer}>
+              {searchResults.length === 0 && !searching ? (
+                <Text style={styles.noResultsText}>No singers found matching "{searchQuery}"</Text>
+              ) : (
+                searchResults.map((member: any) => {
+                  const initial = (member.userName || member.userEmail || 'S').charAt(0).toUpperCase();
+                  return (
+                    <TouchableOpacity
+                      key={member.id || member.userId}
+                      style={styles.memberResultRow}
+                      onPress={() => handleSelectMember(member)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.memberAvatar}>
+                        <Text style={styles.memberAvatarText}>{initial}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={styles.memberName}>{member.userName}</Text>
+                          <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+                        </View>
+                        <Text style={styles.memberEmail}>{member.userEmail || 'No email'}</Text>
+                        <View style={styles.badgeRow}>
+                          <View style={styles.zoneBadge}>
+                            <Ionicons name="earth" size={10} color="#4f46e5" />
+                            <Text style={styles.zoneBadgeText} numberOfLines={1}>
+                              {member.zoneName || member.organization?.name || 'HQ Zone'}
+                            </Text>
+                          </View>
+                          {member.churchName && (
+                            <View style={styles.churchBadge}>
+                              <Ionicons name="business" size={10} color="#d97706" />
+                              <Text style={styles.churchBadgeText} numberOfLines={1}>
+                                {member.churchName}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={[styles.churchBadge, { backgroundColor: '#f3e8ff' }]}>
+                            <Ionicons name="shield-checkmark" size={10} color="#7c3aed" />
+                            <Text style={[styles.churchBadgeText, { color: '#7c3aed' }]}>
+                              {member.role === 'church_admin' ? 'Church Admin' : member.role === 'zone_admin' ? 'Zone Admin' : 'Singer'}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* ── Zone Breakdown Cards ────────────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="map-outline" size={18} color="#7c3aed" />
+            <Text style={styles.cardTitle}>Regional Zones Breakdown ({zonesList.length})</Text>
+          </View>
+          <Text style={styles.cardDesc}>
+            Summary of active zones, membership rosters, and local assemblies.
+          </Text>
+
+          <View style={styles.zoneGrid}>
+            {zonesList.map((z: any) => {
+              const memberCount = z._count?.memberships ?? 0;
+              const churchCount = z._count?.groups ?? (z.groups?.length ?? 0);
+              const isHqZone = z.isHq || z.id === 'zone-001' || z.region === 'Headquarters';
+
               return (
-                <View key={item.day} style={styles.barColumn}>
-                  <Text style={styles.barValue}>{item.count}</Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { height: `${heightPct}%` }]} />
+                <View key={z.id} style={[styles.zoneItem, isHqZone && styles.zoneItemHq]}>
+                  <View style={styles.zoneTopRow}>
+                    <View style={styles.zoneNameArea}>
+                      <Text style={styles.zoneItemName} numberOfLines={1}>
+                        {z.name}
+                      </Text>
+                      <Text style={styles.zoneRegion}>
+                        {isHqZone ? '🏛️ Headquarters LCA' : (z.region ? `📍 ${z.region}` : 'Regional Zone')}
+                      </Text>
+                    </View>
+                    {isHqZone && (
+                      <View style={styles.hqPill}>
+                        <Text style={styles.hqPillText}>HQ Core</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.barLabel}>{item.day}</Text>
+
+                  <View style={styles.zoneStatsRow}>
+                    <View style={styles.zoneStat}>
+                      <Ionicons name="people-outline" size={14} color="#4f46e5" />
+                      <Text style={styles.zoneStatNumber}>{memberCount}</Text>
+                      <Text style={styles.zoneStatLabel}>Singers</Text>
+                    </View>
+                    <View style={styles.zoneStatDivider} />
+                    <View style={styles.zoneStat}>
+                      <Ionicons name="business-outline" size={14} color="#ea580c" />
+                      <Text style={styles.zoneStatNumber}>{churchCount}</Text>
+                      <Text style={styles.zoneStatLabel}>Churches</Text>
+                    </View>
+                  </View>
                 </View>
               );
             })}
           </View>
         </View>
-
-        {/* Top Rehearsed Songs */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="ribbon-outline" size={18} color={Colors.warning} />
-            <Text style={styles.cardTitle}>Most Rehearsed Setlist Songs</Text>
-          </View>
-
-          <View style={styles.songList}>
-            {stats.topSongs.map((song: any, idx: number) => (
-              <View key={song.id} style={styles.songRow}>
-                <View style={styles.rankBadge}>
-                  <Text style={styles.rankText}>#{idx + 1}</Text>
-                </View>
-                <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
-                <View style={styles.rehearsalCountBadge}>
-                  <Text style={styles.rehearsalCountText}>{song.rehearsals} times</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
       </ScrollView>
+
+      {/* Global Member Management Modal */}
+      <MemberManagementModal
+        visible={modalVisible}
+        member={selectedMember}
+        onClose={() => {
+          setModalVisible(false);
+          setSelectedMember(null);
+        }}
+        onSave={handleSaveMember}
+        onRemove={handleRemoveMember}
+      />
     </SafeAreaView>
   );
 }
@@ -199,37 +422,72 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, gap: 14, paddingBottom: 40 },
 
+  bannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  bannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  bannerSub: {
+    fontSize: 12,
+    color: '#64748b',
+    lineHeight: 18,
+  },
+
   kpiGrid: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 10,
   },
   kpiCard: {
-    flex: 1,
+    width: '48%',
     backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+  },
+  kpiIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
+    marginBottom: 8,
   },
   kpiValue: {
+    fontSize: 22,
+    fontWeight: '800',
     color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '900',
-    marginTop: 4,
+    marginBottom: 2,
   },
   kpiLabel: {
-    color: '#64748b',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
-    textAlign: 'center',
+    color: '#334155',
+  },
+  kpiMeta: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginTop: 2,
   },
 
   card: {
@@ -238,106 +496,190 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    gap: 14,
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 4,
   },
   cardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0f172a',
-    fontSize: 14,
-    fontWeight: '700',
+  },
+  cardDesc: {
+    fontSize: 12,
+    color: '#64748b',
+    marginBottom: 12,
   },
 
-  chartContainer: {
+  searchBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 140,
-    paddingTop: 16,
-    paddingHorizontal: 8,
-  },
-  barColumn: {
     alignItems: 'center',
-    flex: 1,
-    gap: 6,
-  },
-  barTrack: {
-    width: 14,
-    height: 90,
     backgroundColor: '#f1f5f9',
-    borderRadius: 7,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  barFill: {
-    backgroundColor: '#7c3aed',
-    borderRadius: 7,
-    width: '100%',
-  },
-  barValue: {
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  barLabel: {
-    color: '#475569',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-
-  songList: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 8,
   },
-  songRow: {
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+    padding: 0,
+  },
+
+  resultsContainer: {
+    marginTop: 12,
+    gap: 8,
+  },
+  noResultsText: {
+    textAlign: 'center',
+    color: '#94a3b8',
+    fontSize: 12,
+    paddingVertical: 12,
+  },
+  memberResultRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
-    padding: 10,
     borderRadius: 12,
+    padding: 10,
     gap: 10,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  rankBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#f5f3ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankText: {
-    color: '#7c3aed',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  songTitle: {
-    color: '#0f172a',
-    fontSize: 13,
-    fontWeight: '700',
-    flex: 1,
-  },
-  rehearsalCountBadge: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  rehearsalCountText: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: '700',
+  memberAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#e0e7ff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  memberAvatarText: {
+    color: '#4338ca',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  memberName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  memberEmail: {
+    fontSize: 11,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  zoneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eef2ff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 4,
+  },
+  zoneBadgeText: {
+    fontSize: 10,
+    color: '#4338ca',
+    fontWeight: '600',
+  },
+  churchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 4,
+  },
+  churchBadgeText: {
+    fontSize: 10,
+    color: '#b45309',
+    fontWeight: '600',
+  },
+
+  zoneGrid: {
+    gap: 10,
+  },
+  zoneItem: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  zoneItemHq: {
+    borderColor: '#c7d2fe',
+    backgroundColor: '#faf5ff',
+  },
+  zoneTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  zoneNameArea: {
+    flex: 1,
+    marginRight: 8,
+  },
+  zoneItemName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  zoneRegion: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  hqPill: {
+    backgroundColor: '#ede9fe',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  hqPillText: {
+    color: '#6d28d9',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  zoneStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    padding: 8,
+  },
+  zoneStat: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  zoneStatNumber: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  zoneStatLabel: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  zoneStatDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#e2e8f0',
+  },
+
   centerNotice: {
     flex: 1,
     alignItems: 'center',
@@ -349,7 +691,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: '#ecfdf5',
+    backgroundColor: '#eef2ff',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -371,7 +713,7 @@ const styles = StyleSheet.create({
   noticeBackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: '#4f46e5',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,

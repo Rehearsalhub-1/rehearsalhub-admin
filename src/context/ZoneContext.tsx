@@ -11,6 +11,7 @@ export interface ZoneContextType {
   /** true when HQ admin explicitly selects global all-zones view */
   isAllZones: boolean;
   setActiveZone: (zone: ZoneOption | null) => void;
+  switchZone: (zone: ZoneOption | null) => void;
 
   /** Active UI role mode: 'org' (HQ/Zonal) or 'church' (Local church choir) */
   activeRoleMode: 'org' | 'church';
@@ -42,6 +43,7 @@ export function ZoneProvider({ children }: { children: React.ReactNode }) {
     availableZones,
     isAllZones,
     setActiveZone: switchZone,
+    switchZone: switchZone,
     activeRoleMode,
     isChurchMode,
     activeChurch,
@@ -64,6 +66,7 @@ export const useZoneContext = (): ZoneContextType => {
     availableZones: state.availableZones,
     isAllZones: state.isAllZones,
     setActiveZone: state.switchZone,
+    switchZone: state.switchZone,
     activeRoleMode: state.activeRoleMode,
     isChurchMode: state.isChurchMode,
     activeChurch: state.activeChurch,

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiClient } from '../lib/apiClient';
+import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
@@ -61,7 +61,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
   async function loadSongDetails() {
     setLoading(true);
     try {
-      const res = await apiClient.get<{ success: boolean; data: any }>(`/songs/${songId}`);
+      const res = await api.songs.getById(songId);
       if (res.data) {
         setSong(res.data);
         setEditForm({
@@ -89,9 +89,9 @@ export default function SongDetailScreen({ route, navigation }: any) {
     setSaving(true);
     try {
       if (isZoneSong) {
-        await apiClient.patch(`/subgroups/songs/${song.id}`, editForm);
+        await api.songs.updateSubgroupSong(song.id, editForm);
       } else {
-        await apiClient.patch(`/songs/${song.id}`, editForm);
+        await api.songs.update(song.id, editForm);
       }
       setSong((prev: any) => ({ ...prev, ...editForm }));
       setIsEditing(false);

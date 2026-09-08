@@ -1,7 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,58 +19,130 @@ import ZoneHeader from '../components/ZoneHeader';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 
-interface TypeOption {
-  value: 'info' | 'warning' | 'success' | 'rehearsal' | 'announcement';
+interface CategoryOption {
+  value: 'rehearsal' | 'announcement' | 'admin' | 'reminder';
   label: string;
+  sub: string;
   color: string;
   iconName: keyof typeof Ionicons.glyphMap;
 }
 
-const TYPE_OPTIONS: TypeOption[] = [
-  { value: 'info',         label: 'Info',         color: Colors.info,      iconName: 'information-circle-outline' },
-  { value: 'warning',      label: 'Warning',      color: Colors.warning,   iconName: 'warning-outline' },
-  { value: 'success',      label: 'Success',      color: Colors.success,   iconName: 'checkmark-circle-outline' },
-  { value: 'rehearsal',    label: 'Rehearsal',    color: Colors.accent,    iconName: 'musical-notes-outline' },
-  { value: 'announcement', label: 'Announcement', color: '#e879f9',        iconName: 'megaphone-outline' },
+const CATEGORY_OPTIONS: CategoryOption[] = [
+  {
+    value: 'rehearsal',
+    label: 'Rehearsal',
+    sub: 'Appears in singer Rehearsals tab',
+    color: '#7c3aed',
+    iconName: 'musical-notes-outline',
+  },
+  {
+    value: 'announcement',
+    label: 'Announcement',
+    sub: 'Appears in singer Announcements tab',
+    color: '#0284c7',
+    iconName: 'megaphone-outline',
+  },
+  {
+    value: 'admin',
+    label: 'Urgent',
+    sub: 'High priority alert to Announcements tab',
+    color: '#e11d48',
+    iconName: 'alert-circle-outline',
+  },
+  {
+    value: 'reminder',
+    label: 'Reminder',
+    sub: 'Call time alert in singer Notifications tab',
+    color: '#d97706',
+    iconName: 'time-outline',
+  },
 ];
 
-interface AudienceOption {
-  value: 'all' | 'zone' | 'individual';
-  label: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-}
-
-const AUDIENCE_OPTIONS: AudienceOption[] = [
-  { value: 'all',        label: 'All Members',    iconName: 'globe-outline' },
-  { value: 'zone',       label: 'This Zone Only', iconName: 'location-outline' },
-  { value: 'individual', label: 'Specific Person', iconName: 'person-outline' },
+const QUICK_TEMPLATES = [
+  {
+    label: 'Call Time Reminder',
+    category: 'rehearsal' as const,
+    title: 'Rehearsal Call Time Reminder',
+    message: 'Kindly be reminded that call time for today’s rehearsal is prompt. Please arrive warmed up and ready.',
+  },
+  {
+    label: 'Uniform Guidelines',
+    category: 'announcement' as const,
+    title: 'Official Uniform Guidelines',
+    message: 'Please ensure you adhere strictly to the scheduled choir dress code for the upcoming ministry service.',
+  },
+  {
+    label: 'Urgent Notice',
+    category: 'admin' as const,
+    title: 'Important Rehearsal Notice',
+    message: 'Urgent update regarding the upcoming rehearsal program. Please review your vocal parts and setlist immediately.',
+  },
 ];
-
-type TypeValue = TypeOption['value'];
-type AudienceValue = AudienceOption['value'];
 
 export default function NotificationsScreen() {
   const { adminUser } = useAuth();
-  const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
+  const { activeZone, isChurchMode, activeChurch, userChurches } = useZoneContext();
 
+  const isHQ = adminUser?.isHQAdmin === true;
+  const [activeTab, setActiveTab] = useState<'compose' | 'history'>('compose');
+
+  // Form state
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [type, setType] = useState<TypeValue>('info');
-  const [audience, setAudience] = useState<AudienceValue>('all');
+  const [category, setCategory] = useState<CategoryOption['value']>('rehearsal');
+  const [audienceType, setAudienceType] = useState<'zone' | 'church' | 'individual'>('zone');
+  const [selectedChurchId, setSelectedChurchId] = useState(activeChurch?.id || '');
   const [targetEmail, setTargetEmail] = useState('');
-  const [actionUrl, setActionUrl] = useState('');
   const [sending, setSending] = useState(false);
 
-  // For zone admins, force audience to zone only
-  const effectiveAudience = !adminUser?.isHQAdmin ? 'zone' : audience;
+  // Sent history state
+  const [sentHistory, setSentHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [refreshingHistory, setRefreshingHistory] = useState(false);
+
+  // Sync selected church with active church
+  useEffect(() => {
+    if (activeChurch?.id) {
+      setSelectedChurchId(activeChurch.id);
+    }
+  }, [activeChurch?.id]);
+
+  // Load sent history
+  const fetchSentHistory = useCallback(async () => {
+    try {
+      const res = await api.notifications.getSent();
+      if (res?.data && Array.isArray(res.data)) {
+        setSentHistory(res.data);
+      }
+    } catch (err) {
+      console.warn('[Notifications] Failed to load sent history:', err);
+    } finally {
+      setLoadingHistory(false);
+      setRefreshingHistory(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      setLoadingHistory(true);
+      fetchSentHistory();
+    }
+  }, [activeTab, fetchSentHistory]);
+
+  function applyTemplate(tpl: typeof QUICK_TEMPLATES[0]) {
+    setTitle(tpl.title);
+    setMessage(tpl.message);
+    setCategory(tpl.category);
+  }
 
   async function sendNotification() {
     if (!title.trim() || !message.trim()) {
-      Alert.alert('Missing fields', 'Title and message are required.');
+      Alert.alert('Missing fields', 'Title and message body are required.');
       return;
     }
-    if (effectiveAudience === 'individual' && !targetEmail.trim()) {
-      Alert.alert('Missing field', 'Enter the target member email.');
+
+    if (audienceType === 'individual' && !targetEmail.trim()) {
+      Alert.alert('Missing field', 'Please enter the target singer email.');
       return;
     }
 
@@ -70,46 +150,48 @@ export default function NotificationsScreen() {
     try {
       const payload: Record<string, any> = {
         title: title.trim(),
-        message: message.trim(),
-        type,
-        category: type === 'rehearsal' ? 'rehearsal' : type === 'announcement' ? 'announcement' : 'admin',
-        priority: type === 'warning' ? 'high' : 'medium',
-        targetAudience: effectiveAudience === 'zone' ? 'all' : effectiveAudience,
-        senderId: adminUser?.id || '',
-        senderName: adminUser?.name || adminUser?.email?.split('@')[0] || 'Coordinator',
-        actionUrl: actionUrl.trim() || undefined,
+        body: message.trim(),
+        category,
+        type: category === 'admin' ? 'warning' : category === 'rehearsal' ? 'rehearsal' : 'info',
+        priority: category === 'admin' ? 'high' : 'normal',
       };
 
-      // Scope targeting
-      if (isChurchMode && activeChurch) {
-        payload.targetSubGroupId = activeChurch.id;
-        payload.targetChurchId = activeChurch.id;
-      } else if (activeZone && effectiveAudience !== 'individual') {
-        payload.targetZoneId = activeZone.id;
-      }
-
-      // Individual targeting — resolve email to userId
-      if (effectiveAudience === 'individual' && targetEmail.trim()) {
-        const res = await api.members.getDirectory(undefined, 10, targetEmail.trim().toLowerCase()).catch(() => null);
-        const profile = Array.isArray(res?.data) ? res.data[0] : null;
-        if (!profile) {
-          Alert.alert('Not found', 'No member found with that email.');
+      if (audienceType === 'individual') {
+        // Resolve target email to singer userId
+        const res = await api.members.getGlobalMembers(targetEmail.trim().toLowerCase());
+        const matched = Array.isArray(res?.data) ? res.data[0] : null;
+        if (!matched?.userId && !matched?.id) {
+          Alert.alert('Not Found', `No singer found with email "${targetEmail.trim()}".`);
           setSending(false);
           return;
         }
-        payload.targetAudience = 'individual';
-        payload.targetUserId = profile.id;
+        payload.targetUserId = matched.userId || matched.id;
+      } else if (audienceType === 'church') {
+        const churchId = selectedChurchId || activeChurch?.id;
+        if (!churchId) {
+          Alert.alert('Missing Church', 'Please select a church choir.');
+          setSending(false);
+          return;
+        }
+        payload.targetChurchId = churchId;
+      } else {
+        // Scoped to active zone / HQ
+        payload.targetOrgId = activeZone?.id || 'zone-001';
       }
 
-      await api.notifications.broadcast(payload as any);
+      const res = await api.notifications.send(payload as any);
 
-      Alert.alert('Sent!', 'Notification dispatched successfully.');
+      const count = res?.recipientCount ?? 0;
+      Alert.alert(
+        'Notification Dispatched!',
+        `Your notification has been broadcast to ${count > 0 ? `${count} singer(s)` : 'target recipients'} and sent via push notifications.`
+      );
+
       setTitle('');
       setMessage('');
       setTargetEmail('');
-      setActionUrl('');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to send notification.');
+      Alert.alert('Error', e.message || 'Failed to dispatch notification.');
     } finally {
       setSending(false);
     }
@@ -117,228 +199,584 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title={isChurchMode ? "Church Choir Broadcast" : "Broadcast Notifications"} />
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.sub}>
-          {isChurchMode
-            ? `Target Audience: ${activeChurch?.name || 'Local Church Choir'}`
-            : isAllZones
-            ? 'Sending to all choir zones — select a zone to narrow audience.'
-            : `Target Audience: ${activeZone?.name ?? 'Assigned Zone'}`}
-        </Text>
+      <ZoneHeader title={isChurchMode ? 'Church Choir Broadcast' : isHQ ? 'HQ Announcements' : 'Zonal Broadcast'} />
 
-        {/* Title */}
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          style={styles.input}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="e.g. Rehearsal Update & Schedule"
-          placeholderTextColor={Colors.textMuted}
-        />
+      {/* ── Tabs (Compose vs Sent History) ──────────────────────────────── */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === 'compose' && styles.tabBtnActive]}
+          onPress={() => setActiveTab('compose')}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="paper-plane-outline"
+            size={16}
+            color={activeTab === 'compose' ? '#4f46e5' : '#64748b'}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={[styles.tabBtnText, activeTab === 'compose' && styles.tabBtnTextActive]}>
+            Compose
+          </Text>
+        </TouchableOpacity>
 
-        {/* Message */}
-        <Text style={styles.label}>Message Body</Text>
-        <TextInput
-          style={[styles.input, styles.textarea]}
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Write the announcement message here..."
-          placeholderTextColor={Colors.textMuted}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === 'history' && styles.tabBtnActive]}
+          onPress={() => setActiveTab('history')}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="time-outline"
+            size={16}
+            color={activeTab === 'history' ? '#4f46e5' : '#64748b'}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={[styles.tabBtnText, activeTab === 'history' && styles.tabBtnTextActive]}>
+            Sent History
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Type */}
-        <Text style={styles.label}>Notification Category</Text>
-        <View style={styles.optionRow}>
-          {TYPE_OPTIONS.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.optionBtn,
-                type === opt.value && { borderColor: opt.color, backgroundColor: opt.color + '18' },
-              ]}
-              onPress={() => setType(opt.value)}
-              activeOpacity={0.75}
-            >
-              <Ionicons
-                name={opt.iconName}
-                size={14}
-                color={type === opt.value ? opt.color : Colors.textMuted}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.optionText, type === opt.value && { color: opt.color, fontWeight: '700' }]}>
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      {/* ── TAB 1: COMPOSE ─────────────────────────────────────────────── */}
+      {activeTab === 'compose' ? (
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Quick Templates */}
+          <Text style={styles.label}>1-Tap Quick Templates</Text>
+          <View style={styles.templateRow}>
+            {QUICK_TEMPLATES.map((tpl, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.templateChip}
+                onPress={() => applyTemplate(tpl)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="flash-outline" size={12} color="#4f46e5" style={{ marginRight: 4 }} />
+                <Text style={styles.templateChipText}>{tpl.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        {/* Audience (HQ admin only — zone admin is always zone-scoped) */}
-        {adminUser?.isHQAdmin && (
-          <>
-            <Text style={styles.label}>Audience Scope</Text>
-            <View style={styles.optionRow}>
-              {AUDIENCE_OPTIONS.map((opt) => (
+          {/* Category Selector */}
+          <Text style={styles.label}>Notification Category (Where singers see this)</Text>
+          <View style={styles.categoryGrid}>
+            {CATEGORY_OPTIONS.map((opt) => {
+              const isSelected = category === opt.value;
+              return (
                 <TouchableOpacity
                   key={opt.value}
                   style={[
-                    styles.optionBtn,
-                    audience === opt.value && { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
+                    styles.categoryCard,
+                    isSelected && { borderColor: opt.color, backgroundColor: opt.color + '12' },
                   ]}
-                  onPress={() => setAudience(opt.value)}
-                  activeOpacity={0.75}
+                  onPress={() => setCategory(opt.value)}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons
-                    name={opt.iconName}
-                    size={14}
-                    color={audience === opt.value ? Colors.accentBright : Colors.textMuted}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text style={[styles.optionText, audience === opt.value && { color: Colors.accentBright, fontWeight: '700' }]}>
-                    {opt.label}
-                  </Text>
+                  <View style={[styles.categoryIconWrap, { backgroundColor: opt.color + '20' }]}>
+                    <Ionicons name={opt.iconName} size={18} color={opt.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.categoryTitle, isSelected && { color: opt.color }]}>
+                      {opt.label}
+                    </Text>
+                    <Text style={styles.categorySub} numberOfLines={2}>
+                      {opt.sub}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* Individual target email */}
-        {effectiveAudience === 'individual' && (
-          <>
-            <Text style={styles.label}>Target Member Email</Text>
-            <TextInput
-              style={styles.input}
-              value={targetEmail}
-              onChangeText={setTargetEmail}
-              placeholder="member@loveworld.org"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-          </>
-        )}
-
-        {/* Optional action URL */}
-        <Text style={styles.label}>Action Route <Text style={styles.optional}>(optional)</Text></Text>
-        <TextInput
-          style={styles.input}
-          value={actionUrl}
-          onChangeText={setActionUrl}
-          placeholder="e.g. /songs/123 or /rehearsal"
-          placeholderTextColor={Colors.textMuted}
-          autoCapitalize="none"
-        />
-
-        {/* Preview */}
-        {(title.trim() || message.trim()) && (
-          <View style={styles.preview}>
-            <Text style={styles.previewLabel}>Message Preview</Text>
-            <View style={styles.previewCard}>
-              <Text style={styles.previewTitle}>{title || 'Announcement Title'}</Text>
-              <Text style={styles.previewMessage}>{message || 'Message body will appear here...'}</Text>
-            </View>
+              );
+            })}
           </View>
-        )}
 
-        <TouchableOpacity
-          style={[styles.sendBtn, sending && { opacity: 0.6 }]}
-          onPress={sendNotification}
-          disabled={sending}
-          activeOpacity={0.85}
-        >
-          {sending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="send" size={16} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={styles.sendBtnText}>Broadcast Notification</Text>
+          {/* Audience Selector */}
+          <Text style={styles.label}>Target Audience</Text>
+          <View style={styles.audienceRow}>
+            {/* Zone / Hub Option */}
+            {!isChurchMode && (
+              <TouchableOpacity
+                style={[styles.audienceBtn, audienceType === 'zone' && styles.audienceBtnActive]}
+                onPress={() => setAudienceType('zone')}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={isHQ ? 'home-outline' : 'location-outline'}
+                  size={14}
+                  color={audienceType === 'zone' ? '#4f46e5' : '#64748b'}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.audienceBtnText, audienceType === 'zone' && styles.audienceBtnTextActive]}>
+                  {isHQ ? '🏛️ Loveworld Singers HQ' : `📍 ${activeZone?.name || 'This Zone'}`}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Church Option */}
+            <TouchableOpacity
+              style={[styles.audienceBtn, audienceType === 'church' && styles.audienceBtnActive]}
+              onPress={() => setAudienceType('church')}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name="business-outline"
+                size={14}
+                color={audienceType === 'church' ? '#ea580c' : '#64748b'}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.audienceBtnText, audienceType === 'church' && styles.audienceBtnTextActive]}>
+                ⛪ Church Choir
+              </Text>
+            </TouchableOpacity>
+
+            {/* Specific Person Option */}
+            <TouchableOpacity
+              style={[styles.audienceBtn, audienceType === 'individual' && styles.audienceBtnActive]}
+              onPress={() => setAudienceType('individual')}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name="person-outline"
+                size={14}
+                color={audienceType === 'individual' ? '#7c3aed' : '#64748b'}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.audienceBtnText, audienceType === 'individual' && styles.audienceBtnTextActive]}>
+                👤 Specific Singer
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Individual Email Target Input */}
+          {audienceType === 'individual' && (
+            <View style={styles.targetCard}>
+              <Text style={styles.targetLabel}>Singer Email Address</Text>
+              <TextInput
+                style={styles.input}
+                value={targetEmail}
+                onChangeText={setTargetEmail}
+                placeholder="singer@loveworldsingers.org"
+                placeholderTextColor="#94a3b8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
             </View>
           )}
-        </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          {/* Church Chooser (if multiple churches exist) */}
+          {audienceType === 'church' && userChurches.length > 1 && (
+            <View style={styles.targetCard}>
+              <Text style={styles.targetLabel}>Select Assembly Choir</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
+                {userChurches.map((c) => {
+                  const isSel = selectedChurchId === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.churchChip, isSel && styles.churchChipActive]}
+                      onPress={() => setSelectedChurchId(c.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.churchChipText, isSel && styles.churchChipTextActive]}>
+                        {c.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Title */}
+          <Text style={styles.label}>Announcement Title</Text>
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="e.g. Wednesday Rehearsal Call Time"
+            placeholderTextColor="#94a3b8"
+          />
+
+          {/* Message */}
+          <Text style={styles.label}>Message Body</Text>
+          <TextInput
+            style={[styles.input, styles.textarea]}
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Write your broadcast announcement..."
+            placeholderTextColor="#94a3b8"
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+
+          {/* Send Button */}
+          <TouchableOpacity
+            style={[styles.sendBtn, sending && { opacity: 0.6 }]}
+            onPress={sendNotification}
+            disabled={sending}
+            activeOpacity={0.85}
+          >
+            {sending ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="paper-plane" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.sendBtnText}>Dispatch Broadcast & Push Alert</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      ) : (
+        /* ── TAB 2: SENT HISTORY ────────────────────────────────────────── */
+        <ScrollView
+          contentContainerStyle={styles.historyContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshingHistory}
+              onRefresh={() => {
+                setRefreshingHistory(true);
+                fetchSentHistory();
+              }}
+              tintColor="#4f46e5"
+            />
+          }
+        >
+          {loadingHistory ? (
+            <View style={styles.center}>
+              <ActivityIndicator color="#4f46e5" size="large" />
+              <Text style={{ marginTop: 10, color: '#64748b', fontSize: 13 }}>Loading sent history...</Text>
+            </View>
+          ) : sentHistory.length === 0 ? (
+            <View style={styles.emptyNotice}>
+              <Ionicons name="mail-unread-outline" size={44} color="#cbd5e1" />
+              <Text style={styles.emptyTitle}>No Broadcasts Yet</Text>
+              <Text style={styles.emptySub}>
+                Notifications and announcements you send will appear here with delivery tracking.
+              </Text>
+            </View>
+          ) : (
+            sentHistory.map((item) => {
+              const d = new Date(item.createdAt);
+              const formattedDate = !isNaN(d.getTime())
+                ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : 'Recently';
+
+              const catColor =
+                item.category === 'rehearsal'
+                  ? '#7c3aed'
+                  : item.category === 'admin'
+                  ? '#e11d48'
+                  : item.category === 'announcement'
+                  ? '#0284c7'
+                  : '#d97706';
+
+              return (
+                <View key={item.id} style={styles.historyCard}>
+                  <View style={styles.historyTop}>
+                    <View style={[styles.catBadge, { backgroundColor: catColor + '18' }]}>
+                      <Text style={[styles.catBadgeText, { color: catColor }]}>
+                        {item.category?.toUpperCase() || 'GENERAL'}
+                      </Text>
+                    </View>
+                    <Text style={styles.historyDate}>{formattedDate}</Text>
+                  </View>
+
+                  <Text style={styles.historyTitle}>{item.title}</Text>
+                  <Text style={styles.historyBody}>{item.body || item.message}</Text>
+
+                  <View style={styles.historyFooter}>
+                    <View style={styles.historyStat}>
+                      <Ionicons name="paper-plane-outline" size={13} color="#64748b" />
+                      <Text style={styles.historyStatText}>
+                        {item.recipientCount ?? 1} Delivered
+                      </Text>
+                    </View>
+                    <View style={styles.historyStat}>
+                      <Ionicons name="eye-outline" size={13} color="#059669" />
+                      <Text style={[styles.historyStatText, { color: '#059669' }]}>
+                        {item.readCount ?? 0} Read
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.background },
-  container: { padding: 20 },
-  heading: { color: Colors.textPrimary, fontSize: 18, fontWeight: '800', letterSpacing: -0.3, marginBottom: 4 },
-  sub: { color: Colors.textMuted, fontSize: 12, marginBottom: 20, lineHeight: 18 },
-  label: { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 8, marginTop: 18 },
-  optional: { color: Colors.textMuted, fontWeight: '400' },
-  input: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: Colors.textPrimary,
-    fontSize: 14,
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+  safe: { flex: 1, backgroundColor: '#f8fafc' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
+  container: { padding: 16, gap: 12, paddingBottom: 40 },
+  historyContainer: { padding: 16, gap: 12, paddingBottom: 40 },
+
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
   },
-  textarea: { height: 110, paddingTop: 12 },
-  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  optionBtn: {
+  tabBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  tabBtnActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  tabBtnTextActive: {
+    color: '#0f172a',
+  },
+
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginTop: 4,
+  },
+
+  templateRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  templateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  templateChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4338ca',
+  },
+
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryCard: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 8,
+  },
+  categoryIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  categorySub: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 2,
+  },
+
+  audienceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  audienceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    paddingHorizontal: 12,
     paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  audienceBtnActive: {
+    backgroundColor: '#eef2ff',
+    borderColor: '#6366f1',
+  },
+  audienceBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  audienceBtnTextActive: {
+    color: '#4338ca',
+    fontWeight: '700',
+  },
+
+  targetCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  targetLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 6,
+  },
+  churchChip: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginRight: 6,
+  },
+  churchChipActive: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#ea580c',
+  },
+  churchChipText: {
+    fontSize: 11,
+    color: '#475569',
+  },
+  churchChipTextActive: {
+    color: '#c2410c',
+    fontWeight: '700',
+  },
+
+  input: {
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#0f172a',
   },
-  optionText: { color: Colors.textMuted, fontSize: 12, fontWeight: '700' },
-  preview: { marginTop: 24 },
-  previewLabel: { color: Colors.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
-  previewCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    gap: 6,
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+  textarea: {
+    minHeight: 100,
   },
-  previewTitle: { color: Colors.textPrimary, fontSize: 14, fontWeight: '800' },
-  previewMessage: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
+
   sendBtn: {
-    backgroundColor: Colors.accent,
-    borderRadius: 14,
-    paddingVertical: 15,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 28,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: '#4f46e5',
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginTop: 8,
   },
-  sendBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '800', letterSpacing: 0.2 },
+  sendBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+
+  historyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    gap: 8,
+  },
+  historyTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  catBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  catBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  historyDate: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  historyTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  historyBody: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  historyFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  historyStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  historyStatText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+
+  emptyNotice: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 30,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 });

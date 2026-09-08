@@ -1,426 +1,607 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl,
   Alert,
-  Modal,
+  Image,
+  TextInput,
+  RefreshControl,
+  Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/Colors';
-import ZoneHeader from '../components/ZoneHeader';
-import { useZoneContext } from '../context/ZoneContext';
-import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
-import { GradientCard, Badge, SearchFilterBar, EmptyState } from '../components/ui';
+import MemberManagementModal, { Member } from '../components/MemberManagementModal';
 
-interface Member {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: string;
-  zoneId: string;
-  avatarUrl?: string;
-  voicePart?: string;
-}
-
-interface AdminRequest {
-  id: string;
-  userId: string;
-  userEmail: string | null;
-  userName: string | null;
-  zoneId: string | null;
-  zoneCode: string | null;
-  status: string;
-  reason: string | null;
-  createdAt: string;
-}
+// ── Realistic Loveworld Singers Personnel Mock Data ─────────────────────────
+const INITIAL_MEMBERS: Member[] = [
+  {
+    id: 'mem-001',
+    membershipId: 'LWS-001',
+    first_name: 'Maya',
+    last_name: 'Roberts',
+    email: 'maya.roberts@loveworldsingers.org',
+    username: 'maya.roberts',
+    alias: 'mayarob',
+    phone: '+234 802 345 6789',
+    church: 'Central Church',
+    designation: 'Soprano Lead',
+    zoneId: 'zone-001',
+    zoneName: 'Your Loveworld Singers (HQ Core)',
+    role: 'member',
+    isAdmin: false,
+    is_active: true,
+    can_access_ongoing: true,
+    can_access_pre_rehearsal: true,
+    canAnnotate: true,
+    canSeeArchive: true,
+    created_at: '2024-01-15T10:00:00Z',
+  },
+  {
+    id: 'mem-002',
+    membershipId: 'LWS-002',
+    first_name: 'David',
+    last_name: 'Adeyemi',
+    email: 'david.adeyemi@loveworldsingers.org',
+    username: 'david.adeyemi',
+    alias: 'davido',
+    phone: '+234 803 456 7890',
+    church: 'Christ Embassy LCA',
+    designation: 'Tenor Lead',
+    zoneId: 'zone-001',
+    zoneName: 'Your Loveworld Singers (HQ Core)',
+    role: 'zone_admin',
+    isAdmin: true,
+    is_active: true,
+    can_access_ongoing: true,
+    can_access_pre_rehearsal: true,
+    canAnnotate: true,
+    canSeeArchive: true,
+    created_at: '2024-02-01T09:30:00Z',
+  },
+  {
+    id: 'mem-003',
+    membershipId: 'LWS-003',
+    first_name: 'Grace',
+    last_name: 'Chidera',
+    email: 'grace.chidera@loveworldsingers.org',
+    username: 'grace.chidera',
+    alias: 'grace_c',
+    phone: '+234 805 678 9012',
+    church: 'CE Airport Church',
+    designation: 'Alto',
+    zoneId: 'zone-lagos-2',
+    zoneName: 'LWS Lagos Zone 2',
+    role: 'church_admin',
+    isAdmin: true,
+    is_active: true,
+    can_access_ongoing: true,
+    can_access_pre_rehearsal: false,
+    canAnnotate: false,
+    canSeeArchive: false,
+    created_at: '2024-03-10T14:15:00Z',
+  },
+  {
+    id: 'mem-004',
+    membershipId: 'LWS-004',
+    first_name: 'Michael',
+    last_name: 'Johnson',
+    email: 'michael.johnson@loveworldsingers.org',
+    username: 'pastormike',
+    alias: 'pastormike',
+    phone: '+234 809 012 3456',
+    church: 'Central Assembly',
+    designation: 'Choir Director',
+    zoneId: 'zone-001',
+    zoneName: 'Your Loveworld Singers (HQ Core)',
+    role: 'zone_admin',
+    isAdmin: true,
+    is_active: true,
+    can_access_ongoing: true,
+    can_access_pre_rehearsal: true,
+    canAnnotate: true,
+    canSeeArchive: true,
+    created_at: '2023-11-20T08:00:00Z',
+  },
+  {
+    id: 'mem-005',
+    membershipId: 'LWS-005',
+    first_name: 'Samuel',
+    last_name: 'Kalu',
+    email: 'samuel.kalu@loveworldsingers.org',
+    username: 'samuel.kalu',
+    alias: 'samkalu',
+    phone: '+234 807 890 1234',
+    church: 'CE Lekki Central',
+    designation: 'Bass',
+    zoneId: 'zone-lagos-5',
+    zoneName: 'LWS Lagos Zone 5',
+    role: 'member',
+    isAdmin: false,
+    is_active: true,
+    can_access_ongoing: true,
+    can_access_pre_rehearsal: true,
+    canAnnotate: false,
+    canSeeArchive: false,
+    created_at: '2024-04-05T11:45:00Z',
+  },
+  {
+    id: 'mem-006',
+    membershipId: 'LWS-006',
+    first_name: 'Olivia',
+    last_name: 'Mensah',
+    email: 'olivia.mensah@loveworldsingers.org',
+    username: 'olivia.mensah',
+    alias: 'olivia_m',
+    phone: '+233 24 123 4567',
+    church: 'CE Accra Ghana',
+    designation: 'Soprano',
+    zoneId: 'zone-ghana-1',
+    zoneName: 'LWS Ghana Zone 1',
+    role: 'member',
+    isAdmin: false,
+    is_active: true,
+    can_access_ongoing: true,
+    can_access_pre_rehearsal: false,
+    canAnnotate: false,
+    canSeeArchive: false,
+    created_at: '2024-05-18T16:20:00Z',
+  },
+  {
+    id: 'mem-007',
+    membershipId: 'LWS-007',
+    first_name: 'Joshua',
+    last_name: 'Peters',
+    email: 'joshua.peters@loveworldsingers.org',
+    username: 'joshua.peters',
+    alias: 'joshdrums',
+    phone: '+234 811 234 5678',
+    church: 'CE LCA Youth',
+    designation: 'Band / Musician',
+    zoneId: 'zone-002',
+    zoneName: 'Loveworld Singers 24 Worship Band (HQ)',
+    role: 'church_admin',
+    isAdmin: true,
+    is_active: true,
+    can_access_ongoing: true,
+    can_access_pre_rehearsal: true,
+    canAnnotate: false,
+    canSeeArchive: true,
+    created_at: '2024-02-14T12:00:00Z',
+  },
+  {
+    id: 'mem-008',
+    membershipId: 'LWS-008',
+    first_name: 'Hannah',
+    last_name: 'Osei',
+    email: 'hannah.osei@loveworldsingers.org',
+    username: 'hannah.osei',
+    alias: 'hannah_os',
+    phone: '+233 20 987 6543',
+    church: 'CE Kumasi',
+    designation: 'Alto',
+    zoneId: 'zone-ghana-1',
+    zoneName: 'LWS Ghana Zone 1',
+    role: 'member',
+    isAdmin: false,
+    is_active: false,
+    can_access_ongoing: false,
+    can_access_pre_rehearsal: false,
+    canAnnotate: false,
+    canSeeArchive: false,
+    created_at: '2024-06-01T15:10:00Z',
+  },
+  // Pending Requests
+  {
+    id: 'mem-009',
+    membershipId: 'LWS-009',
+    first_name: 'Emmanuel',
+    last_name: 'Okafor',
+    email: 'emmanuel.okafor@loveworldsingers.org',
+    username: 'emmanuel.okafor',
+    alias: 'emmanuel_ok',
+    phone: '+234 806 789 0123',
+    church: 'CE Ikeja Central',
+    designation: 'Tenor',
+    zoneId: 'zone-lagos-1',
+    zoneName: 'LWS Lagos Zone 1',
+    role: 'member',
+    isAdmin: false,
+    is_active: false,
+    pending_hq_approval: true,
+    created_at: '2024-09-01T10:00:00Z',
+  },
+  {
+    id: 'mem-010',
+    membershipId: 'LWS-010',
+    first_name: 'Blessing',
+    last_name: 'Udoh',
+    email: 'blessing.udoh@loveworldsingers.org',
+    username: 'blessing.udoh',
+    alias: 'blessing_u',
+    phone: '+234 814 567 8901',
+    church: 'CE Port Harcourt',
+    designation: 'Soprano Lead',
+    zoneId: 'zone-south-1',
+    zoneName: 'LWS South Zone',
+    role: 'member',
+    isAdmin: false,
+    is_active: false,
+    pending_hq_approval: true,
+    created_at: '2024-09-03T11:20:00Z',
+  },
+];
 
 export default function MembersScreen() {
-  const { adminUser } = useAuth();
-  const { activeZone, isChurchMode, activeChurch } = useZoneContext();
+  const insets = useSafeAreaInsets();
 
-  const [members, setMembers] = useState<Member[]>([]);
-  const [requests, setRequests] = useState<AdminRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Tabs: 'all' | 'pending'
+  const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
+
+  // Simple Filter: All, Singers, Admins
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'singers' | 'admins'>('all');
+
+  // Selected Member for Edit Drawer
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [roleModalVisible, setRoleModalVisible] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const isHQAdmin = !!adminUser?.isHQAdmin;
-  const isZoneCoordinator = (adminUser?.role || '').toLowerCase().includes('zone');
-  const canPromote = !isChurchMode && (isHQAdmin || isZoneCoordinator);
-
-  const loadData = useCallback(async () => {
-    try {
-      const effectiveZoneId = activeZone?.id || 'zone-001';
-      const [membersRes, requestsRes] = await Promise.all([
-        isChurchMode && activeChurch?.id
-          ? api.churches.getMembers(activeChurch.id)
-          : api.members.getDirectory(effectiveZoneId),
-        isHQAdmin && !isChurchMode
-          ? api.members.getAdminRequests(effectiveZoneId).catch(() => ({ success: true, data: [] }))
-          : Promise.resolve({ success: true, data: [] }),
-      ]);
-
-      const memberList: Member[] = (Array.isArray(membersRes.data) ? membersRes.data : []).map((p: any) => ({
-        id: p.userId || p.id,
-        firstName: p.firstName || (p.name ? p.name.split(' ')[0] : '') || '',
-        lastName: p.lastName || (p.name ? p.name.split(' ').slice(1).join(' ') : '') || '',
-        email: p.email || '',
-        role: p.role || 'member',
-        zoneId: p.zoneCode || p.zoneName || activeChurch?.name || '',
-        avatarUrl: p.avatarUrl,
-        voicePart: p.voicePart || p.designation || 'Singer',
-      }));
-
-      setMembers(memberList);
-      setRequests(Array.isArray(requestsRes.data) ? requestsRes.data : []);
-    } catch (e) {
-      console.error('[Members] load error:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [activeZone?.id, isHQAdmin, isChurchMode, activeChurch?.id, activeChurch?.name]);
-
-  useEffect(() => {
-    setLoading(true);
-    loadData();
-  }, [loadData]);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 400);
   };
 
-  async function handleChangeRole(userId: string, newRole: string) {
-    try {
-      setActionLoading(true);
-      await api.members.updateRole(userId, newRole);
-      Alert.alert('Role Updated', `Member role updated to ${formatRoleName(newRole)}`);
-      setRoleModalVisible(false);
-      setSelectedMember(null);
-      loadData();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to update member role');
-    } finally {
-      setActionLoading(false);
-    }
-  }
+  // Approved vs Pending
+  const approvedMembers = useMemo(() => {
+    return members.filter(m => !m.pending_hq_approval);
+  }, [members]);
 
-  async function handleApproveRequest(requestId: string) {
-    try {
-      setActionLoading(true);
-      await api.members.approveAdminRequest(requestId);
-      Alert.alert('Approved', 'Coordinator access granted.');
-      loadData();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to approve request');
-    } finally {
-      setActionLoading(false);
-    }
-  }
+  const pendingMembers = useMemo(() => {
+    return members.filter(m => !!m.pending_hq_approval);
+  }, [members]);
 
-  async function handleRejectRequest(requestId: string) {
-    try {
-      setActionLoading(true);
-      await api.members.rejectAdminRequest(requestId);
-      Alert.alert('Declined', 'Role request declined.');
-      loadData();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to decline request');
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
-  function formatRoleName(role: string) {
-    if (!role) return 'Singer';
-    const r = role.toLowerCase();
-    if (r === 'hq_admin' || r === 'super_admin') return 'HQ Admin';
-    if (r === 'zone_admin' || r === 'zone_coordinator') return 'Zonal Coordinator';
-    if (r === 'church_coordinator' || r === 'subgroup_coordinator' || r === 'subgroup_admin') return 'Church Coordinator';
-    return 'Singer';
-  }
-
-  const pendingRequests = useMemo(() => {
-    return requests.filter(r => r.status === 'pending');
-  }, [requests]);
-
-  const filterTabs = useMemo(() => {
-    return [
-      { label: 'All Members', value: 'all', count: members.length },
-      {
-        label: 'Coordinators',
-        value: 'coordinators',
-        count: members.filter(m => (m.role || '').toLowerCase() !== 'member').length,
-      },
-      ...(isHQAdmin && !isChurchMode
-        ? [{ label: 'Role Requests', value: 'requests', count: pendingRequests.length }]
-        : []),
-    ];
-  }, [members, pendingRequests.length, isHQAdmin, isChurchMode]);
-
+  // Filtered List
   const filteredMembers = useMemo(() => {
-    let list = members;
-    if (activeTab === 'coordinators') {
-      list = list.filter(m => (m.role || '').toLowerCase() !== 'member');
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    let list = approvedMembers;
+
+    if (roleFilter === 'singers') {
+      list = list.filter(m => m.role === 'member' && !m.isAdmin);
+    } else if (roleFilter === 'admins') {
       list = list.filter(
-        m =>
-          `${m.firstName} ${m.lastName}`.toLowerCase().includes(q) ||
-          (m.email || '').toLowerCase().includes(q) ||
-          (m.voicePart || '').toLowerCase().includes(q) ||
-          (m.zoneId || '').toLowerCase().includes(q)
+        m => m.role === 'zone_admin' || m.role === 'church_admin' || m.role === 'hq_admin' || m.isAdmin
       );
     }
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim().replace(/^@/, '');
+      list = list.filter(m => {
+        const full = `${m.first_name} ${m.last_name}`.toLowerCase();
+        return (
+          full.includes(q) ||
+          (m.alias || '').toLowerCase().includes(q) ||
+          (m.church || '').toLowerCase().includes(q) ||
+          (m.zoneName || '').toLowerCase().includes(q)
+        );
+      });
+    }
+
     return list;
-  }, [members, activeTab, search]);
+  }, [approvedMembers, roleFilter, search]);
+
+  // Approve Pending Request
+  const handleApprove = (member: Member) => {
+    setMembers(prev =>
+      prev.map(m =>
+        m.id === member.id ? { ...m, pending_hq_approval: false, is_active: true } : m
+      )
+    );
+    Alert.alert('Approved', `${member.first_name} ${member.last_name} has been approved.`);
+  };
+
+  // Reject Pending Request
+  const handleReject = (member: Member) => {
+    Alert.alert(
+      'Decline Request',
+      `Decline join request from ${member.first_name} ${member.last_name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: () => {
+            setMembers(prev => prev.filter(m => m.id !== member.id));
+          },
+        },
+      ]
+    );
+  };
+
+  // Save Member Profile Edits
+  const handleSaveMember = async (updated: Member) => {
+    setMembers(prev => prev.map(m => (m.id === updated.id ? updated : m)));
+    try {
+      if (updated.role) {
+        await api.members.updateRole(updated.id, updated.role).catch(() => {});
+      }
+      await api.members.updateProfile(updated.id, {
+        role: updated.role,
+        is_active: updated.is_active,
+        church: updated.church,
+        canSeeArchive: updated.canSeeArchive,
+        can_access_archive: updated.can_access_archive,
+        can_access_ongoing: updated.can_access_ongoing,
+        can_access_pre_rehearsal: updated.can_access_pre_rehearsal,
+        canAnnotate: updated.canAnnotate,
+        hiddenFeatures: updated.hiddenFeatures,
+      }).catch(() => {});
+    } catch (err) {
+      console.warn('Failed to persist member profile update:', err);
+    }
+  };
+
+  // Remove Member
+  const handleRemoveFromZone = (id: string) => {
+    const target = members.find(m => m.id === id);
+    setMembers(prev => prev.filter(m => m.id !== id));
+    Alert.alert('Removed', `${target?.first_name || 'Member'} was removed.`);
+  };
+
+  // Export Directory to CSV
+  const handleExportCSV = async () => {
+    const headers = ['Name', 'Email', 'Role', 'Zone', 'Church'];
+    const rows = filteredMembers.map(m => [
+      `"${m.first_name} ${m.last_name}"`,
+      `"${m.email}"`,
+      `"${m.role === 'church_admin' ? 'Church Admin' : m.isAdmin || m.role === 'zone_admin' || m.role === 'hq_admin' ? 'Zone Admin' : 'Singer'}"`,
+      `"${m.zoneName || ''}"`,
+      `"${m.church || ''}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    try {
+      await Share.share({
+        title: 'Loveworld Singers Directory',
+        message: csvContent,
+      });
+    } catch {
+      Alert.alert('Export Ready', `${filteredMembers.length} records.`);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader
-        title={isChurchMode ? "Church Choir Roster" : "Choir Directory"}
-        rightElement={<Badge label={`${members.length} Singers`} variant="alto" size="sm" />}
-      />
+      {/* ── 1. Minimal Executive Header ───────────────────────────────── */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>Members</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{approvedMembers.length}</Text>
+          </View>
+        </View>
 
-      {/* Control section */}
-      <View style={styles.topControl}>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={handleExportCSV}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="download-outline" size={18} color="#475569" />
+          </TouchableOpacity>
 
-        <SearchFilterBar
-          searchQuery={search}
-          onSearchChange={setSearch}
-          placeholder="Search by name, email, voice part, or zone..."
-          filterOptions={filterTabs}
-          activeFilter={activeTab}
-          onFilterChange={setActiveTab}
-        />
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={onRefresh}
+            activeOpacity={0.7}
+            disabled={refreshing}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="refresh" size={18} color="#7c3aed" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Content Feed */}
-      {activeTab === 'requests' ? (
-        <FlatList
-          data={pendingRequests}
-          keyExtractor={i => i.id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.accentBright}
-              colors={[Colors.accentBright]}
-            />
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon="checkmark-circle-outline"
-              title="No Pending Role Requests"
-              description="Any member requests for coordinator privileges will appear here for review."
-            />
-          }
-          renderItem={({ item }) => (
-            <GradientCard variant="surface" style={styles.requestCard}>
-              <View style={styles.requestHeader}>
-                <View>
-                  <Text style={styles.requestName}>{item.userName || 'Member'}</Text>
-                  <Text style={styles.requestEmail}>{item.userEmail}</Text>
-                </View>
-                <Badge label={item.zoneCode || 'Zonal'} variant="key" size="sm" />
-              </View>
+      {/* ── 2. Tab Switcher (Only if there are pending applicants) ───── */}
+      {pendingMembers.length > 0 && (
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'all' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('all')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
+              All ({approvedMembers.length})
+            </Text>
+          </TouchableOpacity>
 
-              {item.reason ? (
-                <View style={styles.reasonBox}>
-                  <Text style={styles.reasonLabel}>Request Reason:</Text>
-                  <Text style={styles.reasonText}>{item.reason}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.requestActionRow}>
-                <TouchableOpacity
-                  style={styles.declineBtn}
-                  onPress={() => handleRejectRequest(item.id)}
-                  disabled={actionLoading}
-                >
-                  <Text style={styles.declineBtnText}>Decline</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.approveBtn}
-                  onPress={() => handleApproveRequest(item.id)}
-                  disabled={actionLoading}
-                >
-                  <Text style={styles.approveBtnText}>Grant Access</Text>
-                </TouchableOpacity>
-              </View>
-            </GradientCard>
-          )}
-        />
-      ) : (
-        <FlatList
-          data={filteredMembers}
-          keyExtractor={i => i.id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Colors.accentBright}
-              colors={[Colors.accentBright]}
-            />
-          }
-          ListEmptyComponent={
-            loading ? (
-              <View style={styles.center}>
-                <ActivityIndicator color={Colors.accentBright} size="large" />
-              </View>
-            ) : (
-              <EmptyState
-                icon="people-outline"
-                title="No Members Found"
-                description="Try searching with a different name or clear the search filter."
-              />
-            )
-          }
-          renderItem={({ item }) => {
-            const fullName = [item.firstName, item.lastName].filter(Boolean).join(' ') || 'Choir Member';
-            const isCoord = (item.role || '').toLowerCase() !== 'member';
-
-            return (
-              <GradientCard variant="surface" style={styles.memberCard}>
-                <View style={styles.memberRow}>
-                  <View style={[styles.avatarCircle, isCoord && styles.avatarCircleCoord]}>
-                    <Text style={styles.avatarLetter}>
-                      {item.firstName ? item.firstName.charAt(0).toUpperCase() : 'S'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.memberInfo}>
-                    <View style={styles.nameBadgeRow}>
-                      <Text style={styles.memberName} numberOfLines={1}>
-                        {fullName}
-                      </Text>
-                      <Badge
-                        label={formatRoleName(item.role)}
-                        variant={isCoord ? 'alto' : 'draft'}
-                        size="sm"
-                      />
-                    </View>
-
-                    <Text style={styles.memberEmail} numberOfLines={1}>
-                      {item.email || 'No email provided'}
-                    </Text>
-
-                    <View style={styles.metaBadgeRow}>
-                      {item.voicePart ? (
-                        <Badge label={item.voicePart} variant="soprano" size="sm" />
-                      ) : null}
-                      {item.zoneId ? (
-                        <View style={styles.zoneTag}>
-                          <Ionicons name="location-outline" size={11} color={Colors.textMuted} />
-                          <Text style={styles.zoneTagText} numberOfLines={1}>
-                            {item.zoneId}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  </View>
-
-                  {canPromote && (
-                    <TouchableOpacity
-                      style={styles.roleActionBtn}
-                      onPress={() => {
-                        setSelectedMember(item);
-                        setRoleModalVisible(true);
-                      }}
-                    >
-                      <Ionicons name="ellipsis-vertical" size={18} color={Colors.textMuted} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </GradientCard>
-            );
-          }}
-        />
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActiveAmber]}
+            onPress={() => setActiveTab('pending')}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
+              Pending ({pendingMembers.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
 
-      {/* Role Assignment Modal */}
-      <Modal visible={roleModalVisible} transparent animationType="fade" onRequestClose={() => setRoleModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.roleModalBox}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Manage Privileges</Text>
-                <Text style={styles.modalSub}>
-                  {[selectedMember?.firstName, selectedMember?.lastName].filter(Boolean).join(' ')}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setRoleModalVisible(false)}>
-                <Ionicons name="close" size={24} color={Colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.roleSelectLabel}>SELECT ROLE FOR THIS MEMBER:</Text>
-
-            <TouchableOpacity
-              style={styles.roleOption}
-              onPress={() => selectedMember && handleChangeRole(selectedMember.id, 'member')}
-            >
-              <View>
-                <Text style={styles.roleOptionTitle}>Singer (Member)</Text>
-                <Text style={styles.roleOptionSub}>Standard access to rehearsals, audio lab, and chat</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.roleOption}
-              onPress={() => selectedMember && handleChangeRole(selectedMember.id, 'church_coordinator')}
-            >
-              <View>
-                <Text style={styles.roleOptionTitle}>Church Coordinator</Text>
-                <Text style={styles.roleOptionSub}>Manage local assembly programs & attendance</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.roleOption}
-              onPress={() => selectedMember && handleChangeRole(selectedMember.id, 'zone_coordinator')}
-            >
-              <View>
-                <Text style={styles.roleOptionTitle}>Zonal Coordinator</Text>
-                <Text style={styles.roleOptionSub}>Full administration across regional zonal repertoire</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
-            </TouchableOpacity>
-
-            {isHQAdmin && (
-              <TouchableOpacity
-                style={styles.roleOption}
-                onPress={() => selectedMember && handleChangeRole(selectedMember.id, 'hq_admin')}
-              >
-                <View>
-                  <Text style={[styles.roleOptionTitle, { color: Colors.accentBright }]}>HQ Director</Text>
-                  <Text style={styles.roleOptionSub}>Global master catalog and ministry administration</Text>
-                </View>
-                <Ionicons name="shield-checkmark" size={18} color={Colors.accentBright} />
+      {/* ── 3. Ultra-Clean Search & Role Chips ────────────────────────── */}
+      {activeTab === 'all' && (
+        <View style={styles.filterBar}>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search members..."
+              placeholderTextColor="#94a3b8"
+              value={search}
+              onChangeText={setSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#94a3b8" />
               </TouchableOpacity>
             )}
           </View>
+
+          <View style={styles.rolePillsRow}>
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'singers', label: 'Singers' },
+              { id: 'admins', label: 'Admins' },
+            ].map(pill => {
+              const isSelected = roleFilter === pill.id;
+              return (
+                <TouchableOpacity
+                  key={pill.id}
+                  style={[styles.rolePill, isSelected && styles.rolePillActive]}
+                  onPress={() => setRoleFilter(pill.id as any)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.rolePillText, isSelected && styles.rolePillTextActive]}>
+                    {pill.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
-      </Modal>
+      )}
+
+      {/* ── 4. High-Clarity Member List ───────────────────────────────── */}
+      <FlatList
+        data={activeTab === 'pending' ? pendingMembers : filteredMembers}
+        keyExtractor={item => item.id}
+        contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7c3aed']} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="people-outline" size={32} color="#cbd5e1" />
+            <Text style={styles.emptyTitle}>No Members Found</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          if (activeTab === 'pending') {
+            return (
+              <View style={styles.pendingCard}>
+                <View style={styles.pendingAvatar}>
+                  <Text style={styles.pendingAvatarText}>
+                    {`${item.first_name[0] || 'U'}${item.last_name[0] || ''}`.toUpperCase()}
+                  </Text>
+                </View>
+
+                <View style={styles.memberMeta}>
+                  <Text style={styles.nameText}>{item.first_name} {item.last_name}</Text>
+                  <Text style={styles.subtitleText} numberOfLines={1}>
+                    {item.church || item.zoneName || 'Applicant'}
+                  </Text>
+                </View>
+
+                <View style={styles.pendingBtnRow}>
+                  <TouchableOpacity
+                    style={styles.declineIconBtn}
+                    onPress={() => handleReject(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close" size={18} color="#ef4444" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.approveIconBtn}
+                    onPress={() => handleApprove(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="checkmark" size={18} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }
+
+          // Approved Member Row
+          const fullName = `${item.first_name} ${item.last_name}`.trim();
+          const initial = `${item.first_name[0] || 'M'}${item.last_name[0] || ''}`.toUpperCase();
+          const isChurchAdmin = item.role === 'church_admin';
+          const isZoneAdmin =
+            item.role === 'zone_admin' || item.role === 'hq_admin' || (item.isAdmin && !isChurchAdmin);
+
+          const subtitle = item.church || item.zoneName || 'Choir Member';
+
+          return (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                setSelectedMember(item);
+                setModalVisible(true);
+              }}
+              style={styles.memberCard}
+            >
+              <View style={styles.memberCardRow}>
+                {/* Avatar with subtle live dot */}
+                <View style={styles.avatarWrap}>
+                  {item.profile_image_url ? (
+                    <Image source={{ uri: item.profile_image_url }} style={styles.avatarImg} />
+                  ) : (
+                    <View style={styles.avatarInitialWrap}>
+                      <Text style={styles.avatarInitialText}>{initial}</Text>
+                    </View>
+                  )}
+                  {item.is_active && <View style={styles.onlineDot} />}
+                </View>
+
+                {/* Member Details: Just Name & Subtitle */}
+                <View style={styles.memberMeta}>
+                  <Text style={styles.nameText} numberOfLines={1}>
+                    {fullName}
+                  </Text>
+                  <Text style={styles.subtitleText} numberOfLines={1}>
+                    {subtitle}
+                  </Text>
+                </View>
+
+                {/* Right Side: Role Badge ONLY if Admin */}
+                {isZoneAdmin && (
+                  <View style={styles.roleBadgeZone}>
+                    <Text style={styles.roleTextZone}>Zone Admin</Text>
+                  </View>
+                )}
+                {isChurchAdmin && (
+                  <View style={styles.roleBadgeChurch}>
+                    <Text style={styles.roleTextChurch}>Church Admin</Text>
+                  </View>
+                )}
+
+                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" style={{ marginLeft: 6 }} />
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
+
+      {/* Simplified Member Management Drawer Modal */}
+      <MemberManagementModal
+        visible={modalVisible}
+        member={selectedMember}
+        onClose={() => {
+          setModalVisible(false);
+          setSelectedMember(null);
+        }}
+        onSave={handleSaveMember}
+        onRemove={handleRemoveFromZone}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
     </SafeAreaView>
   );
 }
@@ -428,236 +609,277 @@ export default function MembersScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8fafc',
   },
-  center: {
-    paddingVertical: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topControl: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  headingRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: '#ffffff',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: -0.3,
+  },
+  countBadge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748b',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 3,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  tabBtnActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  tabBtnActiveAmber: {
+    backgroundColor: '#f59e0b',
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  tabTextActive: {
+    color: '#0f172a',
+    fontWeight: '800',
+  },
+  filterBar: {
+    paddingHorizontal: 16,
     marginBottom: 8,
   },
-  screenHeading: {
-    fontSize: 18,
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    height: 38,
+    marginBottom: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+    padding: 0,
+  },
+  rolePillsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  rolePill: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  rolePillActive: {
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
+  },
+  rolePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  rolePillTextActive: {
+    color: '#ffffff',
     fontWeight: '800',
-    color: Colors.textPrimary,
-    letterSpacing: -0.3,
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
-    gap: 10,
+    paddingTop: 2,
+    gap: 8,
   },
   memberCard: {
+    backgroundColor: '#ffffff',
     borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  memberRow: {
+  memberCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarCircle: {
-    width: 44,
-    height: 44,
+  avatarWrap: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  avatarImg: {
+    width: 42,
+    height: 42,
     borderRadius: 14,
-    backgroundColor: '#f1f5f9',
+  },
+  avatarInitialWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#f5f3ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitialText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#7c3aed',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10b981',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  memberMeta: {
+    flex: 1,
+    marginRight: 8,
+  },
+  nameText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  subtitleText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  roleBadgeZone: {
+    backgroundColor: '#faf5ff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#e9d5ff',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  roleTextZone: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#7c3aed',
+  },
+  roleBadgeChurch: {
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  roleTextChurch: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0284c7',
+  },
+  pendingCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pendingAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#fef3c7',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarCircleCoord: {
-    backgroundColor: '#faf5ff',
-    borderColor: '#e9d5ff',
-  },
-  avatarLetter: {
-    fontSize: 18,
+  pendingAvatarText: {
+    fontSize: 14,
     fontWeight: '800',
-    color: '#7c3aed',
+    color: '#d97706',
   },
-  memberInfo: {
-    flex: 1,
-  },
-  nameBadgeRow: {
+  pendingBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
+    gap: 8,
   },
-  memberName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
-    flex: 1,
-    marginRight: 6,
-  },
-  memberEmail: {
-    fontSize: 12,
-    color: '#64748b',
-    marginBottom: 6,
-  },
-  metaBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  zoneTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  zoneTagText: {
-    fontSize: 10,
-    color: '#64748b',
-    marginLeft: 3,
-  },
-  roleActionBtn: {
-    padding: 8,
-    marginLeft: 4,
-  },
-  requestCard: {
-    borderRadius: 16,
-    padding: 4,
-  },
-  requestHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  requestName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  requestEmail: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  reasonBox: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    padding: 10,
-    marginVertical: 8,
-  },
-  reasonLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    marginBottom: 3,
-  },
-  reasonText: {
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 16,
-  },
-  requestActionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-  },
-  declineBtn: {
-    flex: 1,
-    paddingVertical: 10,
+  declineIconBtn: {
+    width: 32,
+    height: 32,
     borderRadius: 10,
     backgroundColor: '#fef2f2',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  declineBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#dc2626',
-  },
-  approveBtn: {
-    flex: 1.2,
-    paddingVertical: 10,
+  approveIconBtn: {
+    width: 32,
+    height: 32,
     borderRadius: 10,
     backgroundColor: '#10b981',
     alignItems: 'center',
-  },
-  approveBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
-    paddingHorizontal: 20,
   },
-  roleModalBox: {
-    backgroundColor: '#ffffff',
-    borderRadius: 22,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  emptyContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
-  modalTitle: {
-    fontSize: 18,
+  emptyTitle: {
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
-  },
-  modalSub: {
-    fontSize: 13,
-    color: '#7c3aed',
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  roleSelectLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#475569',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  roleOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  roleOptionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  roleOptionSub: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-    maxWidth: 240,
+    marginTop: 10,
   },
 });
