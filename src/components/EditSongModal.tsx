@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Image,
   useWindowDimensions,
+  Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +55,11 @@ export interface PraiseNightSong {
   praiseNightId?: string;
   praiseNightName?: string;
   history?: any[];
+  isHQOnly?: boolean;
+  is_hq_only?: boolean;
+  isHqOnly?: boolean;
+  scope?: string;
+  isHidden?: boolean;
 }
 
 export interface EditSongModalProps {
@@ -122,6 +128,7 @@ export default function EditSongModal({
   const [songStatus, setSongStatus] = useState<'heard' | 'unheard'>('unheard');
   const [songProgram, setSongProgram] = useState('');
   const [isSongActive, setIsSongActive] = useState(false);
+  const [isHQOnly, setIsHQOnly] = useState(false);
   const [songImageUrl, setSongImageUrl] = useState('');
 
   // Music Details
@@ -189,6 +196,7 @@ export default function EditSongModal({
       setAvailableCategories(prev => Array.from(new Set([...categories, ...prev, ...cats])));
       setSongStatus(song.status === 'heard' || song.isHeard || song.heard ? 'heard' : 'unheard');
       setIsSongActive(Boolean(song.isActive));
+      setIsHQOnly(Boolean(song.isHQOnly || song.is_hq_only || song.isHqOnly || song.scope === 'hq' || song.status === 'hq_only' || (song as any)?.audioUrls?._isHQOnly));
       setSongProgram(song.programName || song.praiseNightName || programName);
       setSongImageUrl(song.imageUrl || '');
       setSongKey(song.key || '');
@@ -234,6 +242,7 @@ export default function EditSongModal({
       setSongCategories([]);
       setSongStatus('unheard');
       setIsSongActive(false);
+      setIsHQOnly(false);
       setSongProgram(programName);
       setSongImageUrl('');
       setSongKey('');
@@ -566,6 +575,10 @@ export default function EditSongModal({
       isHeard: songStatus === 'heard',
       heard: songStatus === 'heard',
       isActive: isSongActive,
+      isHQOnly: isHQOnly,
+      is_hq_only: isHQOnly,
+      isHqOnly: isHQOnly,
+      scope: isHQOnly ? 'hq' : 'global',
       category: primaryCategory,
       categories: songCategories.length > 0 ? songCategories : [primaryCategory],
       praiseNightId: programId || 'prog-25',
@@ -772,6 +785,32 @@ export default function EditSongModal({
             {isSongActive ? '● LIVE' : 'GO LIVE'}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      {/* HQ Only / Regional Visibility Toggle */}
+      <View style={styles.hqOnlyRow}>
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+            <Ionicons
+              name={isHQOnly ? 'lock-closed' : 'globe-outline'}
+              size={15}
+              color={isHQOnly ? '#7c3aed' : '#059669'}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Hide from Regional Zones (HQ Only)</Text>
+          </View>
+          <Text style={styles.broadcastSubtext}>
+            {isHQOnly
+              ? 'HQ Exclusive: Hidden from all regional zones. Visible only to Loveworld Singers HQ.'
+              : 'Universal Repertoire: Visible to all regional zones & church choir hubs.'}
+          </Text>
+        </View>
+        <Switch
+          value={isHQOnly}
+          onValueChange={setIsHQOnly}
+          trackColor={{ false: '#cbd5e1', true: '#c4b5fd' }}
+          thumbColor={isHQOnly ? '#7c3aed' : '#ffffff'}
+        />
       </View>
 
       {/* Program Dropdown (Full Width) */}
@@ -2762,6 +2801,17 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: '#64748b',
     marginTop: 1,
+  },
+  hqOnlyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#faf5ff',
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
   },
   liveToggleBtn: {
     flexDirection: 'row',

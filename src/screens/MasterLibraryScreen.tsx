@@ -21,7 +21,7 @@ import { api } from '../services/api';
 import { GradientCard, Badge, EmptyState } from '../components/ui';
 import ZoneHeader from '../components/ZoneHeader';
 import MasterSongDetailModal, { MasterSong } from '../components/MasterSongDetailModal';
-import MasterEditSongModal from '../components/MasterEditSongModal';
+import EditSongModal, { PraiseNightSong } from '../components/EditSongModal';
 import { useAuth } from '../context/AuthContext';
 
 // ── Realistic Web Admin Catalog Mock ─────────────────────────────────────────
@@ -253,8 +253,8 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const [selectedDetailSong, setSelectedDetailSong] = useState<MasterSong | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  const [editModalSong, setEditModalSong] = useState<MasterSong | null>(null);
-  const [editModalMode, setEditModalMode] = useState<'create' | 'edit'>('create');
+  const [editModalSong, setEditModalSong] = useState<PraiseNightSong | null>(null);
+  const [editingOriginalMaster, setEditingOriginalMaster] = useState<MasterSong | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
   // Fetch Master Songs
@@ -361,28 +361,136 @@ export default function MasterLibraryScreen({ navigation }: any) {
     );
   }, [search, zoneSongs]);
 
+  // Master <-> Praise Adapter Functions
+  function masterToPraiseSong(song: MasterSong | null): PraiseNightSong | null {
+    if (!song) return null;
+    return {
+      id: song.id,
+      title: song.title,
+      key: song.key,
+      tempo: song.tempo,
+      leadSinger: song.leadSinger,
+      conductor: song.conductor,
+      writer: song.writer || song.publishedByName,
+      category: song.category,
+      categories: song.category ? [song.category] : ['Worship'],
+      lyrics: song.lyrics,
+      solfas: song.solfas || song.solfa,
+      solfa: song.solfas || song.solfa,
+      rehearsalCount: song.rehearsalCount,
+      imageUrl: song.imageUrl,
+      audioFile: song.audioFile || song.audioUrl,
+      audioUrl: song.audioFile || song.audioUrl,
+      audioUrls: song.audioUrls,
+      customParts: song.customParts,
+      leadKeyboardist: song.leadKeyboardist,
+      leadGuitarist: song.leadGuitarist,
+      drummer: song.drummer,
+      coordinatorComment: song.coordinatorComment || song.coordinatorNotes,
+      isHQOnly: Boolean(song.isHQOnly || song.isHqOnly),
+      is_hq_only: Boolean(song.isHQOnly || song.isHqOnly),
+      isHqOnly: Boolean(song.isHQOnly || song.isHqOnly),
+      scope: (song.isHQOnly || song.isHqOnly) ? 'hq' : 'global',
+      isHidden: Boolean(song.isHidden),
+    };
+  }
+
+  function praiseToMasterSong(praiseSong: PraiseNightSong, originalSong?: MasterSong | null): MasterSong {
+    const isHQ = Boolean(praiseSong.isHQOnly || praiseSong.is_hq_only || praiseSong.isHqOnly || praiseSong.scope === 'hq');
+    return {
+      id: praiseSong.id || originalSong?.id || `master-${Date.now()}`,
+      title: praiseSong.title || 'Untitled Song',
+      writer: praiseSong.writer || originalSong?.writer || '',
+      publishedByName: praiseSong.writer || originalSong?.publishedByName || 'Loveworld Singers',
+      leadSinger: praiseSong.leadSinger || originalSong?.leadSinger || '',
+      category: praiseSong.category || (praiseSong.categories?.[0]) || originalSong?.category || 'Worship',
+      key: praiseSong.key || originalSong?.key || '',
+      tempo: praiseSong.tempo || originalSong?.tempo || '',
+      conductor: praiseSong.conductor || originalSong?.conductor || '',
+      conductorGuide: originalSong?.conductorGuide || '',
+      leadKeyboardist: praiseSong.leadKeyboardist || originalSong?.leadKeyboardist || '',
+      leadGuitarist: praiseSong.leadGuitarist || originalSong?.leadGuitarist || '',
+      bassGuitarist: originalSong?.bassGuitarist || '',
+      drummer: praiseSong.drummer || originalSong?.drummer || '',
+      audioFile: praiseSong.audioFile || praiseSong.audioUrl || originalSong?.audioFile || '',
+      audioUrl: praiseSong.audioFile || praiseSong.audioUrl || originalSong?.audioUrl || '',
+      audioUrls: praiseSong.audioUrls || originalSong?.audioUrls,
+      customParts: praiseSong.customParts || originalSong?.customParts,
+      lyrics: praiseSong.lyrics || originalSong?.lyrics || '',
+      solfas: praiseSong.solfas || praiseSong.solfa || originalSong?.solfas || '',
+      solfa: praiseSong.solfas || praiseSong.solfa || originalSong?.solfa || '',
+      history: typeof praiseSong.history === 'string' ? praiseSong.history : (originalSong?.history || ''),
+      coordinatorComment: praiseSong.coordinatorComment || originalSong?.coordinatorComment,
+      coordinatorNotes: praiseSong.coordinatorComment || originalSong?.coordinatorNotes,
+      rehearsalCount: praiseSong.rehearsalCount ?? originalSong?.rehearsalCount ?? 0,
+      imageUrl: praiseSong.imageUrl || originalSong?.imageUrl,
+      isHQOnly: isHQ,
+      isHqOnly: isHQ,
+      isHidden: Boolean(originalSong?.isHidden),
+      isHistory: Boolean(originalSong?.isHistory),
+    };
+  }
+
   // Handlers for Master Songs
   function handleOpenCreateModal() {
+    setEditingOriginalMaster(null);
     setEditModalSong(null);
-    setEditModalMode('create');
     setEditModalVisible(true);
   }
 
   function handleOpenEditModal(song: MasterSong) {
-    setEditModalSong(song);
-    setEditModalMode('edit');
+    setEditingOriginalMaster(song);
+    setEditModalSong(masterToPraiseSong(song));
     setEditModalVisible(true);
   }
 
-  function handleSongSaved(savedSong: MasterSong, isNew: boolean) {
+  async function handleMasterSongUpdated(updatedSong: PraiseNightSong) {
+    const isNew = !editingOriginalMaster?.id || !masterSongs.some(s => s.id === updatedSong.id);
+    const savedMaster = praiseToMasterSong(updatedSong, editingOriginalMaster);
+
     if (isNew) {
-      setMasterSongs(prev => [savedSong, ...prev]);
+      setMasterSongs(prev => [savedMaster, ...prev]);
     } else {
-      setMasterSongs(prev => prev.map(s => (s.id === savedSong.id ? { ...s, ...savedSong } : s)));
+      setMasterSongs(prev => prev.map(s => (s.id === savedMaster.id ? { ...s, ...savedMaster } : s)));
     }
-    if (selectedDetailSong?.id === savedSong.id) {
-      setSelectedDetailSong(savedSong);
+
+    if (selectedDetailSong?.id === savedMaster.id) {
+      setSelectedDetailSong(savedMaster);
     }
+
+    setEditModalVisible(false);
+
+    try {
+      if (isNew) {
+        await api.songs.create({
+          ...savedMaster,
+          isMaster: true,
+          isHQOnly: savedMaster.isHQOnly,
+          is_hq_only: savedMaster.isHQOnly,
+          status: savedMaster.isHQOnly ? 'hq_only' : 'active',
+        });
+      } else {
+        await api.songs.update(savedMaster.id, {
+          ...savedMaster,
+          isMaster: true,
+          isHQOnly: savedMaster.isHQOnly,
+          is_hq_only: savedMaster.isHQOnly,
+          status: savedMaster.isHQOnly ? 'hq_only' : 'active',
+        });
+      }
+    } catch (err) {
+      console.log('[MasterLibrary] Save to backend note:', err);
+    }
+  }
+
+  function handleMasterSongDeleted(songId: string) {
+    setMasterSongs(prev => prev.filter(s => s.id !== songId));
+    if (selectedDetailSong?.id === songId) {
+      setSelectedDetailSong(null);
+      setDetailModalVisible(false);
+    }
+    setEditModalVisible(false);
+    api.songs.delete(songId).catch(() => {});
   }
 
   function handleToggleHideSong(song: MasterSong) {
@@ -671,12 +779,17 @@ export default function MasterLibraryScreen({ navigation }: any) {
       />
 
       {/* ── CREATE / EDIT MASTER SONG MODAL ────────────────────────────────── */}
-      <MasterEditSongModal
+      <EditSongModal
         visible={editModalVisible}
         song={editModalSong}
-        mode={editModalMode}
-        onClose={() => setEditModalVisible(false)}
-        onSaved={handleSongSaved}
+        programName="Master Repertoire"
+        onClose={() => {
+          setEditModalVisible(false);
+          setEditModalSong(null);
+          setEditingOriginalMaster(null);
+        }}
+        onUpdate={handleMasterSongUpdated}
+        onDelete={handleMasterSongDeleted}
       />
 
       {/* ── ZONAL REGIONAL SONG FORM MODAL ─────────────────────────────────── */}
