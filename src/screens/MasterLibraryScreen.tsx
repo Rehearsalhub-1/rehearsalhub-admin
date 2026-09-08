@@ -22,6 +22,7 @@ import { GradientCard, Badge, EmptyState } from '../components/ui';
 import ZoneHeader from '../components/ZoneHeader';
 import MasterSongDetailModal, { MasterSong } from '../components/MasterSongDetailModal';
 import MasterEditSongModal from '../components/MasterEditSongModal';
+import { useAuth } from '../context/AuthContext';
 
 // ── Realistic Web Admin Catalog Mock ─────────────────────────────────────────
 export const INITIAL_MASTER_CATALOG: MasterSong[] = [
@@ -224,6 +225,7 @@ Forever and ever, Amen!`,
 export default function MasterLibraryScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { activeZone } = useZoneContext();
+  const { adminUser } = useAuth();
 
   // Primary Tab: Master Repertoire vs Zonal Repertoire
   const [activeDomainTab, setActiveDomainTab] = useState<'master' | 'zone'>('master');
@@ -422,320 +424,206 @@ export default function MasterLibraryScreen({ navigation }: any) {
     ]);
   }
 
+  if (!adminUser?.isHQAdmin) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ZoneHeader title="All Ministered" showBack={true} />
+        <View style={styles.centerRestricted}>
+          <View style={styles.restrictedIconBox}>
+            <Ionicons name="lock-closed" size={32} color="#7c3aed" />
+          </View>
+          <Text style={styles.restrictedTitle}>HQ Admin Access Only</Text>
+          <Text style={styles.restrictedSub}>
+            The Master "All Ministered" repertoire is managed exclusively by Loveworld Singers HQ Administrators.
+          </Text>
+          <TouchableOpacity style={styles.goBackBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.goBackBtnText}>Back to Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* ── HIGH-END EXECUTIVE HEADER (Mirroring MasterLibraryHeader.tsx) ────── */}
-      <View style={styles.execHeaderCard}>
-        <View style={styles.execHeaderTop}>
-          <View style={styles.execBrandRow}>
-            <View style={styles.execIconBox}>
-              <Ionicons name="library" size={20} color="#ffffff" />
-            </View>
-            <View>
-              <View style={styles.execTitleRow}>
-                <Text style={styles.execTitle}>All Ministered</Text>
-                <View style={styles.statsPillPurple}>
-                  <Ionicons name="musical-note" size={11} color="#7c3aed" style={{ marginRight: 2 }} />
-                  <Text style={styles.statsPillPurpleText}>{masterStats.total} Songs</Text>
-                </View>
-                {masterStats.history > 0 && (
-                  <View style={styles.statsPillAmber}>
-                    <Ionicons name="time" size={10} color="#b45309" style={{ marginRight: 2 }} />
-                    <Text style={styles.statsPillAmberText}>{masterStats.history} History</Text>
-                  </View>
-                )}
-                {masterStats.hqOnly > 0 && (
-                  <View style={styles.statsPillIndigo}>
-                    <Ionicons name="lock-closed" size={10} color="#4338ca" style={{ marginRight: 2 }} />
-                    <Text style={styles.statsPillIndigoText}>{masterStats.hqOnly} HQ Only</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.execSub}>Global repertoire of all ministered songs.</Text>
-            </View>
-          </View>
+      <ZoneHeader title="All Ministered" showBack={true} />
 
-          {/* New Song Button */}
-          <TouchableOpacity
-            style={styles.addSongBtn}
-            onPress={() => {
-              if (activeDomainTab === 'master') {
-                handleOpenCreateModal();
-              } else {
-                setEditingZoneSong(null);
-                setShowZoneForm(true);
-              }
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 2 }} />
-            <Text style={styles.addSongBtnText}>+ Song</Text>
-          </TouchableOpacity>
+      {/* ── CLEAN TOP CONTROLS BAR (Search + +Song) ──────────────────────── */}
+      <View style={styles.cleanControlBar}>
+        <View style={styles.cleanSearchBox}>
+          <Ionicons name="search" size={16} color="#94a3b8" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.cleanSearchInput}
+            placeholder={`Search ${filteredMasterSongs.length} songs by title, singer, key...`}
+            placeholderTextColor="#94a3b8"
+            value={search}
+            onChangeText={setSearch}
+          />
+          {search ? (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={16} color="#94a3b8" />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
-        {/* Master vs Zonal Switcher */}
-        <View style={styles.domainTabsRow}>
-          <TouchableOpacity
-            style={[styles.domainTab, activeDomainTab === 'master' && styles.domainTabActive]}
-            onPress={() => setActiveDomainTab('master')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.domainTabText, activeDomainTab === 'master' && styles.domainTabTextActive]}>
-              Master Catalog ({masterStats.total})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.domainTab, activeDomainTab === 'zone' && styles.domainTabActive]}
-            onPress={() => setActiveDomainTab('zone')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.domainTabText, activeDomainTab === 'zone' && styles.domainTabTextActive]}>
-              Zonal Repertoire ({zoneSongs.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.cleanAddBtn}
+          onPress={handleOpenCreateModal}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="add" size={18} color="#ffffff" style={{ marginRight: 3 }} />
+          <Text style={styles.cleanAddBtnText}>+ Song</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* ── MASTER CATALOG CONTROLS (Only on Master Tab) ─────────────────────── */}
-      {activeDomainTab === 'master' && (
-        <View style={styles.filterSection}>
-          {/* Status Tabs: Active | History | Hidden | All */}
-          <View style={styles.statusTabsRow}>
-            {[
-              { id: 'active', label: 'Active', count: masterStats.active },
-              { id: 'history', label: 'History', count: masterStats.history },
-              { id: 'hidden', label: 'Hidden', count: masterStats.hidden },
-              { id: 'all', label: 'All', count: masterStats.total },
-            ].map(t => {
-              const isActive = masterStatusTab === t.id;
-              return (
-                <TouchableOpacity
-                  key={t.id}
-                  style={[styles.statusTabBtn, isActive && styles.statusTabBtnActive]}
-                  onPress={() => setMasterStatusTab(t.id as any)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.statusTabBtnText, isActive && styles.statusTabBtnTextActive]}>
-                    {t.label} ({t.count})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Search Row + Sort Toggle */}
-          <View style={styles.searchRow}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={`Search ${filteredMasterSongs.length} songs, singer, writer...`}
-                placeholderTextColor="#94a3b8"
-                value={search}
-                onChangeText={setSearch}
-              />
-              {search ? (
-                <TouchableOpacity onPress={() => setSearch('')}>
-                  <Ionicons name="close-circle" size={16} color="#94a3b8" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
+      {/* ── CLEAN STATUS FILTER TABS ─────────────────────────────────────── */}
+      <View style={styles.cleanTabsRow}>
+        {[
+          { id: 'all', label: 'All', count: masterStats.total },
+          { id: 'active', label: 'Active', count: masterStats.active },
+          { id: 'history', label: 'History', count: masterStats.history },
+          { id: 'hidden', label: 'Hidden', count: masterStats.hidden },
+        ].map(t => {
+          const isActive = masterStatusTab === t.id;
+          return (
             <TouchableOpacity
-              style={styles.sortBtn}
-              onPress={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+              key={t.id}
+              style={[styles.cleanTabBtn, isActive && styles.cleanTabBtnActive]}
+              onPress={() => setMasterStatusTab(t.id as any)}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name={sortOrder === 'asc' ? 'arrow-down' : 'arrow-up'}
-                size={14}
-                color="#7c3aed"
-                style={{ marginRight: 2 }}
-              />
-              <Text style={styles.sortBtnText}>{sortOrder === 'asc' ? 'A-Z' : 'Z-A'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Lead Singer Filter Chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.singerChipsScroll}
-          >
-            <TouchableOpacity
-              style={[styles.singerChip, selectedLeadSinger === 'all' && styles.singerChipActive]}
-              onPress={() => setSelectedLeadSinger('all')}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.singerChipText, selectedLeadSinger === 'all' && styles.singerChipTextActive]}>
-                All Singers
+              <Text style={[styles.cleanTabBtnText, isActive && styles.cleanTabBtnTextActive]}>
+                {t.label} ({t.count})
               </Text>
             </TouchableOpacity>
+          );
+        })}
+      </View>
 
-            {leadSingersList.map(singer => {
-              const isSelected = selectedLeadSinger.toLowerCase() === singer.toLowerCase();
-              return (
-                <TouchableOpacity
-                  key={singer}
-                  style={[styles.singerChip, isSelected && styles.singerChipActive]}
-                  onPress={() => setSelectedLeadSinger(isSelected ? 'all' : singer)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.singerChipText, isSelected && styles.singerChipTextActive]}>
-                    {singer}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* ── ZONAL SEARCH BAR (Only on Zonal Tab) ────────────────────────────── */}
-      {activeDomainTab === 'zone' && (
-        <View style={styles.zonalSearchSection}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={`Search ${zoneSongs.length} regional songs...`}
-              placeholderTextColor="#94a3b8"
-              value={search}
-              onChangeText={setSearch}
+      {/* ── CLEAN MASTER CATALOG SONG FEED ──────────────────────────────────── */}
+      <FlatList
+        data={filteredMasterSongs}
+        keyExtractor={i => i.id}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 24) + 30 }
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchMasterSongs();
+            }}
+            tintColor="#7c3aed"
+            colors={['#7c3aed']}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          masterLoading ? (
+            <View style={styles.center}>
+              <ActivityIndicator color="#7c3aed" size="large" />
+            </View>
+          ) : (
+            <EmptyState
+              icon="musical-notes-outline"
+              title="No Songs Found"
+              description={
+                search || masterStatusTab !== 'all'
+                  ? 'No songs match your search or status filter.'
+                  : 'The master catalog has no registered songs yet.'
+              }
+              actionLabel="+ Add Master Song"
+              onAction={handleOpenCreateModal}
             />
-            {search ? (
-              <TouchableOpacity onPress={() => setSearch('')}>
-                <Ionicons name="close-circle" size={16} color="#94a3b8" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        </View>
-      )}
+          )
+        }
+        renderItem={({ item }) => {
+          const isHq = Boolean(item.isHQOnly || item.isHqOnly);
+          const hasStems = Boolean(
+            item.audioUrls?.soprano ||
+            item.audioUrls?.alto ||
+            item.audioUrls?.tenor ||
+            item.audioUrls?.bass
+          );
 
-      {/* ── MASTER CATALOG SONG FEED ────────────────────────────────────────── */}
-      {activeDomainTab === 'master' ? (
-        <FlatList
-          data={filteredMasterSongs}
-          keyExtractor={i => i.id}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: Math.max(insets.bottom, 24) + 30 }
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchMasterSongs();
+          return (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => {
+                setSelectedDetailSong(item);
+                setDetailModalVisible(true);
               }}
-              tintColor="#7c3aed"
-              colors={['#7c3aed']}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            masterLoading ? (
-              <View style={styles.center}>
-                <ActivityIndicator color="#7c3aed" size="large" />
-              </View>
-            ) : (
-              <EmptyState
-                icon="musical-notes-outline"
-                title="No Songs Found"
-                description={
-                  search || selectedLeadSinger !== 'all' || masterStatusTab !== 'active'
-                    ? 'No songs match your current filter settings.'
-                    : 'The master catalog has no registered songs yet.'
-                }
-                actionLabel="+ Add Master Song"
-                onAction={handleOpenCreateModal}
-              />
-            )
-          }
-          renderItem={({ item, index }) => {
-            const isHq = Boolean(item.isHQOnly || item.isHqOnly);
-            const hasStems = Boolean(
-              item.audioUrls?.soprano ||
-              item.audioUrls?.alto ||
-              item.audioUrls?.tenor ||
-              item.audioUrls?.bass
-            );
-
-            return (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => {
-                  setSelectedDetailSong(item);
-                  setDetailModalVisible(true);
-                }}
-                style={[
-                  styles.songCard,
-                  item.isHidden && styles.songCardHidden,
-                ]}
-              >
-                {/* Index / Order Box */}
-                <View style={styles.indexBox}>
-                  <Text style={styles.indexText}>{String(index + 1).padStart(2, '0')}</Text>
-                </View>
-
-                {/* Main Song Info */}
-                <View style={styles.songMainCol}>
-                  <View style={styles.songTitleRow}>
-                    <Text style={styles.songTitleText} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                    {isHq && (
-                      <View style={styles.hqBadge}>
-                        <Text style={styles.hqBadgeText}>HQ ONLY</Text>
-                      </View>
-                    )}
-                    {item.isHidden && (
-                      <View style={styles.hiddenBadge}>
-                        <Text style={styles.hiddenBadgeText}>HIDDEN</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <Text style={styles.songWriterText} numberOfLines={1}>
+              style={[
+                styles.cleanCard,
+                item.isHidden && styles.cleanCardHidden,
+              ]}
+            >
+              {/* Card Header: Title & Key / Tempo */}
+              <View style={styles.cardHeaderRow}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.cardTitleText} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.cardSubtitleText} numberOfLines={1}>
                     {item.leadSinger ? `Lead: ${item.leadSinger}` : ''}
                     {item.leadSinger && (item.writer || item.publishedByName) ? ' • ' : ''}
-                    {item.writer || item.publishedByName ? `✍️ ${item.writer || item.publishedByName}` : ''}
+                    {item.writer || item.publishedByName ? `Writer: ${item.writer || item.publishedByName}` : ''}
                   </Text>
-
-                  {/* Metadata Chips Row */}
-                  <View style={styles.tagsRow}>
-                    {item.key ? (
-                      <View style={styles.keyTag}>
-                        <Text style={styles.keyTagText}>{item.key}</Text>
-                      </View>
-                    ) : null}
-
-                    {item.tempo ? (
-                      <Text style={styles.tempoText}>{item.tempo} BPM</Text>
-                    ) : null}
-
-                    {item.category ? (
-                      <View style={styles.categoryPill}>
-                        <Text style={styles.categoryPillText}>{item.category}</Text>
-                      </View>
-                    ) : null}
-
-                    {/* Stems Indicators */}
-                    {hasStems && (
-                      <View style={styles.stemsIndicator}>
-                        <Ionicons name="layers" size={10} color="#7c3aed" style={{ marginRight: 2 }} />
-                        <Text style={styles.stemsIndicatorText}>Stems</Text>
-                      </View>
-                    )}
-                  </View>
                 </View>
 
-                {/* Quick Action Icons */}
-                <View style={styles.actionCol}>
-                  {/* Edit */}
+                <View style={styles.keyTempoGroup}>
+                  {item.key ? (
+                    <View style={styles.keyBadge}>
+                      <Text style={styles.keyBadgeText}>Key: {item.key}</Text>
+                    </View>
+                  ) : null}
+                  {item.tempo ? (
+                    <View style={styles.tempoBadge}>
+                      <Text style={styles.tempoBadgeText}>{item.tempo} BPM</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+
+              {/* Divider */}
+              <View style={styles.cardDivider} />
+
+              {/* Card Footer: Tags & Action Icons */}
+              <View style={styles.cardFooterRow}>
+                <View style={styles.cardTagsRow}>
+                  {item.category ? (
+                    <View style={styles.categoryPill}>
+                      <Text style={styles.categoryPillText}>{item.category}</Text>
+                    </View>
+                  ) : null}
+
+                  {hasStems && (
+                    <View style={styles.stemsPill}>
+                      <Ionicons name="layers-outline" size={11} color="#7c3aed" style={{ marginRight: 3 }} />
+                      <Text style={styles.stemsPillText}>Stems</Text>
+                    </View>
+                  )}
+
+                  {isHq && (
+                    <View style={styles.hqPill}>
+                      <Ionicons name="lock-closed" size={10} color="#4338ca" style={{ marginRight: 2 }} />
+                      <Text style={styles.hqPillText}>HQ Only</Text>
+                    </View>
+                  )}
+
+                  {item.isHidden && (
+                    <View style={styles.hiddenPill}>
+                      <Text style={styles.hiddenPillText}>Hidden</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.cardActionsGroup}>
                   <TouchableOpacity
-                    style={styles.actionIconBtn}
+                    style={styles.actionBtn}
                     onPress={() => handleOpenEditModal(item)}
                     activeOpacity={0.7}
                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
@@ -743,9 +631,8 @@ export default function MasterLibraryScreen({ navigation }: any) {
                     <Ionicons name="pencil" size={15} color="#7c3aed" />
                   </TouchableOpacity>
 
-                  {/* Toggle Hide */}
                   <TouchableOpacity
-                    style={styles.actionIconBtn}
+                    style={styles.actionBtn}
                     onPress={() => handleToggleHideSong(item)}
                     activeOpacity={0.7}
                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
@@ -757,92 +644,20 @@ export default function MasterLibraryScreen({ navigation }: any) {
                     />
                   </TouchableOpacity>
 
-                  {/* Delete */}
                   <TouchableOpacity
-                    style={styles.actionIconBtn}
+                    style={styles.actionBtn}
                     onPress={() => handleDeleteMasterSong(item)}
                     activeOpacity={0.7}
                     hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
                   >
-                    <Ionicons name="trash-outline" size={14} color="#f87171" />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      ) : (
-        /* ── ZONAL REGIONAL SONG FEED ────────────────────────────────────────── */
-        <FlatList
-          data={filteredZoneSongs}
-          keyExtractor={i => i.id}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: Math.max(insets.bottom, 24) + 30 }
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={zoneSongsLoading}
-              onRefresh={fetchZoneSongs}
-              tintColor="#7c3aed"
-              colors={['#7c3aed']}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            zoneSongsLoading ? (
-              <View style={styles.center}>
-                <ActivityIndicator color="#7c3aed" size="large" />
-              </View>
-            ) : (
-              <EmptyState
-                icon="musical-notes-outline"
-                title="No Regional Zone Songs"
-                description="Songs customized specifically for your local zone will appear here."
-                actionLabel="Add Zonal Song"
-                onAction={() => {
-                  setEditingZoneSong(null);
-                  setShowZoneForm(true);
-                }}
-              />
-            )
-          }
-          renderItem={({ item }) => (
-            <GradientCard variant="surface" style={styles.zonalCard}>
-              <View style={styles.zonalRow}>
-                <View style={styles.zonalInfo}>
-                  <Text style={styles.songTitleText} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <View style={styles.tagsRow}>
-                    {item.key ? <Badge label={`Key: ${item.key}`} variant="key" size="sm" /> : null}
-                    {item.tempo ? <Badge label={`${item.tempo} BPM`} variant="tempo" size="sm" /> : null}
-                  </View>
-                </View>
-
-                <View style={styles.actionCol}>
-                  <TouchableOpacity
-                    style={styles.actionIconBtn}
-                    onPress={() => {
-                      setEditingZoneSong(item);
-                      setShowZoneForm(true);
-                    }}
-                  >
-                    <Ionicons name="pencil-outline" size={16} color="#64748b" />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.actionIconBtn}
-                    onPress={() => handleDeleteZoneSong(item)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#f87171" />
+                    <Ionicons name="trash-outline" size={15} color="#ef4444" />
                   </TouchableOpacity>
                 </View>
               </View>
-            </GradientCard>
-          )}
-        />
-      )}
+            </TouchableOpacity>
+          );
+        }}
+      />
 
       {/* ── DETAIL INSPECTOR MODAL ─────────────────────────────────────────── */}
       <MasterSongDetailModal
@@ -894,400 +709,267 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  execHeaderCard: {
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+  centerRestricted: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  restrictedIconBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 22,
+    backgroundColor: '#f5f3ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+  },
+  restrictedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 8,
+  },
+  restrictedSub: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  goBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  goBackBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  cleanControlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-  },
-  execHeaderTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  execBrandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
-    flex: 1,
   },
-  execIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#7c3aed',
+  cleanSearchBox: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    height: 42,
+  },
+  cleanSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0f172a',
+  },
+  cleanAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 14,
+    height: 42,
+    borderRadius: 12,
     shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
-  execTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  execTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#0f172a',
-    letterSpacing: -0.3,
-  },
-  execSub: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '500',
-    marginTop: 1,
-  },
-  statsPillPurple: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f3ff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ddd6fe',
-  },
-  statsPillPurpleText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#7c3aed',
-  },
-  statsPillAmber: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fffbeb',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#fde68a',
-  },
-  statsPillAmberText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#b45309',
-  },
-  statsPillIndigo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eef2ff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
-  },
-  statsPillIndigoText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#4338ca',
-  },
-  addSongBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#7c3aed',
-    paddingHorizontal: 12,
-    paddingVertical: 6.5,
-    borderRadius: 9,
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  addSongBtnText: {
-    fontSize: 11.5,
-    fontWeight: '800',
+  cleanAddBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#ffffff',
   },
-  domainTabsRow: {
+  cleanTabsRow: {
     flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 10,
-    padding: 2.5,
-  },
-  domainTab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  domainTabActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  domainTabText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  domainTabTextActive: {
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  filterSection: {
-    backgroundColor: '#ffffff',
     paddingHorizontal: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    paddingBottom: 10,
     gap: 8,
   },
-  zonalSearchSection: {
+  cleanTabBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  statusTabsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 4,
-  },
-  statusTabBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  statusTabBtnActive: {
-    backgroundColor: '#f5f3ff',
+  cleanTabBtnActive: {
+    backgroundColor: '#7c3aed',
     borderColor: '#7c3aed',
   },
-  statusTabBtnText: {
-    fontSize: 11,
+  cleanTabBtnText: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#64748b',
   },
-  statusTabBtnTextActive: {
-    color: '#7c3aed',
-    fontWeight: '800',
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 10,
-    height: 36,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 12.5,
-    color: '#0f172a',
-  },
-  sortBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    height: 36,
-  },
-  sortBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#7c3aed',
-  },
-  singerChipsScroll: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2,
-  },
-  singerChip: {
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  singerChipActive: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
-  },
-  singerChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  singerChipTextActive: {
+  cleanTabBtnTextActive: {
     color: '#ffffff',
-    fontWeight: '700',
+    fontWeight: '800',
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    gap: 7,
+    paddingTop: 4,
+    gap: 10,
   },
-  songCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cleanCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  songCardHidden: {
+  cleanCardHidden: {
     opacity: 0.6,
     backgroundColor: '#f8fafc',
   },
-  indexBox: {
-    width: 24,
-    marginRight: 8,
-  },
-  indexText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#94a3b8',
-    fontVariant: ['tabular-nums'],
-  },
-  songMainCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  songTitleRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
-  songTitleText: {
-    fontSize: 13.5,
+  cardTitleText: {
+    fontSize: 15,
     fontWeight: '800',
     color: '#0f172a',
+    letterSpacing: -0.2,
   },
-  hqBadge: {
-    backgroundColor: '#f5f3ff',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#ddd6fe',
-  },
-  hqBadgeText: {
-    fontSize: 8.5,
-    fontWeight: '800',
-    color: '#7c3aed',
-  },
-  hiddenBadge: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  hiddenBadgeText: {
-    fontSize: 8.5,
-    fontWeight: '700',
-    color: '#94a3b8',
-  },
-  songWriterText: {
-    fontSize: 11,
-    color: '#64748b',
+  cardSubtitleText: {
+    fontSize: 12,
     fontWeight: '500',
-    marginTop: 1.5,
+    color: '#64748b',
+    marginTop: 2,
   },
-  tagsRow: {
+  keyTempoGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 4,
-    flexWrap: 'wrap',
   },
-  keyTag: {
-    backgroundColor: '#eef2ff',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  keyTagText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#4338ca',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  tempoText: {
-    fontSize: 10,
-    color: '#94a3b8',
-    fontWeight: '600',
-  },
-  categoryPill: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 5,
-  },
-  categoryPillText: {
-    fontSize: 9.5,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  stemsIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  keyBadge: {
     backgroundColor: '#f5f3ff',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  stemsIndicatorText: {
-    fontSize: 9.5,
-    fontWeight: '700',
-    color: '#7c3aed',
-  },
-  actionCol: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginLeft: 8,
-  },
-  actionIconBtn: {
-    padding: 6,
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     borderRadius: 6,
   },
-  zonalCard: {
-    borderRadius: 14,
+  keyBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#7c3aed',
   },
-  zonalRow: {
+  tempoBadge: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  tempoBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 10,
+  },
+  cardFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  zonalInfo: {
+  cardTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
     flex: 1,
-    marginRight: 10,
+  },
+  categoryPill: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  categoryPillText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  stemsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#faf5ff',
+    borderWidth: 1,
+    borderColor: '#e9d5ff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  stemsPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  hqPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  hqPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4338ca',
+  },
+  hiddenPill: {
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  hiddenPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  cardActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

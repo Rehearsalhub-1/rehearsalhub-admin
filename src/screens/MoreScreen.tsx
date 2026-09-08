@@ -199,14 +199,16 @@ export default function MoreScreen({ navigation }: any) {
               onPress={() => navigation.navigate('SubmittedSongs')}
             />
           )}
-          <MenuItem
-            iconName="musical-notes-outline"
-            iconColor="#d97706"
-            iconBg="#fffbeb"
-            label="All Ministered"
-            sub="Master ministry repertoire and vocal arrangements"
-            onPress={() => navigation.navigate('MasterLibrary')}
-          />
+          {adminUser?.isHQAdmin && (
+            <MenuItem
+              iconName="musical-notes-outline"
+              iconColor="#d97706"
+              iconBg="#fffbeb"
+              label="All Ministered"
+              sub="Master ministry repertoire and vocal arrangements"
+              onPress={() => navigation.navigate('MasterLibrary')}
+            />
+          )}
           {/* Hide Categories in pure Church Mode */}
           {!isPureChurchAdmin && !isChurchMode && (
             <MenuItem
