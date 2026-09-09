@@ -121,61 +121,7 @@ export const STAGE_OPTIONS: { value: 'ongoing' | 'pre-rehearsal' | 'archive' | '
   { value: 'draft', label: 'Draft', icon: 'document-text-outline', color: '#2563eb' },
 ];
 
-// ── Realistic Mock Data (Mirroring Web Admin Programs & Sets) ───────────────
-export const MOCK_PROGRAMS: Program[] = [
-  {
-    id: 'prog-01',
-    name: 'Praise Night 24 Rehearsal',
-    date: '2025-11-15',
-    category: 'ongoing',
-    status: 'ongoing',
-    location: 'Main Auditorium, Loveworld Arena',
-    scope: 'zone',
-    zoneId: 'zone-001',
-    description: 'Main general rehearsal for Praise Night 24 with all choir members.',
-    songIds: ['song-01', 'song-02', 'song-03', 'song-04', 'song-05'],
-    bannerKey: 'banner1',
-  },
-  {
-    id: 'prog-02',
-    name: 'December Communion Service Choir Prep',
-    date: '2025-12-07',
-    category: 'pre-rehearsal',
-    status: 'pre-rehearsal',
-    location: 'Studio A, Worship Center',
-    scope: 'zone',
-    zoneId: 'zone-001',
-    description: 'Preparation of anthems and special communion ministration songs.',
-    songIds: ['song-06', 'song-07'],
-    bannerKey: 'banner2',
-  },
-  {
-    id: 'prog-03',
-    name: 'Zonal Leaders Conference Ministration',
-    date: '2025-10-20',
-    category: 'archive',
-    status: 'archive',
-    location: 'Zone Hall 1',
-    scope: 'zone',
-    zoneId: 'zone-001',
-    description: 'Archive of ministered tracks for the 2025 Leaders Conference.',
-    songIds: ['song-08', 'song-09', 'song-10'],
-    bannerKey: 'banner3',
-  },
-  {
-    id: 'prog-04',
-    name: 'Easter Youth Praise Festival Draft',
-    date: '2026-04-05',
-    category: 'draft',
-    status: 'draft',
-    location: 'Outdoor Amphitheater',
-    scope: 'zone',
-    zoneId: 'zone-001',
-    description: 'Initial draft lineup for the forthcoming Easter Youth Festival.',
-    songIds: [],
-    bannerKey: 'banner4',
-  },
-];
+export const MOCK_PROGRAMS: Program[] = [];
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Create / Edit Program Modal
@@ -309,25 +255,31 @@ export function ProgramModal({
       }
 
       if (editingProgram) {
-        api.programs.update(editingProgram.id, payload).catch(() => {});
-        onSaved({ ...editingProgram, ...payload });
+        const res = await api.programs.update(editingProgram.id, payload).catch(() => null);
+        const updated = res?.data ? { ...editingProgram, ...res.data, ...payload } : { ...editingProgram, ...payload };
+        onSaved(updated);
       } else {
-        const newProg: Program = {
+        const createPayload = {
           ...payload,
-          id: `prog-${Date.now()}`,
-          name: payload.name,
-          date: payload.date,
-          location: payload.location,
-          category: payload.category,
-          status: payload.category,
+          organizationId: activeZoneId || 'zone-001',
           zoneId: activeZoneId || 'zone-001',
           songIds: [],
           ...(isChurchMode && activeChurchId
             ? { groupId: activeChurchId, subGroupId: activeChurchId, scope: 'subgroup' }
             : {}),
         };
-        api.programs.create(newProg).catch(() => {});
-        onSaved(newProg);
+        const res = await api.programs.create(createPayload).catch(() => null);
+        const created: Program = res?.data || {
+          ...createPayload,
+          id: `prog-${Date.now()}`,
+          name: payload.name,
+          date: payload.date,
+          location: payload.location,
+          category: payload.category,
+          status: payload.category,
+          songIds: [],
+        };
+        onSaved(created);
       }
       onClose();
     } catch (e: any) {
@@ -816,9 +768,9 @@ const ProgramCardItem = React.memo(function ProgramCardItem({
 
 export default function ProgramsScreen({ navigation }: any) {
   const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
-  const [programs, setPrograms] = useState<Program[]>(MOCK_PROGRAMS);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [allSongs, setAllSongs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -837,14 +789,12 @@ export default function ProgramsScreen({ navigation }: any) {
         api.programs.getAll(options).catch(() => ({ data: [] })),
         api.songs.getZoneSongs(activeZone?.id || 'zone-001').catch(() => ({ data: [] })),
       ]);
-      if (Array.isArray(programsRes?.data) && programsRes.data.length > 0) {
-        setPrograms(programsRes.data);
-      }
-      if (Array.isArray(songsRes?.data) && songsRes.data.length > 0) {
-        setAllSongs(songsRes.data);
-      }
+      setPrograms(Array.isArray(programsRes?.data) ? programsRes.data : []);
+      setAllSongs(Array.isArray(songsRes?.data) ? songsRes.data : []);
     } catch (e) {
       console.error('[Programs] fetch error:', e);
+      setPrograms([]);
+      setAllSongs([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -876,16 +826,26 @@ export default function ProgramsScreen({ navigation }: any) {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Duplicate',
-        onPress: () => {
-          const copy: Program = {
-            ...program,
-            id: `prog-${Date.now()}`,
+        onPress: async () => {
+          const copyPayload = {
             name: `${program.name} (Copy)`,
             date: new Date().toLocaleDateString('en-CA'),
+            location: program.location,
             category: 'pre-rehearsal',
             status: 'pre-rehearsal',
+            organizationId: program.organizationId || program.zoneId,
+            zoneId: program.zoneId || program.organizationId,
+            groupId: program.groupId || program.subGroupId,
+            subGroupId: program.subGroupId || program.groupId,
+            scope: program.scope,
+            songIds: program.songIds || [],
           };
-          api.programs.create(copy).catch(() => {});
+          const res = await api.programs.create(copyPayload).catch(() => null);
+          const copy = res?.data || {
+            ...program,
+            ...copyPayload,
+            id: `prog-${Date.now()}`,
+          };
           setPrograms(prev => [copy, ...prev]);
           Alert.alert('Duplicated', 'Program duplicated successfully.');
         },
@@ -899,8 +859,8 @@ export default function ProgramsScreen({ navigation }: any) {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => {
-          api.programs.delete(program.id).catch(() => {});
+        onPress: async () => {
+          await api.programs.delete(program.id).catch(() => {});
           setPrograms(prev => prev.filter(p => p.id !== program.id));
         },
       },

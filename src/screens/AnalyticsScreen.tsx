@@ -173,7 +173,7 @@ export default function AnalyticsScreen({ navigation }: any) {
           </View>
           <Text style={styles.noticeTitle}>HQ Leadership Only</Text>
           <Text style={styles.noticeSub}>
-            The Global Executive Overview provides ministry-wide aggregated metrics across all zones and churches. This console is strictly reserved for Loveworld Singers Headquarters leadership.
+            The HQ Executive Overview provides ministry-wide aggregated metrics across all zones and churches. This console is strictly reserved for Loveworld Singers Headquarters leadership.
           </Text>
           <TouchableOpacity
             style={styles.noticeBackBtn}
@@ -191,7 +191,7 @@ export default function AnalyticsScreen({ navigation }: any) {
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ZoneHeader title="Global Executive Overview" />
+        <ZoneHeader title="HQ Executive Overview" />
         <View style={styles.center}>
           <ActivityIndicator color="#4f46e5" size="large" />
           <Text style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>Loading Ministry Metrics...</Text>
@@ -202,7 +202,7 @@ export default function AnalyticsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Global Executive Overview" />
+      <ZoneHeader title="HQ Executive Overview" />
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -223,9 +223,9 @@ export default function AnalyticsScreen({ navigation }: any) {
             <Ionicons name="earth" size={24} color="#4f46e5" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.bannerTitle}>Worldwide Ministry Scope</Text>
+            <Text style={styles.bannerTitle}>Loveworld Singers HQ Overview</Text>
             <Text style={styles.bannerSub}>
-              Aggregated personnel, zone distribution, and global attendance metrics.
+              Aggregated personnel, zone distribution, and attendance metrics.
             </Text>
           </View>
         </View>
@@ -246,7 +246,7 @@ export default function AnalyticsScreen({ navigation }: any) {
               <Ionicons name="globe-outline" size={20} color="#7c3aed" />
             </View>
             <Text style={styles.kpiValue}>{overview.totalZones || zonesList.length}</Text>
-            <Text style={styles.kpiLabel}>Global Zones</Text>
+            <Text style={styles.kpiLabel}>All Zones</Text>
             <Text style={styles.kpiMeta}>Active ministry regions</Text>
           </View>
 
@@ -264,19 +264,19 @@ export default function AnalyticsScreen({ navigation }: any) {
               <Ionicons name="checkmark-circle-outline" size={20} color="#059669" />
             </View>
             <Text style={styles.kpiValue}>{overview.globalAttendanceRate}%</Text>
-            <Text style={styles.kpiLabel}>Global Attendance</Text>
+            <Text style={styles.kpiLabel}>Overall Attendance</Text>
             <Text style={styles.kpiMeta}>Ministry-wide average</Text>
           </View>
         </View>
 
-        {/* ── Global Member Search ────────────────────────────────────────── */}
+        {/* ── Member Search ────────────────────────────────────────── */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="search" size={18} color="#4f46e5" />
-            <Text style={styles.cardTitle}>Global Singer Lookup</Text>
+            <Text style={styles.cardTitle}>All-Singers Lookup</Text>
           </View>
           <Text style={styles.cardDesc}>
-            Search any singer across all global zones and local church choirs.
+            Search any singer across all zones and local church choirs.
           </Text>
 
           <View style={styles.searchBar}>

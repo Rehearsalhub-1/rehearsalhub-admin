@@ -2,7 +2,10 @@
   "expo": {
     "name": "RehearsalHub Studio",
     "slug": "rehearsalhub-studio",
-    "scheme": ["rehearsalhubadmin", "rehearsalhub-admin"],
+    "scheme": [
+      "rehearsalhubadmin",
+      "rehearsalhub-admin"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -33,20 +36,22 @@
       "expo-asset",
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-updates"
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "8ddb3927-56d5-4250-9b96-afad8db443a6"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/",
+      "url": "https://u.expo.dev/8ddb3927-56d5-4250-9b96-afad8db443a6",
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
-    }
+    },
+    "owner": "hub11"
   }
 }

@@ -91,6 +91,7 @@ interface Program {
   category?: string;
   description?: string;
   songIds?: string[];
+  categoryOrder?: string[];
 }
 
 const SONG_KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -137,152 +138,9 @@ function SongDetailsModal({ visible, song, programId = '', onClose, onSave }: So
   );
 }
 
-// ── Realistic Mock Data (Mirroring Web Admin Songs & Setlists) ───────────────
-export const MOCK_PROGRAM_SONGS: PraiseSong[] = [
-  {
-    id: 'song-01',
-    title: 'King of Kings (You Reign)',
-    key: 'D',
-    tempo: '112',
-    leadSinger: 'Pastor Ruth',
-    conductor: 'Bro Wisdom',
-    writer: 'Loveworld Singers',
-    category: 'Worship',
-    categories: ['Worship', 'Anthem'],
-    status: 'heard',
-    isHeard: true,
-    heard: true,
-    isActive: true,
-    rehearsalCount: 4,
-    audioFile: 'https://cdn.example.com/audio/king-of-kings.mp3',
-    audioUrls: {
-      full: 'https://cdn.example.com/audio/king-of-kings.mp3',
-      soprano: 'https://cdn.example.com/audio/king-of-kings-soprano.mp3',
-      alto: 'https://cdn.example.com/audio/king-of-kings-alto.mp3',
-      tenor: 'https://cdn.example.com/audio/king-of-kings-tenor.mp3',
-      bass: 'https://cdn.example.com/audio/king-of-kings-bass.mp3',
-    },
-    customParts: ['Acoustic Guitar', 'Harmony'],
-    leadKeyboardist: 'Bro Daniel',
-    leadGuitarist: 'Bro Samuel',
-    drummer: 'Bro David',
-    lyrics: `Verse 1:
-You sit upon the throne of grace
-Surrounded by unending praise
-Your majesty fills all the earth
-None can match Your holy worth
+export const MOCK_PROGRAM_SONGS: PraiseSong[] = [];
 
-Chorus:
-King of Kings, You reign forever
-Lord of all, Your kingdom never ends
-With one voice, we lift Your glory
-King of Kings, You reign!`,
-    solfas: `Verse 1:
-s : d : m | r : - : d | l : - : s |
-m : s : d' | t : - : l | s : - : - |`,
-    notation: `Key D major. 4/4 Time. Moderate tempo with heavy choir unison on Chorus.`,
-    coordinatorComment: 'Sopranos keep the pitch bright on the bridge transition. Drums build slowly at measure 32.',
-  },
-  {
-    id: 'song-02',
-    title: 'Lord of All Creation',
-    key: 'G',
-    tempo: '128',
-    leadSinger: 'Eli-J',
-    conductor: 'Sis Blessing',
-    writer: 'Eli-J & LW Singers',
-    category: 'Praise',
-    categories: ['Praise'],
-    status: 'unheard',
-    isHeard: false,
-    heard: false,
-    isActive: false,
-    rehearsalCount: 2,
-    audioFile: 'https://cdn.example.com/audio/lord-of-creation.mp3',
-    audioUrls: {
-      full: 'https://cdn.example.com/audio/lord-of-creation.mp3',
-      soprano: 'https://cdn.example.com/audio/lord-of-creation-soprano.mp3',
-      tenor: 'https://cdn.example.com/audio/lord-of-creation-tenor.mp3',
-    },
-    leadKeyboardist: 'Bro Enoch',
-    drummer: 'Bro Victor',
-    lyrics: `Verse 1:
-Lord of all creation, Ruler of the stars
-We proclaim Your greatness, how wonderful You are!
-
-Chorus:
-Shout for joy! Give Him all the glory!
-He has done mighty things for us!`,
-    solfas: `d : m : s | f : m : r | d : - : - |`,
-    coordinatorComment: 'Energetic start! Tenors ensure clarity on the counter-melody.',
-  },
-  {
-    id: 'song-03',
-    title: 'Mighty God, Awesome Wonder',
-    key: 'E',
-    tempo: '95',
-    leadSinger: 'Maya',
-    conductor: 'Bro Wisdom',
-    writer: 'Maya',
-    category: 'Thanksgiving',
-    categories: ['Thanksgiving', 'Worship'],
-    status: 'unheard',
-    isHeard: false,
-    heard: false,
-    isActive: false,
-    rehearsalCount: 1,
-    lyrics: `Chorus:
-Mighty God, awesome wonder
-We bow before Your holy presence
-Glory and honor unto Your name`,
-    coordinatorComment: 'Pay attention to the modulation into Key F# on the final chorus.',
-  },
-  {
-    id: 'song-04',
-    title: 'Grateful Hearts',
-    key: 'F',
-    tempo: '105',
-    leadSinger: 'Cliff M',
-    writer: 'Loveworld Singers',
-    category: 'Special',
-    categories: ['Special'],
-    status: 'heard',
-    isHeard: true,
-    heard: true,
-    isActive: false,
-    rehearsalCount: 3,
-    lyrics: `With grateful hearts we come
-Singing praises to Your holy name`,
-  },
-  {
-    id: 'song-05',
-    title: 'Hallelujah to the Lamb',
-    key: 'C',
-    tempo: '74',
-    leadSinger: 'Sophia',
-    conductor: 'Sis Grace',
-    writer: 'Loveworld Singers',
-    category: 'Hymn',
-    categories: ['Hymn'],
-    status: 'unheard',
-    isHeard: false,
-    heard: false,
-    isActive: false,
-    rehearsalCount: 0,
-    lyrics: `Hallelujah, Hallelujah,
-To the Lamb upon the throne!`,
-  },
-];
-
-export const MOCK_MASTER_REPERTOIRE: MasterSong[] = [
-  { id: 'master-01', title: 'Glorious God and King', leadSinger: 'Pastor Ruth', writer: 'LW Singers', key: 'Eb', tempo: '88', category: 'Worship' },
-  { id: 'master-02', title: 'Everlasting Father', leadSinger: 'Eli-J', writer: 'Eli-J', key: 'G', tempo: '120', category: 'Praise' },
-  { id: 'master-03', title: 'Victory in His Name', leadSinger: 'Cliff M', writer: 'LW Singers', key: 'A', tempo: '130', category: 'Praise' },
-  { id: 'master-04', title: 'Holy Are You Lord', leadSinger: 'Maya', writer: 'Maya', key: 'D', tempo: '72', category: 'Worship' },
-  { id: 'master-05', title: 'Exalted Above All', leadSinger: 'Sophia', writer: 'LW Singers', key: 'Bb', tempo: '96', category: 'Anthem' },
-  { id: 'master-06', title: 'Rejoice in the Lord', leadSinger: 'Bro David', writer: 'LW Singers', key: 'F', tempo: '115', category: 'Praise' },
-  { id: 'master-07', title: 'Mercy and Truth', leadSinger: 'Sis Blessing', writer: 'LW Singers', key: 'C', tempo: '80', category: 'Thanksgiving' },
-];
+export const MOCK_MASTER_REPERTOIRE: MasterSong[] = [];
 
 // ────────────────────────────────────────────────────────────────────────────────
 // 2. CLONE FROM ALL MINISTERED MODAL (High-End Safe Sheet)
@@ -298,7 +156,7 @@ interface CloneModalProps {
 
 function CloneFromMasterModal({ visible, programId, existingIds, onClose, onCloned }: CloneModalProps) {
   const insets = useSafeAreaInsets();
-  const [songs, setSongs] = useState<MasterSong[]>(MOCK_MASTER_REPERTOIRE);
+  const [songs, setSongs] = useState<MasterSong[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [cloningId, setCloningId] = useState<string | null>(null);
@@ -306,15 +164,18 @@ function CloneFromMasterModal({ visible, programId, existingIds, onClose, onClon
   useEffect(() => {
     if (visible) {
       setSearch('');
-      setLoading(false);
-      setSongs(MOCK_MASTER_REPERTOIRE);
+      setLoading(true);
+      setSongs([]);
       api.songs.getMasterSongs()
         .then(res => {
-          if (Array.isArray(res?.data) && res.data.length > 0) {
-            setSongs(res.data);
-          }
+          setSongs(Array.isArray(res?.data) ? res.data : []);
         })
-        .catch(() => {});
+        .catch(() => {
+          setSongs([]);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [visible]);
 
@@ -526,11 +387,17 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   const initialProgram: Program = route.params?.program || {};
   const [currentProgram, setCurrentProgram] = useState<Program>(initialProgram);
 
-  const [programSongs, setProgramSongs] = useState<PraiseSong[]>(MOCK_PROGRAM_SONGS);
-  const [loading, setLoading] = useState(false);
+  const [programSongs, setProgramSongs] = useState<PraiseSong[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'heard' | 'unheard'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // Category reordering states
+  const [reorderModalVisible, setReorderModalVisible] = useState(false);
+  const [reorderCategoriesList, setReorderCategoriesList] = useState<string[]>([]);
+  const [isSavingCategoryOrder, setIsSavingCategoryOrder] = useState(false);
 
   // Modals state
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
@@ -542,11 +409,10 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   const fetchSongs = useCallback(async () => {
     try {
       const res = await api.songs.getPraiseNightSongs(currentProgram.id);
-      if (Array.isArray(res?.data) && res.data.length > 0) {
-        setProgramSongs(res.data);
-      }
+      setProgramSongs(Array.isArray(res?.data) ? res.data : []);
     } catch (e) {
       console.error('[ProgramSongs] fetch error:', e);
+      setProgramSongs([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -557,17 +423,83 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
     fetchSongs();
   }, [fetchSongs]);
 
+  // Compute unique categories and ordered categories
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set<string>();
+    programSongs.forEach(s => {
+      if (s.category && s.category.trim()) cats.add(s.category.trim());
+      if (Array.isArray(s.categories)) {
+        s.categories.forEach(c => c && c.trim() && cats.add(c.trim()));
+      }
+    });
+    return Array.from(cats);
+  }, [programSongs]);
+
+  const orderedCategories = useMemo(() => {
+    const existingOrder = currentProgram.categoryOrder || [];
+    const merged = [...existingOrder.filter(c => uniqueCategories.includes(c))];
+    uniqueCategories.forEach(cat => {
+      if (!merged.includes(cat)) merged.push(cat);
+    });
+    return merged;
+  }, [uniqueCategories, currentProgram.categoryOrder]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    programSongs.forEach(s => {
+      const cat = s.category?.trim();
+      if (cat) counts[cat] = (counts[cat] || 0) + 1;
+      if (Array.isArray(s.categories)) {
+        s.categories.forEach(c => {
+          const trimmed = c?.trim();
+          if (trimmed && trimmed !== cat) counts[trimmed] = (counts[trimmed] || 0) + 1;
+        });
+      }
+    });
+    return counts;
+  }, [programSongs]);
+
+  const handleOpenReorderModal = () => {
+    setReorderCategoriesList(orderedCategories.length > 0 ? [...orderedCategories] : [...uniqueCategories]);
+    setReorderModalVisible(true);
+  };
+
+  const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
+    const list = [...reorderCategoriesList];
+    if (direction === 'up' && index > 0) {
+      [list[index - 1], list[index]] = [list[index], list[index - 1]];
+    } else if (direction === 'down' && index < list.length - 1) {
+      [list[index + 1], list[index]] = [list[index], list[index + 1]];
+    }
+    setReorderCategoriesList(list);
+  };
+
+  const handleSaveCategoryOrder = async () => {
+    setIsSavingCategoryOrder(true);
+    try {
+      await api.programs.updateCategoryOrder(currentProgram.id, reorderCategoriesList);
+      setCurrentProgram(prev => ({ ...prev, categoryOrder: reorderCategoriesList }));
+      setReorderModalVisible(false);
+      Alert.alert('Categories Reordered', 'Category order updated successfully.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to save category order');
+    } finally {
+      setIsSavingCategoryOrder(false);
+    }
+  };
+
   function handleOpenActionMenu() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Add Song', 'Clone from All Ministered', 'Edit Program Details'],
+          options: ['Cancel', 'Add Song', 'Clone from All Ministered', 'Reorder Categories', 'Edit Program Details'],
           cancelButtonIndex: 0,
         },
         buttonIndex => {
           if (buttonIndex === 1) setCreateSongModalVisible(true);
           else if (buttonIndex === 2) setCloneModalVisible(true);
-          else if (buttonIndex === 3) setEditProgramModalVisible(true);
+          else if (buttonIndex === 3) handleOpenReorderModal();
+          else if (buttonIndex === 4) setEditProgramModalVisible(true);
         }
       );
     } else {
@@ -577,6 +509,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         [
           { text: 'Add Song', onPress: () => setCreateSongModalVisible(true) },
           { text: 'Clone from All Ministered', onPress: () => setCloneModalVisible(true) },
+          { text: 'Reorder Categories', onPress: handleOpenReorderModal },
           { text: 'Edit Program Details', onPress: () => setEditProgramModalVisible(true) },
           { text: 'Cancel', style: 'cancel' },
         ]
@@ -647,6 +580,13 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
       if (statusFilter === 'heard' && !isHeard) return false;
       if (statusFilter === 'unheard' && isHeard) return false;
 
+      if (selectedCategory !== 'all') {
+        const cat = (song.category || '').trim();
+        const matchesCat = cat === selectedCategory;
+        const matchesMulti = Array.isArray(song.categories) && song.categories.some(c => c && c.trim() === selectedCategory);
+        if (!matchesCat && !matchesMulti) return false;
+      }
+
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesTitle = (song.title || '').toLowerCase().includes(q);
@@ -659,7 +599,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
       }
       return true;
     });
-  }, [programSongs, statusFilter, searchQuery]);
+  }, [programSongs, statusFilter, selectedCategory, searchQuery]);
 
   const existingIds = useMemo(() => programSongs.map(s => s.id), [programSongs]);
   const currentCat = currentProgram.category || currentProgram.status || 'pre-rehearsal';
@@ -757,6 +697,49 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
             );
           })}
         </View>
+
+        {/* Horizontal Category Chips Filter Bar */}
+        {orderedCategories.length > 0 && (
+          <View style={styles.categoryBarWrap}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryBarScroll}>
+              <TouchableOpacity
+                style={[styles.catChip, selectedCategory === 'all' && styles.catChipActive]}
+                onPress={() => setSelectedCategory('all')}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.catChipText, selectedCategory === 'all' && styles.catChipTextActive]}>
+                  All ({programSongs.length})
+                </Text>
+              </TouchableOpacity>
+
+              {orderedCategories.map(cat => {
+                const isSelected = selectedCategory === cat;
+                const count = categoryCounts[cat] || 0;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.catChip, isSelected && styles.catChipActive]}
+                    onPress={() => setSelectedCategory(isSelected ? 'all' : cat)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.catChipText, isSelected && styles.catChipTextActive]}>
+                      {cat} ({count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={styles.reorderChipBtn}
+                onPress={handleOpenReorderModal}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="swap-vertical" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
+                <Text style={styles.reorderChipText}>Reorder</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       {/* ── SETLIST QUEUE (TOUCH-FRIENDLY & UNCLUTTERED) ────────────────────── */}
@@ -931,6 +914,118 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
           setEditProgramModalVisible(false);
         }}
       />
+
+      {/* ── REORDER CATEGORIES MODAL (SYNCED TO MOBILE TABS) ───────────── */}
+      <Modal
+        visible={reorderModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReorderModalVisible(false)}
+      >
+        <View style={styles.reorderOverlay}>
+          <View style={[styles.reorderSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={styles.modalHandle} />
+
+            <View style={styles.reorderHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.reorderTitle}>Reorder Categories</Text>
+                <Text style={styles.reorderSubtitle}>
+                  Arrange how categories appear in the mobile app tabs
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setReorderModalVisible(false)}
+                style={styles.reorderCloseBtn}
+              >
+                <Ionicons name="close" size={18} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {reorderCategoriesList.length === 0 ? (
+                <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: '500' }}>
+                    No categories found in this program.
+                  </Text>
+                </View>
+              ) : (
+                reorderCategoriesList.map((category, index) => {
+                  const count = categoryCounts[category] || 0;
+                  const isFirst = index === 0;
+                  const isLast = index === reorderCategoriesList.length - 1;
+                  return (
+                    <View key={category} style={styles.reorderRow}>
+                      <View style={styles.reorderRowIndex}>
+                        <Text style={styles.reorderIndexText}>#{index + 1}</Text>
+                      </View>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={styles.reorderCategoryName} numberOfLines={1}>
+                          {category}
+                        </Text>
+                        <Text style={styles.reorderCategoryCount}>
+                          {count} {count === 1 ? 'song' : 'songs'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.reorderActions}>
+                        <TouchableOpacity
+                          style={[styles.arrowBtn, isFirst && styles.arrowBtnDisabled]}
+                          onPress={() => handleMoveCategory(index, 'up')}
+                          disabled={isFirst}
+                        >
+                          <Ionicons
+                            name="arrow-up"
+                            size={18}
+                            color={isFirst ? '#cbd5e1' : '#0f172a'}
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[styles.arrowBtn, isLast && styles.arrowBtnDisabled]}
+                          onPress={() => handleMoveCategory(index, 'down')}
+                          disabled={isLast}
+                        >
+                          <Ionicons
+                            name="arrow-down"
+                            size={18}
+                            color={isLast ? '#cbd5e1' : '#0f172a'}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+
+            <View style={styles.reorderFooter}>
+              <TouchableOpacity
+                style={styles.reorderResetBtn}
+                onPress={() => setReorderCategoriesList([...uniqueCategories])}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.reorderResetBtnText}>Reset</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.reorderSaveBtn}
+                onPress={handleSaveCategoryOrder}
+                disabled={isSavingCategoryOrder}
+                activeOpacity={0.8}
+              >
+                {isSavingCategoryOrder ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-done" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                    <Text style={styles.reorderSaveBtnText}>Save Order</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1195,6 +1290,190 @@ const styles = StyleSheet.create({
   },
   deleteTrackTouch: {
     padding: 4,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#cbd5e1',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  // Category Filter Bar
+  categoryBarWrap: {
+    marginTop: 8,
+    marginHorizontal: -16,
+  },
+  categoryBarScroll: {
+    paddingHorizontal: 16,
+    gap: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  catChipActive: {
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
+  },
+  catChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  catChipTextActive: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  reorderChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: '#f5f3ff',
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+  },
+  reorderChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  // Reorder Categories Modal
+  reorderOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  reorderSheet: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  reorderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    marginBottom: 8,
+  },
+  reorderTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  reorderSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 2,
+  },
+  reorderCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 8,
+  },
+  reorderRowIndex: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  reorderIndexText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748b',
+  },
+  reorderCategoryName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  reorderCategoryCount: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  reorderActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  arrowBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arrowBtnDisabled: {
+    opacity: 0.35,
+    backgroundColor: '#f8fafc',
+  },
+  reorderFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    marginTop: 8,
+  },
+  reorderResetBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderResetBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  reorderSaveBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderSaveBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 });
 

@@ -68,10 +68,11 @@ export async function clearTokens(): Promise<void> {
 interface MobileActiveScope {
   zoneId: string | null;
   zoneCode?: string | null;
-  scope: 'global' | 'zone';
+  churchId?: string | null;
+  scope: 'global' | 'zone' | 'church';
 }
 
-let _mobileTenantScope: MobileActiveScope = { zoneId: null, zoneCode: null, scope: 'global' };
+let _mobileTenantScope: MobileActiveScope = { zoneId: null, zoneCode: null, churchId: null, scope: 'global' };
 
 export function setMobileTenantScope(scope: MobileActiveScope): void {
   _mobileTenantScope = scope;
@@ -146,6 +147,9 @@ async function request<T>(
   }
   if (scope.zoneCode) {
     headers['x-zone-code'] = scope.zoneCode;
+  }
+  if (scope.churchId) {
+    headers['x-church-id'] = scope.churchId;
   }
   headers['x-scope'] = scope.scope;
   // ─────────────────────────────────────────────────────────────────────────

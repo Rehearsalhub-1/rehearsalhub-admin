@@ -25,202 +25,7 @@ import EditSongModal, { PraiseNightSong } from '../components/EditSongModal';
 import { useAuth } from '../context/AuthContext';
 
 // ── Realistic Web Admin Catalog Mock ─────────────────────────────────────────
-export const INITIAL_MASTER_CATALOG: MasterSong[] = [
-  {
-    id: 'master-01',
-    title: 'King of Kings (You Reign)',
-    writer: 'Loveworld Singers',
-    publishedByName: 'Loveworld Singers',
-    leadSinger: 'Pastor Ruth',
-    category: 'Worship',
-    key: 'D',
-    tempo: '112',
-    conductor: 'Bro Wisdom',
-    leadKeyboardist: 'Bro Daniel',
-    leadGuitarist: 'Bro Samuel',
-    bassGuitarist: 'Bro Wisdom',
-    drummer: 'Bro David',
-    audioFile: 'https://cdn.example.com/audio/king-of-kings.mp3',
-    audioUrls: {
-      full: 'https://cdn.example.com/audio/king-of-kings.mp3',
-      soprano: 'https://cdn.example.com/audio/king-of-kings-soprano.mp3',
-      alto: 'https://cdn.example.com/audio/king-of-kings-alto.mp3',
-      tenor: 'https://cdn.example.com/audio/king-of-kings-tenor.mp3',
-      bass: 'https://cdn.example.com/audio/king-of-kings-bass.mp3',
-    },
-    lyrics: `Verse 1:
-You sit upon the throne of grace
-Surrounded by unending praise
-Your majesty fills all the earth
-None can match Your holy worth
-
-Chorus:
-King of Kings, You reign forever
-Lord of all, Your kingdom never ends
-With one voice, we lift Your glory
-King of Kings, You reign!`,
-    solfas: `Verse 1:
-s : d : m | r : - : d | l : - : s |
-m : s : d' | t : - : l | s : - : - |`,
-    history: 'First ministered at Praise Night 18 by Pastor Ruth with the full presidential choir.',
-    isHQOnly: false,
-    isHidden: false,
-    isHistory: false,
-  },
-  {
-    id: 'master-02',
-    title: 'Glorious God and King',
-    writer: 'LW Singers',
-    publishedByName: 'Loveworld Music Ministries',
-    leadSinger: 'Pastor Ruth',
-    category: 'Worship',
-    key: 'Eb',
-    tempo: '88',
-    conductor: 'Bro Wisdom',
-    leadKeyboardist: 'Bro Enoch',
-    drummer: 'Bro Victor',
-    audioFile: 'https://cdn.example.com/audio/glorious-god.mp3',
-    audioUrls: {
-      full: 'https://cdn.example.com/audio/glorious-god.mp3',
-      soprano: 'https://cdn.example.com/audio/glorious-god-soprano.mp3',
-      tenor: 'https://cdn.example.com/audio/glorious-god-tenor.mp3',
-    },
-    lyrics: `Chorus:
-Glorious God and King
-Unto You we sing
-Righteous in all Your ways
-Worthy of all our praise!`,
-    solfas: `d : m : s | l : s : f | m : - : r | d : - : - |`,
-    history: 'Composed for the Global Day of Prayer special thanksgiving session.',
-    isHQOnly: true,
-    isHidden: false,
-    isHistory: false,
-  },
-  {
-    id: 'master-03',
-    title: 'Lord of All Creation',
-    writer: 'Eli-J & LW Singers',
-    publishedByName: 'Eli-J',
-    leadSinger: 'Eli-J',
-    category: 'Praise',
-    key: 'G',
-    tempo: '128',
-    conductor: 'Sis Blessing',
-    leadKeyboardist: 'Bro Enoch',
-    drummer: 'Bro Victor',
-    audioFile: 'https://cdn.example.com/audio/lord-of-creation.mp3',
-    audioUrls: {
-      full: 'https://cdn.example.com/audio/lord-of-creation.mp3',
-      soprano: 'https://cdn.example.com/audio/lord-of-creation-soprano.mp3',
-      alto: 'https://cdn.example.com/audio/lord-of-creation-alto.mp3',
-      tenor: 'https://cdn.example.com/audio/lord-of-creation-tenor.mp3',
-      bass: 'https://cdn.example.com/audio/lord-of-creation-bass.mp3',
-    },
-    lyrics: `Verse 1:
-Lord of all creation, Ruler of the stars
-We proclaim Your greatness, how wonderful You are!
-
-Chorus:
-Shout for joy! Give Him all the glory!
-He has done mighty things for us!`,
-    solfas: `d : m : s | f : m : r | d : - : - |`,
-    history: 'High tempo opening praise song recorded live at the Loveworld Convocation Arena.',
-    isHQOnly: false,
-    isHidden: false,
-    isHistory: false,
-  },
-  {
-    id: 'master-04',
-    title: 'Victory in His Name',
-    writer: 'LW Singers',
-    publishedByName: 'Cliff M',
-    leadSinger: 'Cliff M',
-    category: 'Praise',
-    key: 'A',
-    tempo: '130',
-    conductor: 'Sis Grace',
-    drummer: 'Bro David',
-    audioFile: 'https://cdn.example.com/audio/victory-name.mp3',
-    audioUrls: {
-      full: 'https://cdn.example.com/audio/victory-name.mp3',
-      tenor: 'https://cdn.example.com/audio/victory-name-tenor.mp3',
-    },
-    lyrics: `We have the victory! In Jesus' name we triumph!
-No weapon formed against us shall ever prosper!`,
-    isHQOnly: false,
-    isHidden: false,
-    isHistory: false,
-  },
-  {
-    id: 'master-05',
-    title: 'Holy Are You Lord',
-    writer: 'Maya',
-    publishedByName: 'Maya',
-    leadSinger: 'Maya',
-    category: 'Worship',
-    key: 'D',
-    tempo: '72',
-    conductor: 'Bro Wisdom',
-    audioFile: 'https://cdn.example.com/audio/holy-are-you.mp3',
-    audioUrls: {
-      full: 'https://cdn.example.com/audio/holy-are-you.mp3',
-      soprano: 'https://cdn.example.com/audio/holy-are-you-soprano.mp3',
-      alto: 'https://cdn.example.com/audio/holy-are-you-alto.mp3',
-    },
-    lyrics: `Holy, holy, holy are You Lord God Almighty
-The whole earth is filled with Your glory`,
-    isHQOnly: false,
-    isHidden: false,
-    isHistory: false,
-  },
-  {
-    id: 'master-06',
-    title: 'Exalted Above All',
-    writer: 'LW Singers',
-    publishedByName: 'Loveworld Music Ministries',
-    leadSinger: 'Sophia',
-    category: 'Anthem',
-    key: 'Bb',
-    tempo: '96',
-    conductor: 'Bro Wisdom',
-    audioFile: 'https://cdn.example.com/audio/exalted-above.mp3',
-    lyrics: `Exalted above all gods, You are exalted above the heavens!`,
-    isHQOnly: true,
-    isHidden: false,
-    isHistory: false,
-  },
-  {
-    id: 'master-07',
-    title: 'Hallelujah to the Lamb',
-    writer: 'Loveworld Singers',
-    publishedByName: 'Loveworld Singers',
-    leadSinger: 'Sophia',
-    category: 'Hymn',
-    key: 'C',
-    tempo: '74',
-    conductor: 'Sis Grace',
-    lyrics: `Hallelujah to the Lamb upon the throne,
-Forever and ever, Amen!`,
-    isHQOnly: false,
-    isHidden: false,
-    isHistory: true,
-  },
-  {
-    id: 'master-08',
-    title: 'Mighty God, Awesome Wonder',
-    writer: 'Maya',
-    publishedByName: 'Maya',
-    leadSinger: 'Maya',
-    category: 'Thanksgiving',
-    key: 'E',
-    tempo: '95',
-    conductor: 'Bro Wisdom',
-    lyrics: `Mighty God, awesome wonder, we bow before Your throne!`,
-    isHQOnly: false,
-    isHidden: true,
-    isHistory: false,
-  },
-];
+export const INITIAL_MASTER_CATALOG: MasterSong[] = [];
 
 export default function MasterLibraryScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -239,8 +44,8 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Master Songs State
-  const [masterSongs, setMasterSongs] = useState<MasterSong[]>(INITIAL_MASTER_CATALOG);
-  const [masterLoading, setMasterLoading] = useState(false);
+  const [masterSongs, setMasterSongs] = useState<MasterSong[]>([]);
+  const [masterLoading, setMasterLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Zonal Songs State
@@ -261,12 +66,10 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const fetchMasterSongs = useCallback(async () => {
     try {
       const result = await api.songs.getMasterSongs();
-      const data = Array.isArray(result?.data) && result.data.length > 0 ? result.data : null;
-      if (data) {
-        setMasterSongs(data);
-      }
+      setMasterSongs(Array.isArray(result?.data) ? result.data : []);
     } catch (e) {
       console.log('[MasterLibrary] API fetch note:', e);
+      setMasterSongs([]);
     } finally {
       setMasterLoading(false);
       setRefreshing(false);

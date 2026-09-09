@@ -324,6 +324,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   switchChurch: (church: ChurchOption) => {
+    const { activeZone, isChurchMode } = get();
     set(state => ({
       activeChurch: church,
       adminUser: state.adminUser
@@ -334,16 +335,23 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           }
         : null,
     }));
+    apiClient.setMobileTenantScope({
+      zoneId: activeZone?.id ?? null,
+      zoneCode: activeZone?.invitationCode ?? null,
+      churchId: church.id,
+      scope: isChurchMode ? 'church' : 'zone',
+    });
   },
 
   setRoleMode: (mode: 'org' | 'church') => {
-    const { activeZone } = get();
+    const { activeZone, activeChurch } = get();
     const isChurchMode = mode === 'church';
     set({ activeRoleMode: mode, isChurchMode });
     apiClient.setMobileTenantScope({
       zoneId: activeZone?.id ?? null,
       zoneCode: activeZone?.invitationCode ?? null,
-      scope: isChurchMode ? 'global' : (activeZone ? 'zone' : 'global'),
+      churchId: isChurchMode ? (activeChurch?.id ?? null) : null,
+      scope: isChurchMode ? 'church' : (activeZone ? 'zone' : 'global'),
     });
   },
 

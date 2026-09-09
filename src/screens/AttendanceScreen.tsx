@@ -60,161 +60,14 @@ const YESTERDAY_DATE = new Date(Date.now() - 86400000);
 const YESTERDAY_STR = YESTERDAY_DATE.toLocaleDateString('en-CA');
 const TWO_DAYS_AGO_STR = new Date(Date.now() - 2 * 86400000).toLocaleDateString('en-CA');
 
-const INITIAL_RECORDS: AttendanceRecord[] = [
-  // Today's Rehearsal
-  {
-    id: 'att-01',
-    idempotencyKey: `idem_david_adeyemi_${TODAY_STR}`,
-    userId: 'usr-01',
-    userName: 'David Adeyemi',
-    eventName: 'Your Loveworld Rehearsal',
-    checkInTime: new Date(Date.now() - 45 * 60000).toISOString(),
-    status: 'present',
-    dateString: TODAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-02',
-    idempotencyKey: `idem_maya_roberts_${TODAY_STR}`,
-    userId: 'usr-02',
-    userName: 'Maya Roberts',
-    eventName: 'Your Loveworld Rehearsal',
-    checkInTime: new Date(Date.now() - 40 * 60000).toISOString(),
-    status: 'present',
-    dateString: TODAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-03',
-    idempotencyKey: `idem_grace_chidera_${TODAY_STR}`,
-    userId: 'usr-03',
-    userName: 'Grace Chidera',
-    eventName: 'Your Loveworld Rehearsal',
-    checkInTime: new Date(Date.now() - 32 * 60000).toISOString(),
-    status: 'present',
-    dateString: TODAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-04',
-    idempotencyKey: `idem_michael_johnson_${TODAY_STR}`,
-    userId: 'usr-04',
-    userName: 'Michael Johnson',
-    eventName: 'Your Loveworld Rehearsal',
-    checkInTime: new Date(Date.now() - 25 * 60000).toISOString(),
-    status: 'present',
-    dateString: TODAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-05',
-    idempotencyKey: `idem_samuel_kalu_${TODAY_STR}`,
-    userId: 'usr-05',
-    userName: 'Samuel Kalu',
-    eventName: 'Your Loveworld Rehearsal',
-    checkInTime: new Date(Date.now() - 15 * 60000).toISOString(),
-    status: 'present',
-    dateString: TODAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-06',
-    idempotencyKey: `idem_olivia_mensah_${TODAY_STR}`,
-    userId: 'usr-06',
-    userName: 'Olivia Mensah',
-    eventName: 'Your Loveworld Rehearsal',
-    checkInTime: new Date(Date.now() - 8 * 60000).toISOString(),
-    status: 'present',
-    dateString: TODAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-07',
-    idempotencyKey: `idem_joshua_peters_${TODAY_STR}`,
-    userId: 'usr-07',
-    userName: 'Joshua Peters',
-    eventName: 'Your Loveworld Rehearsal',
-    checkInTime: new Date(Date.now() - 2 * 60000).toISOString(),
-    status: 'present',
-    dateString: TODAY_STR,
-    isManual: true,
-    method: 'manual',
-  },
-  // Yesterday's Rehearsal
-  {
-    id: 'att-prev-01',
-    idempotencyKey: `idem_david_adeyemi_${YESTERDAY_STR}`,
-    userId: 'usr-01',
-    userName: 'David Adeyemi',
-    eventName: 'Praise Night Rehearsal',
-    checkInTime: new Date(Date.now() - 86400000 - 3600000).toISOString(),
-    status: 'present',
-    dateString: YESTERDAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-prev-02',
-    idempotencyKey: `idem_maya_roberts_${YESTERDAY_STR}`,
-    userId: 'usr-02',
-    userName: 'Maya Roberts',
-    eventName: 'Praise Night Rehearsal',
-    checkInTime: new Date(Date.now() - 86400000 - 3500000).toISOString(),
-    status: 'present',
-    dateString: YESTERDAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-prev-03',
-    idempotencyKey: `idem_sophia_eze_${YESTERDAY_STR}`,
-    userId: 'usr-08',
-    userName: 'Sophia Eze',
-    eventName: 'Praise Night Rehearsal',
-    checkInTime: new Date(Date.now() - 86400000 - 3400000).toISOString(),
-    status: 'present',
-    dateString: YESTERDAY_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-prev-04',
-    idempotencyKey: `idem_eli_j_${YESTERDAY_STR}`,
-    userId: 'usr-10',
-    userName: 'Eli-J',
-    eventName: 'Praise Night Rehearsal',
-    checkInTime: new Date(Date.now() - 86400000 - 3300000).toISOString(),
-    status: 'present',
-    dateString: YESTERDAY_STR,
-    method: 'scanner',
-  },
-  // 2 Days Ago
-  {
-    id: 'att-prev-05',
-    idempotencyKey: `idem_david_adeyemi_${TWO_DAYS_AGO_STR}`,
-    userId: 'usr-01',
-    userName: 'David Adeyemi',
-    eventName: 'Vocal Sectional',
-    checkInTime: new Date(Date.now() - 172800000).toISOString(),
-    status: 'present',
-    dateString: TWO_DAYS_AGO_STR,
-    method: 'scanner',
-  },
-  {
-    id: 'att-prev-06',
-    idempotencyKey: `idem_maya_roberts_${TWO_DAYS_AGO_STR}`,
-    userId: 'usr-02',
-    userName: 'Maya Roberts',
-    eventName: 'Vocal Sectional',
-    checkInTime: new Date(Date.now() - 172800000).toISOString(),
-    status: 'present',
-    dateString: TWO_DAYS_AGO_STR,
-    method: 'scanner',
-  },
-];
+const INITIAL_RECORDS: AttendanceRecord[] = [];
 
 export default function AttendanceScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
 
-  const [allRecords, setAllRecords] = useState<AttendanceRecord[]>(INITIAL_RECORDS);
+  const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -292,13 +145,11 @@ export default function AttendanceScreen({ navigation }: any) {
     try {
       const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
       const attRes = await api.attendance.getAll(scopeId).catch(() => ({ data: [] as AttendanceRecord[] }));
-
-      if (Array.isArray(attRes?.data) && attRes.data.length > 0) {
-        setAllRecords(attRes.data);
-      }
+      setAllRecords(Array.isArray(attRes?.data) ? attRes.data : []);
     } catch {
-      // Keep mock data
+      setAllRecords([]);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   }, [activeZone?.id, isChurchMode, activeChurch?.id]);
@@ -821,13 +672,19 @@ export default function AttendanceScreen({ navigation }: any) {
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7c3aed']} />}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="calendar-outline" size={32} color="#cbd5e1" />
-              <Text style={styles.emptyTitle}>No Attendance for {formattedDateLabel}</Text>
-              <Text style={styles.emptySubtitle}>
-                {search ? 'No singers match your search query.' : 'Tap "Scan QR" to start clocking in singers for this date.'}
-              </Text>
-            </View>
+            loading ? (
+              <View style={styles.emptyContainer}>
+                <ActivityIndicator size="large" color="#7c3aed" />
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="calendar-outline" size={32} color="#cbd5e1" />
+                <Text style={styles.emptyTitle}>No Attendance for {formattedDateLabel}</Text>
+                <Text style={styles.emptySubtitle}>
+                  {search ? 'No singers match your search query.' : 'Tap "Scan QR" to start clocking in singers for this date.'}
+                </Text>
+              </View>
+            )
           }
           renderItem={({ item }) => {
             const name = item.userName || item.user_name || 'Choir Singer';
@@ -882,11 +739,17 @@ export default function AttendanceScreen({ navigation }: any) {
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7c3aed']} />}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="stats-chart-outline" size={32} color="#cbd5e1" />
-              <Text style={styles.emptyTitle}>No Cumulative Telemetry</Text>
-              <Text style={styles.emptySubtitle}>Rehearsal attendance history will accumulate here.</Text>
-            </View>
+            loading ? (
+              <View style={styles.emptyContainer}>
+                <ActivityIndicator size="large" color="#7c3aed" />
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="stats-chart-outline" size={32} color="#cbd5e1" />
+                <Text style={styles.emptyTitle}>No Cumulative Telemetry</Text>
+                <Text style={styles.emptySubtitle}>Rehearsal attendance history will accumulate here.</Text>
+              </View>
+            )
           }
           renderItem={({ item }) => {
             const initial = item.userName.charAt(0).toUpperCase();

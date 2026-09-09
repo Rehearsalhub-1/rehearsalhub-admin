@@ -28,165 +28,14 @@ import SubmissionReviewModal, {
   getCleanSubmitterName,
 } from '../components/SubmissionReviewModal';
 
-// ── Realistic Web Admin Submissions Mock ─────────────────────────────────────
-export const INITIAL_SUBMISSIONS: SongSubmission[] = [
-  {
-    id: 'sub-01',
-    title: 'Your Name Be Praised',
-    writer: 'Brother Timothy',
-    artist: 'Timothy & Zonal Choir',
-    category: 'Worship',
-    key: 'Eb',
-    tempo: '78',
-    status: 'pending',
-    zoneName: 'Lagos Zone 1',
-    createdAt: '2026-09-06T14:30:00Z',
-    audioUrl: 'https://cdn.example.com/audio/your-name-praised.mp3',
-    lyrics: `Verse 1:
-In the beauty of Your holiness
-We lift our hands to bless Your name
-Righteous Father, Great I AM
-Forever and ever the same
-
-Chorus:
-Your name be praised, O Lord
-In all the earth, Your name be praised!`,
-    solfas: `s : d : m | r : - : d | l : - : s |`,
-    notes: 'Composed during personal prayer for the upcoming Midweek Service.',
-    conversation: [
-      {
-        id: 'msg-01',
-        sender: 'user',
-        senderName: 'Bro Timothy',
-        message: 'Good day coordinator, submitted this worship song for your review and guidance.',
-        timestamp: '2026-09-06T14:35:00Z',
-      },
-      {
-        id: 'msg-02',
-        sender: 'admin',
-        senderName: 'Admin Reviewer',
-        message: 'Received Brother Timothy! Listening to the melody now.',
-        timestamp: '2026-09-06T15:00:00Z',
-      },
-    ],
-  },
-  {
-    id: 'sub-02',
-    title: 'Celebrate His Mighty Acts',
-    writer: 'Sister Deborah',
-    artist: 'Deborah K',
-    category: 'Praise',
-    key: 'F',
-    tempo: '124',
-    status: 'pending',
-    zoneName: 'Accra Ghana Zone',
-    createdAt: '2026-09-05T10:15:00Z',
-    audioUrl: 'https://cdn.example.com/audio/celebrate-mighty.mp3',
-    lyrics: `Chorus:
-Celebrate His mighty acts!
-Tell the world what God has done!
-With dancing and shouting, give Him praise!`,
-    notes: 'Fast tempo opener. Needs feedback on whether key F works well for choir unison.',
-    conversation: [
-      {
-        id: 'msg-03',
-        sender: 'user',
-        senderName: 'Sis Deborah',
-        message: 'Recorded a piano guide track. Let me know if the chorus vocal range is okay.',
-        timestamp: '2026-09-05T10:20:00Z',
-      },
-      {
-        id: 'msg-04',
-        sender: 'admin',
-        senderName: 'Admin Reviewer',
-        message: '🎹 Needs piano accompaniment track with clearer accents on beat 2 and 4.',
-        timestamp: '2026-09-05T11:45:00Z',
-      },
-    ],
-  },
-  {
-    id: 'sub-03',
-    title: 'Ever Reigning King',
-    writer: 'Loveworld Singers UK',
-    artist: 'Brother Michael',
-    category: 'Anthem',
-    key: 'C',
-    tempo: '90',
-    status: 'approved',
-    zoneName: 'UK Zone 2',
-    createdAt: '2026-09-04T08:00:00Z',
-    audioUrl: 'https://cdn.example.com/audio/ever-reigning.mp3',
-    lyrics: `Glory to the Lamb upon the throne
-He is high and lifted up!
-He reigns forevermore!`,
-    notes: 'Approved for Sunday Thanksgiving setlist.',
-    conversation: [
-      {
-        id: 'msg-05',
-        sender: 'admin',
-        senderName: 'Admin Reviewer',
-        message: '🎵 Approved for Praise Night! Excellent orchestration.',
-        timestamp: '2026-09-04T12:00:00Z',
-      },
-    ],
-  },
-  {
-    id: 'sub-04',
-    title: 'Great and Marvellous',
-    writer: 'Sister Evelyn',
-    artist: 'Evelyn Voice',
-    category: 'Special',
-    key: 'G',
-    tempo: '100',
-    status: 'rejected',
-    zoneName: 'South Africa Zone 1',
-    createdAt: '2026-09-03T16:20:00Z',
-    audioUrl: 'https://cdn.example.com/audio/great-marvellous.mp3',
-    lyrics: `Great and marvellous are Your deeds, Lord God Almighty!`,
-    rejectNotes: 'The vocal pitch in the chorus is unstable. Please re-record vocals in Key G with a click track.',
-    conversation: [
-      {
-        id: 'msg-06',
-        sender: 'admin',
-        senderName: 'Admin Reviewer',
-        message: '🎙️ Please re-record vocals in Key G with a steady tempo click track.',
-        timestamp: '2026-09-03T18:00:00Z',
-      },
-    ],
-  },
-  {
-    id: 'sub-05',
-    title: 'Shout with Joy to God',
-    writer: 'Brother Caleb',
-    artist: 'Caleb & LW Band',
-    category: 'Praise',
-    key: 'D',
-    tempo: '130',
-    status: 'approved',
-    zoneName: 'Texas USA Zone 1',
-    createdAt: '2026-09-02T11:00:00Z',
-    audioUrl: 'https://cdn.example.com/audio/shout-with-joy.mp3',
-    lyrics: `Make a joyful noise unto the Lord all ye lands!
-Serve the Lord with gladness!`,
-    notes: 'Added into zonal master repertoire.',
-    conversation: [
-      {
-        id: 'msg-07',
-        sender: 'admin',
-        senderName: 'Admin Reviewer',
-        message: '✨ Excellent lyrics & arrangement. Approved!',
-        timestamp: '2026-09-02T13:30:00Z',
-      },
-    ],
-  },
-];
+export const INITIAL_SUBMISSIONS: SongSubmission[] = [];
 
 export default function SubmittedSongsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { activeZone } = useZoneContext();
 
-  const [songs, setSongs] = useState<SongSubmission[]>(INITIAL_SUBMISSIONS);
-  const [loading, setLoading] = useState(false);
+  const [songs, setSongs] = useState<SongSubmission[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -208,11 +57,10 @@ export default function SubmittedSongsScreen({ navigation }: any) {
   const fetchSongs = useCallback(async () => {
     try {
       const result = await api.submittedSongs.getAll(activeZone?.id);
-      if (Array.isArray(result?.data) && result.data.length > 0) {
-        setSongs(result.data);
-      }
+      setSongs(Array.isArray(result?.data) ? result.data : []);
     } catch (e) {
       console.log('[SubmittedSongs] fetch error note:', e);
+      setSongs([]);
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -116,6 +116,8 @@ export const api = {
       apiClient.delete<{ success: boolean }>(`/programs/${programId}`),
     updateSongIds: (programId: string, songIds: string[]) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/programs/${programId}`, { songIds }),
+    updateCategoryOrder: (programId: string, categoryOrder: string[]) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/programs/${programId}`, { categoryOrder }),
   },
 
   // ── Submitted Songs (Review Pipeline) ────────────────────────────────────
@@ -291,18 +293,6 @@ export const api = {
       apiClient.get<{ success: boolean; count: number; data: any[] }>('/notifications/sent'),
   },
 
-  // ── Rehearsal Schedules ──────────────────────────────────────────────────
-  schedule: {
-    getAll: (zoneId?: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/schedule${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
-    create: (data: Record<string, any>) =>
-      apiClient.post<{ success: boolean; data?: any }>('/schedule', data),
-    update: (scheduleId: string, data: Record<string, any>) =>
-      apiClient.patch<{ success: boolean; data?: any }>(`/schedule/${scheduleId}`, data),
-    delete: (scheduleId: string) =>
-      apiClient.delete<{ success: boolean }>(`/schedule/${scheduleId}`),
-  },
-
   // ── Helpdesk & Support Desk ──────────────────────────────────────────────
   support: {
     getThreads: (zoneId?: string) =>
@@ -357,12 +347,44 @@ export const api = {
       apiClient.patch<{ success: boolean; data?: any }>(`/settings/${encodeURIComponent(key)}`, data),
   },
 
+  // ── Rehearsal Schedule & Timetable Board ──────────────────────────────────
+  schedule: {
+    getAll: (zoneId?: string, isArchived?: boolean, subGroupId?: string) => {
+      const params = new URLSearchParams();
+      if (zoneId && zoneId !== 'all') params.append('zoneId', zoneId);
+      if (subGroupId) params.append('subGroupId', subGroupId);
+      if (isArchived !== undefined) params.append('isArchived', String(isArchived));
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return apiClient.get<{ success: boolean; data: any[] }>(`/schedules${query}`);
+    },
+    getById: (id: string) =>
+      apiClient.get<{ success: boolean; data: any }>(`/schedules/${id}`),
+    create: (data: Record<string, any>) =>
+      apiClient.post<{ success: boolean; data: any }>('/schedules', data),
+    update: (id: string, data: Record<string, any>) =>
+      apiClient.patch<{ success: boolean; data: any }>(`/schedules/${id}`, data),
+    delete: (id: string) =>
+      apiClient.delete<{ success: boolean; message?: string }>(`/schedules/${id}`),
+    makeCurrent: (id: string, weekId?: string, dayId?: string) =>
+      apiClient.patch<{ success: boolean; data: any }>(`/schedules/${id}`, {
+        isCurrent: true,
+        ...(weekId ? { currentWeekId: weekId } : {}),
+        ...(dayId ? { currentDayId: dayId } : {}),
+      }),
+    toggleArchive: (id: string, isArchived: boolean) =>
+      apiClient.patch<{ success: boolean; data: any }>(`/schedules/${id}`, { isArchived }),
+  },
+
   // ── Calendar & Upcoming Events ──────────────────────────────────────────
   calendar: {
     getEvents: (zoneId?: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/upcoming-events${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
+      apiClient.get<{ success: boolean; data: any[] }>(`/upcoming-events${zoneId && zoneId !== 'all' ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     create: (data: Record<string, any>) =>
       apiClient.post<{ success: boolean; data?: any }>('/upcoming-events', data),
+    update: (id: string, data: Record<string, any>) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/upcoming-events/${id}`, data),
+    delete: (id: string) =>
+      apiClient.delete<{ success: boolean; message?: string }>(`/upcoming-events/${id}`),
   },
 
   // ── Health ───────────────────────────────────────────────────────────────

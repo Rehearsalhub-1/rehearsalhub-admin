@@ -10,6 +10,7 @@ import {
   TextInput,
   RefreshControl,
   Share,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,231 +18,14 @@ import MemberManagementModal, { Member } from '../components/MemberManagementMod
 import { api } from '../services/api';
 import { useZoneContext } from '../context/ZoneContext';
 
-// ── Realistic Loveworld Singers Personnel Mock Data ─────────────────────────
-const INITIAL_MEMBERS: Member[] = [
-  {
-    id: 'mem-001',
-    membershipId: 'LWS-001',
-    first_name: 'Maya',
-    last_name: 'Roberts',
-    email: 'maya.roberts@loveworldsingers.org',
-    username: 'maya.roberts',
-    alias: 'mayarob',
-    phone: '+234 802 345 6789',
-    church: 'Central Church',
-    designation: 'Soprano Lead',
-    zoneId: 'zone-001',
-    zoneName: 'Your Loveworld Singers (HQ Core)',
-    role: 'member',
-    isAdmin: false,
-    is_active: true,
-    can_access_ongoing: true,
-    can_access_pre_rehearsal: true,
-    canAnnotate: true,
-    canSeeArchive: true,
-    created_at: '2024-01-15T10:00:00Z',
-  },
-  {
-    id: 'mem-002',
-    membershipId: 'LWS-002',
-    first_name: 'David',
-    last_name: 'Adeyemi',
-    email: 'david.adeyemi@loveworldsingers.org',
-    username: 'david.adeyemi',
-    alias: 'davido',
-    phone: '+234 803 456 7890',
-    church: 'Christ Embassy LCA',
-    designation: 'Tenor Lead',
-    zoneId: 'zone-001',
-    zoneName: 'Your Loveworld Singers (HQ Core)',
-    role: 'zone_admin',
-    isAdmin: true,
-    is_active: true,
-    can_access_ongoing: true,
-    can_access_pre_rehearsal: true,
-    canAnnotate: true,
-    canSeeArchive: true,
-    created_at: '2024-02-01T09:30:00Z',
-  },
-  {
-    id: 'mem-003',
-    membershipId: 'LWS-003',
-    first_name: 'Grace',
-    last_name: 'Chidera',
-    email: 'grace.chidera@loveworldsingers.org',
-    username: 'grace.chidera',
-    alias: 'grace_c',
-    phone: '+234 805 678 9012',
-    church: 'CE Airport Church',
-    designation: 'Alto',
-    zoneId: 'zone-lagos-2',
-    zoneName: 'LWS Lagos Zone 2',
-    role: 'church_admin',
-    isAdmin: true,
-    is_active: true,
-    can_access_ongoing: true,
-    can_access_pre_rehearsal: false,
-    canAnnotate: false,
-    canSeeArchive: false,
-    created_at: '2024-03-10T14:15:00Z',
-  },
-  {
-    id: 'mem-004',
-    membershipId: 'LWS-004',
-    first_name: 'Michael',
-    last_name: 'Johnson',
-    email: 'michael.johnson@loveworldsingers.org',
-    username: 'pastormike',
-    alias: 'pastormike',
-    phone: '+234 809 012 3456',
-    church: 'Central Assembly',
-    designation: 'Choir Director',
-    zoneId: 'zone-001',
-    zoneName: 'Your Loveworld Singers (HQ Core)',
-    role: 'zone_admin',
-    isAdmin: true,
-    is_active: true,
-    can_access_ongoing: true,
-    can_access_pre_rehearsal: true,
-    canAnnotate: true,
-    canSeeArchive: true,
-    created_at: '2023-11-20T08:00:00Z',
-  },
-  {
-    id: 'mem-005',
-    membershipId: 'LWS-005',
-    first_name: 'Samuel',
-    last_name: 'Kalu',
-    email: 'samuel.kalu@loveworldsingers.org',
-    username: 'samuel.kalu',
-    alias: 'samkalu',
-    phone: '+234 807 890 1234',
-    church: 'CE Lekki Central',
-    designation: 'Bass',
-    zoneId: 'zone-lagos-5',
-    zoneName: 'LWS Lagos Zone 5',
-    role: 'member',
-    isAdmin: false,
-    is_active: true,
-    can_access_ongoing: true,
-    can_access_pre_rehearsal: true,
-    canAnnotate: false,
-    canSeeArchive: false,
-    created_at: '2024-04-05T11:45:00Z',
-  },
-  {
-    id: 'mem-006',
-    membershipId: 'LWS-006',
-    first_name: 'Olivia',
-    last_name: 'Mensah',
-    email: 'olivia.mensah@loveworldsingers.org',
-    username: 'olivia.mensah',
-    alias: 'olivia_m',
-    phone: '+233 24 123 4567',
-    church: 'CE Accra Ghana',
-    designation: 'Soprano',
-    zoneId: 'zone-ghana-1',
-    zoneName: 'LWS Ghana Zone 1',
-    role: 'member',
-    isAdmin: false,
-    is_active: true,
-    can_access_ongoing: true,
-    can_access_pre_rehearsal: false,
-    canAnnotate: false,
-    canSeeArchive: false,
-    created_at: '2024-05-18T16:20:00Z',
-  },
-  {
-    id: 'mem-007',
-    membershipId: 'LWS-007',
-    first_name: 'Joshua',
-    last_name: 'Peters',
-    email: 'joshua.peters@loveworldsingers.org',
-    username: 'joshua.peters',
-    alias: 'joshdrums',
-    phone: '+234 811 234 5678',
-    church: 'CE LCA Youth',
-    designation: 'Band / Musician',
-    zoneId: 'zone-002',
-    zoneName: 'Loveworld Singers 24 Worship Band (HQ)',
-    role: 'church_admin',
-    isAdmin: true,
-    is_active: true,
-    can_access_ongoing: true,
-    can_access_pre_rehearsal: true,
-    canAnnotate: false,
-    canSeeArchive: true,
-    created_at: '2024-02-14T12:00:00Z',
-  },
-  {
-    id: 'mem-008',
-    membershipId: 'LWS-008',
-    first_name: 'Hannah',
-    last_name: 'Osei',
-    email: 'hannah.osei@loveworldsingers.org',
-    username: 'hannah.osei',
-    alias: 'hannah_os',
-    phone: '+233 20 987 6543',
-    church: 'CE Kumasi',
-    designation: 'Alto',
-    zoneId: 'zone-ghana-1',
-    zoneName: 'LWS Ghana Zone 1',
-    role: 'member',
-    isAdmin: false,
-    is_active: false,
-    can_access_ongoing: false,
-    can_access_pre_rehearsal: false,
-    canAnnotate: false,
-    canSeeArchive: false,
-    created_at: '2024-06-01T15:10:00Z',
-  },
-  // Pending Requests
-  {
-    id: 'mem-009',
-    membershipId: 'LWS-009',
-    first_name: 'Emmanuel',
-    last_name: 'Okafor',
-    email: 'emmanuel.okafor@loveworldsingers.org',
-    username: 'emmanuel.okafor',
-    alias: 'emmanuel_ok',
-    phone: '+234 806 789 0123',
-    church: 'CE Ikeja Central',
-    designation: 'Tenor',
-    zoneId: 'zone-lagos-1',
-    zoneName: 'LWS Lagos Zone 1',
-    role: 'member',
-    isAdmin: false,
-    is_active: false,
-    pending_hq_approval: true,
-    created_at: '2024-09-01T10:00:00Z',
-  },
-  {
-    id: 'mem-010',
-    membershipId: 'LWS-010',
-    first_name: 'Blessing',
-    last_name: 'Udoh',
-    email: 'blessing.udoh@loveworldsingers.org',
-    username: 'blessing.udoh',
-    alias: 'blessing_u',
-    phone: '+234 814 567 8901',
-    church: 'CE Port Harcourt',
-    designation: 'Soprano Lead',
-    zoneId: 'zone-south-1',
-    zoneName: 'LWS South Zone',
-    role: 'member',
-    isAdmin: false,
-    is_active: false,
-    pending_hq_approval: true,
-    created_at: '2024-09-03T11:20:00Z',
-  },
-];
+const INITIAL_MEMBERS: Member[] = [];
 
 export default function MembersScreen() {
   const insets = useSafeAreaInsets();
   const { activeZone, isAllZones } = useZoneContext();
 
-  const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
-  const [loading, setLoading] = useState(false);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Tabs: 'all' | 'pending'
@@ -266,72 +50,71 @@ export default function MembersScreen() {
       const rawDir = Array.isArray(dirRes?.data) ? dirRes.data : [];
       const rawReqs = Array.isArray(reqRes?.data) ? reqRes.data : [];
 
-      if (rawDir.length > 0 || rawReqs.length > 0) {
-        const mappedMembers: Member[] = rawDir.map((u: any) => {
-          const firstName = u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer';
-          const lastName = u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '';
-          const r = (u.role || 'member').toLowerCase();
-          return {
-            id: u.id || u.userId,
-            membershipId: u.membershipId || u.membership_id || u.id,
-            first_name: firstName,
-            last_name: lastName,
-            email: u.email || '',
-            username: u.username || '',
-            alias: u.alias || '',
-            phone: u.phone || '',
-            church: u.church || u.churchName || '',
-            designation: u.designation || '',
-            zoneId: u.zoneId || u.organizationId || '',
-            zoneName: u.zoneName || u.organization?.name || '',
-            role: (r.includes('admin') || r === 'boss'
-              ? (r.includes('church') ? 'church_admin' : (r.includes('hq') ? 'hq_admin' : 'zone_admin'))
-              : 'member') as any,
-            isAdmin: r.includes('admin') || r === 'boss',
-            is_active: u.is_active !== false && u.isActive !== false,
-            can_access_ongoing: u.can_access_ongoing !== false,
-            can_access_pre_rehearsal: u.can_access_pre_rehearsal !== false,
-            canAnnotate: u.canAnnotate !== false,
-            canSeeArchive: u.canSeeArchive === true || u.canAccessArchive === true,
-            can_access_archive: u.canSeeArchive === true || u.canAccessArchive === true,
-            hiddenFeatures: u.hiddenFeatures,
-            created_at: u.createdAt || u.created_at,
-            pending_hq_approval: false,
-          };
-        });
+      const mappedMembers: Member[] = rawDir.map((u: any) => {
+        const firstName = u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer';
+        const lastName = u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '';
+        const r = (u.role || 'member').toLowerCase();
+        return {
+          id: u.id || u.userId,
+          membershipId: u.membershipId || u.membership_id || u.id,
+          first_name: firstName,
+          last_name: lastName,
+          email: u.email || '',
+          username: u.username || '',
+          alias: u.alias || '',
+          phone: u.phone || '',
+          church: u.church || u.churchName || '',
+          designation: u.designation || '',
+          zoneId: u.zoneId || u.organizationId || '',
+          zoneName: u.zoneName || u.organization?.name || '',
+          role: (r.includes('admin') || r === 'boss'
+            ? (r.includes('church') ? 'church_admin' : (r.includes('hq') ? 'hq_admin' : 'zone_admin'))
+            : 'member') as any,
+          isAdmin: r.includes('admin') || r === 'boss',
+          is_active: u.is_active !== false && u.isActive !== false,
+          can_access_ongoing: u.can_access_ongoing !== false,
+          can_access_pre_rehearsal: u.can_access_pre_rehearsal !== false,
+          canAnnotate: u.canAnnotate !== false,
+          canSeeArchive: u.canSeeArchive === true || u.canAccessArchive === true,
+          can_access_archive: u.canSeeArchive === true || u.canAccessArchive === true,
+          hiddenFeatures: u.hiddenFeatures,
+          created_at: u.createdAt || u.created_at,
+          pending_hq_approval: false,
+        };
+      });
 
-        const mappedPending: Member[] = rawReqs.map((req: any) => {
-          const firstName = req.user?.firstName || req.firstName || (req.name || '').split(' ')[0] || 'Applicant';
-          const lastName = req.user?.lastName || req.lastName || (req.name || '').split(' ').slice(1).join(' ') || '';
-          return {
-            id: req.id || req.userId,
-            membershipId: req.membershipId || req.id,
-            first_name: firstName,
-            last_name: lastName,
-            email: req.user?.email || req.email || '',
-            username: req.user?.username || req.username || '',
-            alias: req.user?.alias || req.alias || '',
-            phone: req.user?.phone || req.phone || '',
-            church: req.church || '',
-            zoneId: req.zoneId || '',
-            zoneName: req.zoneName || '',
-            role: 'member' as any,
-            isAdmin: false,
-            is_active: false,
-            pending_hq_approval: true,
-            created_at: req.createdAt || req.created_at,
-          };
-        });
+      const mappedPending: Member[] = rawReqs.map((req: any) => {
+        const firstName = req.user?.firstName || req.firstName || (req.name || '').split(' ')[0] || 'Applicant';
+        const lastName = req.user?.lastName || req.lastName || (req.name || '').split(' ').slice(1).join(' ') || '';
+        return {
+          id: req.id || req.userId,
+          membershipId: req.membershipId || req.id,
+          first_name: firstName,
+          last_name: lastName,
+          email: req.user?.email || req.email || '',
+          username: req.user?.username || req.username || '',
+          alias: req.user?.alias || req.alias || '',
+          phone: req.user?.phone || req.phone || '',
+          church: req.church || '',
+          zoneId: req.zoneId || '',
+          zoneName: req.zoneName || '',
+          role: 'member' as any,
+          isAdmin: false,
+          is_active: false,
+          pending_hq_approval: true,
+          created_at: req.createdAt || req.created_at,
+        };
+      });
 
-        const existingIds = new Set(mappedMembers.map(m => m.id));
-        const combined = [
-          ...mappedMembers,
-          ...mappedPending.filter(p => !existingIds.has(p.id)),
-        ];
-        setMembers(combined);
-      }
+      const existingIds = new Set(mappedMembers.map(m => m.id));
+      const combined = [
+        ...mappedMembers,
+        ...mappedPending.filter(p => !existingIds.has(p.id)),
+      ];
+      setMembers(combined);
     } catch (err) {
       console.warn('[MembersScreen] fetch error:', err);
+      setMembers([]);
     } finally {
       setRefreshing(false);
       setLoading(false);
@@ -605,10 +388,16 @@ export default function MembersScreen() {
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7c3aed']} />}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={32} color="#cbd5e1" />
-            <Text style={styles.emptyTitle}>No Members Found</Text>
-          </View>
+          loading ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color="#7c3aed" />
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={32} color="#cbd5e1" />
+              <Text style={styles.emptyTitle}>No Members Found</Text>
+            </View>
+          )
         }
         renderItem={({ item }) => {
           if (activeTab === 'pending') {

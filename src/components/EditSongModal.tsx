@@ -86,19 +86,13 @@ const DEFAULT_CATEGORIES = [
   'Choir Special',
 ];
 
-const DEFAULT_PROGRAMS = [
-  { id: 'prog-25', name: 'Program 25' },
-  { id: 'prog-24', name: 'Program 24' },
-  { id: 'prog-23', name: 'Program 23' },
-  { id: 'prog-midweek', name: 'Midweek Rehearsal Hub' },
-  { id: 'prog-special', name: 'Zonal Leaders Gathering' },
-];
+const DEFAULT_PROGRAMS: { id: string; name: string }[] = [];
 
 export default function EditSongModal({
   visible,
   song,
   programId = '',
-  programName = 'Program 25',
+  programName = '',
   programs,
   praiseNights,
   categories = DEFAULT_CATEGORIES,

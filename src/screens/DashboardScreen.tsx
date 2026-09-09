@@ -8,6 +8,7 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,113 +19,22 @@ import ZoneHeader from '../components/ZoneHeader';
 import { StatTile, Badge } from '../components/ui';
 import { api } from '../services/api';
 
-// ── Realistic Mock Data (Mirroring Web Admin Dashboard) ──────────────────────
-const MOCK_STATS = {
-  totalMembers: 128,
-  activePrograms: 6,
-  totalSongs: 342,
-  pendingSongs: 3,
+const INITIAL_STATS = {
+  totalMembers: 0,
+  activePrograms: 0,
+  totalSongs: 0,
+  pendingSongs: 0,
 };
-
-const MOCK_RECENT_PROGRAMS = [
-  {
-    id: 'prog-001',
-    name: 'Your Loveworld Praise Night 24',
-    date: 'Dec 18, 2026',
-    location: 'LCA Arena, Lagos',
-    category: 'Ongoing',
-    status: 'ongoing',
-    is_active: true,
-    songsCount: 14,
-  },
-  {
-    id: 'prog-002',
-    name: 'Global Rehearsal Session - Vocal Parts',
-    date: 'Dec 12, 2026',
-    location: 'Loveworld Studios',
-    category: 'Pre-Rehearsal',
-    status: 'pre-rehearsal',
-    is_active: true,
-    songsCount: 8,
-  },
-  {
-    id: 'prog-003',
-    name: 'Zonal Worship Festival & Praise',
-    date: 'Nov 28, 2026',
-    location: 'Central Auditorium',
-    category: 'Archive',
-    status: 'archive',
-    is_active: false,
-    songsCount: 22,
-  },
-  {
-    id: 'prog-004',
-    name: 'Mid-Week Stage & Band Callout',
-    date: 'Nov 15, 2026',
-    location: 'Campground Hall B',
-    category: 'Archive',
-    status: 'archive',
-    is_active: false,
-    songsCount: 10,
-  },
-];
-
-const MOCK_MEMBERS = [
-  {
-    id: 'mem-1',
-    first_name: 'Maya',
-    last_name: 'Roberts',
-    designation: 'Soprano Lead',
-    role: 'member',
-    church: 'Central Church',
-    is_active: true,
-  },
-  {
-    id: 'mem-2',
-    first_name: 'David',
-    last_name: 'Adeyemi',
-    designation: 'Tenor Lead',
-    role: 'zone_coordinator',
-    church: 'Christ Embassy LCA',
-    is_active: true,
-  },
-  {
-    id: 'mem-3',
-    first_name: 'Michael',
-    last_name: 'Johnson',
-    designation: 'Choir Director',
-    role: 'hq_admin',
-    church: 'Central Assembly',
-    is_active: true,
-  },
-  {
-    id: 'mem-4',
-    first_name: 'Grace',
-    last_name: 'Chidera',
-    designation: 'Alto',
-    role: 'member',
-    church: 'CE Airport Church',
-    is_active: true,
-  },
-  {
-    id: 'mem-5',
-    first_name: 'Samuel',
-    last_name: 'Kalu',
-    designation: 'Bass Lead',
-    role: 'church_coordinator',
-    church: 'CE Lekki Central',
-    is_active: true,
-  },
-];
 
 export default function DashboardScreen({ navigation }: any) {
   const { adminUser } = useAuth();
   const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
 
-  const [stats, setStats] = useState(MOCK_STATS);
-  const [recentPrograms, setRecentPrograms] = useState(MOCK_RECENT_PROGRAMS);
-  const [members, setMembers] = useState(MOCK_MEMBERS);
+  const [stats, setStats] = useState(INITIAL_STATS);
+  const [recentPrograms, setRecentPrograms] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [memberSearch, setMemberSearch] = useState('');
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -140,20 +50,17 @@ export default function DashboardScreen({ navigation }: any) {
       ]);
 
       if (statsRes) {
-        setStats(prev => ({
-          ...prev,
-          totalMembers: statsRes.totalMembers ?? prev.totalMembers,
-          activePrograms: statsRes.activePrograms ?? prev.activePrograms,
-          totalSongs: statsRes.totalSongs ?? prev.totalSongs,
-          pendingSongs: statsRes.pendingSongs ?? prev.pendingSongs,
-        }));
+        setStats({
+          totalMembers: statsRes.totalMembers ?? 0,
+          activePrograms: statsRes.activePrograms ?? 0,
+          totalSongs: statsRes.totalSongs ?? 0,
+          pendingSongs: statsRes.pendingSongs ?? 0,
+        });
       }
 
-      if (Array.isArray(programsRes?.data) && programsRes.data.length > 0) {
-        setRecentPrograms(programsRes.data.slice(0, 4));
-      }
+      setRecentPrograms(Array.isArray(programsRes?.data) ? programsRes.data.slice(0, 4) : []);
 
-      if (Array.isArray(membersRes?.data) && membersRes.data.length > 0) {
+      if (Array.isArray(membersRes?.data)) {
         setMembers(membersRes.data.slice(0, 5).map((u: any) => ({
           id: u.id || u.userId,
           first_name: u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer',
@@ -163,10 +70,15 @@ export default function DashboardScreen({ navigation }: any) {
           church: u.church || u.churchName || '',
           is_active: u.is_active !== false,
         })));
+      } else {
+        setMembers([]);
       }
     } catch (err) {
       console.warn('[Dashboard] fetch error:', err);
+      setRecentPrograms([]);
+      setMembers([]);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   }, [activeZone?.id, isAllZones, isChurchMode, activeChurch?.id]);
@@ -442,45 +354,57 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
 
           <View style={styles.programsList}>
-            {recentPrograms.map((prog) => {
-              const isOngoing = prog.status === 'ongoing' || prog.category === 'Ongoing';
-              const initial = prog.name.charAt(0).toUpperCase();
+            {loading ? (
+              <View style={styles.emptyInlineCard}>
+                <ActivityIndicator size="small" color="#7c3aed" />
+              </View>
+            ) : recentPrograms.length === 0 ? (
+              <View style={styles.emptyInlineCard}>
+                <Ionicons name="calendar-outline" size={24} color="#94a3b8" style={{ marginBottom: 6 }} />
+                <Text style={styles.emptyInlineTitle}>No Recent Programs</Text>
+                <Text style={styles.emptyInlineSub}>Rehearsal setlists will appear here once created.</Text>
+              </View>
+            ) : (
+              recentPrograms.map((prog) => {
+                const isOngoing = prog.status === 'ongoing' || prog.category === 'Ongoing';
+                const initial = (prog.name || 'P').charAt(0).toUpperCase();
 
-              return (
-                <TouchableOpacity
-                  key={prog.id}
-                  style={styles.programCard}
-                  onPress={() => navigation.navigate('ProgramSongs', { program: prog })}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.programAvatar, isOngoing && styles.programAvatarOngoing]}>
-                    <Text style={[styles.programAvatarText, isOngoing && styles.programAvatarTextOngoing]}>
-                      {initial}
-                    </Text>
-                  </View>
-
-                  <View style={styles.programInfo}>
-                    <Text style={styles.programName} numberOfLines={1}>
-                      {prog.name}
-                    </Text>
-                    <View style={styles.programMetaRow}>
-                      <Ionicons name="time-outline" size={12} color="#94a3b8" style={{ marginRight: 3 }} />
-                      <Text style={styles.programMetaText}>{prog.date}</Text>
-                      <Text style={styles.programCategoryTag}>• {prog.category}</Text>
+                return (
+                  <TouchableOpacity
+                    key={prog.id}
+                    style={styles.programCard}
+                    onPress={() => navigation.navigate('ProgramSongs', { program: prog })}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.programAvatar, isOngoing && styles.programAvatarOngoing]}>
+                      <Text style={[styles.programAvatarText, isOngoing && styles.programAvatarTextOngoing]}>
+                        {initial}
+                      </Text>
                     </View>
-                  </View>
 
-                  <View style={styles.programRight}>
-                    <Badge
-                      label={isOngoing ? 'Active' : 'Archived'}
-                      variant={isOngoing ? 'ongoing' : 'draft'}
-                      size="sm"
-                    />
-                    <Ionicons name="chevron-forward" size={14} color="#cbd5e1" style={{ marginLeft: 4 }} />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                    <View style={styles.programInfo}>
+                      <Text style={styles.programName} numberOfLines={1}>
+                        {prog.name}
+                      </Text>
+                      <View style={styles.programMetaRow}>
+                        <Ionicons name="time-outline" size={12} color="#94a3b8" style={{ marginRight: 3 }} />
+                        <Text style={styles.programMetaText}>{prog.date}</Text>
+                        <Text style={styles.programCategoryTag}>• {prog.category}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.programRight}>
+                      <Badge
+                        label={isOngoing ? 'Active' : 'Archived'}
+                        variant={isOngoing ? 'ongoing' : 'draft'}
+                        size="sm"
+                      />
+                      <Ionicons name="chevron-forward" size={14} color="#cbd5e1" style={{ marginLeft: 4 }} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         </View>
 
@@ -521,40 +445,52 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
 
           <View style={styles.membersList}>
-            {filteredMembers.map((m) => {
-              const fullName = `${m.first_name} ${m.last_name}`;
-              const initial = `${m.first_name[0]}${m.last_name[0]}`.toUpperCase();
-              const isLead = m.role !== 'member';
+            {loading ? (
+              <View style={styles.emptyInlineCard}>
+                <ActivityIndicator size="small" color="#7c3aed" />
+              </View>
+            ) : filteredMembers.length === 0 ? (
+              <View style={styles.emptyInlineCard}>
+                <Ionicons name="people-outline" size={24} color="#94a3b8" style={{ marginBottom: 6 }} />
+                <Text style={styles.emptyInlineTitle}>No Members Found</Text>
+                <Text style={styles.emptyInlineSub}>Registered singers will appear in this directory preview.</Text>
+              </View>
+            ) : (
+              filteredMembers.map((m) => {
+                const fullName = `${m.first_name} ${m.last_name}`;
+                const initial = `${m.first_name[0]}${m.last_name[0]}`.toUpperCase();
+                const isLead = m.role !== 'member';
 
-              return (
-                <TouchableOpacity
-                  key={m.id}
-                  style={styles.memberRow}
-                  onPress={() => navigation.navigate('Members')}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.memberAvatar, isLead && styles.memberAvatarLead]}>
-                    <Text style={[styles.memberAvatarText, isLead && styles.memberAvatarTextLead]}>
-                      {initial}
-                    </Text>
-                    {m.is_active && <View style={styles.onlineDot} />}
-                  </View>
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.memberRow}
+                    onPress={() => navigation.navigate('Members')}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.memberAvatar, isLead && styles.memberAvatarLead]}>
+                      <Text style={[styles.memberAvatarText, isLead && styles.memberAvatarTextLead]}>
+                        {initial}
+                      </Text>
+                      {m.is_active && <View style={styles.onlineDot} />}
+                    </View>
 
-                  <View style={styles.memberMeta}>
-                    <Text style={styles.memberName} numberOfLines={1}>{fullName}</Text>
-                    <Text style={styles.memberSub} numberOfLines={1}>
-                      {m.designation} • {m.church}
-                    </Text>
-                  </View>
+                    <View style={styles.memberMeta}>
+                      <Text style={styles.memberName} numberOfLines={1}>{fullName}</Text>
+                      <Text style={styles.memberSub} numberOfLines={1}>
+                        {m.designation} • {m.church}
+                      </Text>
+                    </View>
 
-                  <Badge
-                    label={formatRoleTag(m.role)}
-                    variant={isLead ? 'alto' : 'ongoing'}
-                    size="sm"
-                  />
-                </TouchableOpacity>
-              );
-            })}
+                    <Badge
+                      label={formatRoleTag(m.role)}
+                      variant={isLead ? 'alto' : 'ongoing'}
+                      size="sm"
+                    />
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         </View>
       </ScrollView>
@@ -866,5 +802,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94a3b8',
     marginTop: 1,
+  },
+  emptyInlineCard: {
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  emptyInlineTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  emptyInlineSub: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+    textAlign: 'center',
   },
 });
