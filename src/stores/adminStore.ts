@@ -222,9 +222,11 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       }
 
       // 5. DETERMINE STRICTLY ONE OF THE THREE ROLES
-      const hqMem = allMemberships.find((m: any) => {
+      const hqAdminMem = allMemberships.find((m: any) => {
         const orgId = m.organizationId || m.zoneId || m.organization?.id;
-        return orgId === 'zone-001' || m.organization?.isHq || m.hasHqAccess;
+        const roleStr = (m.role || '').toLowerCase();
+        const isAdminRole = roleStr.includes('admin') || roleStr.includes('coord') || roleStr.includes('leader');
+        return (orgId === 'zone-001' || m.organization?.isHq) && isAdminRole;
       });
 
       const isHqUser = Boolean(
@@ -232,7 +234,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         rawRole === 'super_admin' ||
         raw.hasHqAccess ||
         raw.has_hq_access ||
-        hqMem
+        hqAdminMem
       );
 
       const isPureChurchRole =
@@ -264,7 +266,15 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       // 6. Resolve User's Zone directly from Live Database (Identical to rehearsalhubv2)
       const userZones: ZoneOption[] = [];
-      for (const mem of allMemberships) {
+
+      // Prioritize the user's admin/coordinator zones first!
+      const adminMemberships = allMemberships.filter((m: any) => {
+        const r = (m.role || '').toLowerCase();
+        return r.includes('admin') || r.includes('coord') || r.includes('leader');
+      });
+      const priorityList = adminMemberships.length > 0 ? [...adminMemberships, ...allMemberships] : allMemberships;
+
+      for (const mem of priorityList) {
         const zId = mem.organizationId || mem.organization_id || mem.zoneId || mem.zone_id || mem.id;
         const orgName = mem.organization?.name || mem.zoneName || zId;
         const orgCode = mem.organization?.invitationCode || mem.organization?.code || mem.zoneCode || zId;

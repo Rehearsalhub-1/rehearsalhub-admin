@@ -77,7 +77,7 @@ export default function MembersScreen() {
         return;
       }
 
-      const effectiveZoneId = isAllZones ? undefined : (activeZone?.id || undefined);
+      const effectiveZoneId = activeZone?.id || undefined;
       const [dirRes, reqRes] = await Promise.all([
         api.members.getDirectory(effectiveZoneId).catch(() => ({ data: [] })),
         api.members.getAdminRequests(effectiveZoneId).catch(() => ({ data: [] })),
