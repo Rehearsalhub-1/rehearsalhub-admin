@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNotifications } from '../hooks/useNotifications';
 import {
   View,
   Text,
@@ -85,6 +86,7 @@ export default function NotificationsScreen() {
 
   const isHQ = adminUser?.isHQAdmin === true;
   const [activeTab, setActiveTab] = useState<'compose' | 'history'>('compose');
+  const { sentHistory, loadingHistory, refreshingHistory, loadHistory, refreshHistory } = useNotifications();
 
   // Form state
   const [title, setTitle] = useState('');
@@ -94,11 +96,6 @@ export default function NotificationsScreen() {
   const [selectedChurchId, setSelectedChurchId] = useState(activeChurch?.id || '');
   const [targetEmail, setTargetEmail] = useState('');
   const [sending, setSending] = useState(false);
-
-  // Sent history state
-  const [sentHistory, setSentHistory] = useState<any[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [refreshingHistory, setRefreshingHistory] = useState(false);
 
   // Sync selected church with active church & mode
   useEffect(() => {
@@ -110,27 +107,12 @@ export default function NotificationsScreen() {
     }
   }, [activeChurch?.id, isChurchMode]);
 
-  // Load sent history
-  const fetchSentHistory = useCallback(async () => {
-    try {
-      const res = await api.notifications.getSent();
-      if (res?.data && Array.isArray(res.data)) {
-        setSentHistory(res.data);
-      }
-    } catch (err) {
-      console.warn('[Notifications] Failed to load sent history:', err);
-    } finally {
-      setLoadingHistory(false);
-      setRefreshingHistory(false);
-    }
-  }, []);
-
+  // Load sent history lazily when the tab becomes active
   useEffect(() => {
     if (activeTab === 'history') {
-      setLoadingHistory(true);
-      fetchSentHistory();
+      loadHistory();
     }
-  }, [activeTab, fetchSentHistory]);
+  }, [activeTab, loadHistory]);
 
   function applyTemplate(tpl: typeof QUICK_TEMPLATES[0]) {
     setTitle(tpl.title);
@@ -438,10 +420,7 @@ export default function NotificationsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshingHistory}
-              onRefresh={() => {
-                setRefreshingHistory(true);
-                fetchSentHistory();
-              }}
+              onRefresh={refreshHistory}
               tintColor="#4f46e5"
             />
           }

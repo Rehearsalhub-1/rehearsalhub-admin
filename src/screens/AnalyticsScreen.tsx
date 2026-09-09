@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,28 +13,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useAuth } from '../context/AuthContext';
 import MemberManagementModal, { Member } from '../components/MemberManagementModal';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 export default function AnalyticsScreen({ navigation }: any) {
   const { adminUser } = useAuth();
-  const isHQ = adminUser?.isHQAdmin === true;
-
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [overview, setOverview] = useState({
-    totalSingers: 0,
-    totalZones: 0,
-    totalChurches: 0,
-    globalAttendanceRate: 0,
-  });
-  const [zonesList, setZonesList] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const {
+    isHQ,
+    loading,
+    refreshing,
+    overview,
+    zonesList,
+    searchQuery,
+    setSearchQuery,
+    searching,
+    searchResults,
+    refetch,
+    saveMember,
+    removeMember,
+  } = useAnalytics();
 
   // Member Management Drawer State
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -44,7 +44,6 @@ export default function AnalyticsScreen({ navigation }: any) {
     const names = (raw.userName || raw.name || '').trim().split(' ');
     const firstName = raw.firstName || names[0] || 'Singer';
     const lastName = raw.lastName || names.slice(1).join(' ') || '';
-
     const memberData: Member = {
       id: raw.id || raw.userId,
       membershipId: raw.membershipId || raw.id,
@@ -68,99 +67,6 @@ export default function AnalyticsScreen({ navigation }: any) {
     setSelectedMember(memberData);
     setModalVisible(true);
   };
-
-  const handleSaveMember = async (updated: Member) => {
-    try {
-      if (updated.role) {
-        await api.members.updateRole(updated.id, updated.role);
-      }
-      await api.members.updateProfile(updated.id, {
-        role: updated.role,
-        is_active: updated.is_active,
-        church: updated.church,
-        canSeeArchive: updated.canSeeArchive,
-        can_access_archive: updated.can_access_archive,
-        can_access_ongoing: updated.can_access_ongoing,
-        can_access_pre_rehearsal: updated.can_access_pre_rehearsal,
-        canAnnotate: updated.canAnnotate,
-        hiddenFeatures: updated.hiddenFeatures,
-      });
-      // Update local search results
-      setSearchResults(prev =>
-        prev.map(m => ((m.id || m.userId) === updated.id ? { ...m, role: updated.role, churchName: updated.church } : m))
-      );
-      Alert.alert('Updated', `${updated.first_name}'s role and access passes were updated successfully.`);
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to update member role.');
-    }
-  };
-
-  const handleRemoveMember = async (id: string) => {
-    try {
-      await api.members.removeFromZone(id);
-      setSearchResults(prev => prev.filter(m => (m.id || m.userId) !== id));
-      Alert.alert('Removed', 'Member was removed from their zone successfully.');
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to remove member from zone.');
-    }
-  };
-
-  const fetchGlobalData = useCallback(async () => {
-    try {
-      const [overviewRes, zonesRes] = await Promise.all([
-        api.analytics.getOverview().catch(() => null),
-        api.zones.getAll().catch(() => ({ data: [] })),
-      ]);
-
-      if (overviewRes?.data) {
-        setOverview(overviewRes.data);
-      }
-
-      const rawZones = Array.isArray(zonesRes?.data) ? zonesRes.data : [];
-      setZonesList(rawZones);
-    } catch (e) {
-      console.error('[GlobalOverview] fetch error:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isHQ) {
-      setLoading(true);
-      fetchGlobalData();
-    }
-  }, [isHQ, fetchGlobalData]);
-
-  // Global Member Search handler
-  useEffect(() => {
-    if (!isHQ) return;
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await api.members.getGlobalMembers(searchQuery.trim());
-        if (res?.data && Array.isArray(res.data)) {
-          setSearchResults(res.data);
-        } else {
-          setSearchResults([]);
-        }
-      } catch (err) {
-        console.warn('[GlobalOverview] Member search error:', err);
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, isHQ]);
 
   // Restricted Access Guard for non-HQ admins
   if (!isHQ) {
@@ -209,10 +115,7 @@ export default function AnalyticsScreen({ navigation }: any) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              fetchGlobalData();
-            }}
+            onRefresh={refetch}
             tintColor="#4f46e5"
           />
         }
@@ -410,8 +313,8 @@ export default function AnalyticsScreen({ navigation }: any) {
           setModalVisible(false);
           setSelectedMember(null);
         }}
-        onSave={handleSaveMember}
-        onRemove={handleRemoveMember}
+        onSave={saveMember}
+        onRemove={removeMember}
       />
     </SafeAreaView>
   );

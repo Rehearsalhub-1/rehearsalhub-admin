@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import ZoneHeader from '../components/ZoneHeader';
 import MasterSongDetailModal, { MasterSong } from '../components/MasterSongDetailModal';
 import EditSongModal, { PraiseNightSong } from '../components/EditSongModal';
 import { useAuth } from '../context/AuthContext';
+import { useMasterLibrary } from '../hooks/useMasterLibrary';
 
 // ── Realistic Web Admin Catalog Mock ─────────────────────────────────────────
 export const INITIAL_MASTER_CATALOG: MasterSong[] = [];
@@ -35,7 +36,14 @@ export default function MasterLibraryScreen({ navigation }: any) {
   // Primary Tab: Master Repertoire vs Zonal Repertoire
   const [activeDomainTab, setActiveDomainTab] = useState<'master' | 'zone'>('master');
 
-  // Master Tab Status Filters (Mirroring Web Admin MasterLibraryFilters.tsx)
+  const {
+    masterSongs, masterLoading, refreshing,
+    zoneSongs, zoneSongsLoading,
+    refetch, fetchZoneSongs,
+    upsertMasterSong, removeMasterSong, toggleHideMasterSong, removeZoneSong,
+  } = useMasterLibrary(activeDomainTab);
+
+  // Master Tab Status Filters
   const [masterStatusTab, setMasterStatusTab] = useState<'active' | 'history' | 'hidden' | 'all'>('active');
 
   // Search & Filter State
@@ -43,63 +51,18 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const [selectedLeadSinger, setSelectedLeadSinger] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // Master Songs State
-  const [masterSongs, setMasterSongs] = useState<MasterSong[]>([]);
-  const [masterLoading, setMasterLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Zonal Songs State
-  const [zoneSongs, setZoneSongs] = useState<ZoneSong[]>([]);
-  const [zoneSongsLoading, setZoneSongsLoading] = useState(false);
+  // Zonal Songs UI State
   const [showZoneForm, setShowZoneForm] = useState(false);
   const [editingZoneSong, setEditingZoneSong] = useState<ZoneSong | null>(null);
 
   // Detail Sheet & Edit Modal State
   const [selectedDetailSong, setSelectedDetailSong] = useState<MasterSong | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-
   const [editModalSong, setEditModalSong] = useState<PraiseNightSong | null>(null);
   const [editingOriginalMaster, setEditingOriginalMaster] = useState<MasterSong | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
 
-  // Fetch Master Songs
-  const fetchMasterSongs = useCallback(async () => {
-    try {
-      const result = await api.songs.getMasterSongs();
-      setMasterSongs(Array.isArray(result?.data) ? result.data : []);
-    } catch (e) {
-      console.log('[MasterLibrary] API fetch note:', e);
-      setMasterSongs([]);
-    } finally {
-      setMasterLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Fetch Zonal Songs
-  const fetchZoneSongs = useCallback(async () => {
-    setZoneSongsLoading(true);
-    try {
-      const result = await api.songs.getZoneSongs(activeZone?.id);
-      setZoneSongs(Array.isArray(result?.data) ? result.data : []);
-    } catch (e) {
-      console.log('[ZoneSongs] fetch note:', e);
-    } finally {
-      setZoneSongsLoading(false);
-    }
-  }, [activeZone?.id]);
-
-  useEffect(() => {
-    fetchMasterSongs();
-  }, [fetchMasterSongs]);
-
-  useEffect(() => {
-    if (activeDomainTab === 'zone') {
-      fetchZoneSongs();
-    }
-  }, [activeDomainTab, fetchZoneSongs]);
-
-  // Master Stats Calculations (Mirroring Web Admin Header)
+  // Master Stats Calculations
   const masterStats = useMemo(() => {
     const total = masterSongs.length;
     const active = masterSongs.filter(s => !s.isHistory && !s.isHidden).length;
@@ -253,36 +216,14 @@ export default function MasterLibraryScreen({ navigation }: any) {
   async function handleMasterSongUpdated(updatedSong: PraiseNightSong) {
     const isNew = !editingOriginalMaster?.id || !masterSongs.some(s => s.id === updatedSong.id);
     const savedMaster = praiseToMasterSong(updatedSong, editingOriginalMaster);
-
-    if (isNew) {
-      setMasterSongs(prev => [savedMaster, ...prev]);
-    } else {
-      setMasterSongs(prev => prev.map(s => (s.id === savedMaster.id ? { ...s, ...savedMaster } : s)));
-    }
-
-    if (selectedDetailSong?.id === savedMaster.id) {
-      setSelectedDetailSong(savedMaster);
-    }
-
+    upsertMasterSong(savedMaster);
+    if (selectedDetailSong?.id === savedMaster.id) setSelectedDetailSong(savedMaster);
     setEditModalVisible(false);
-
     try {
       if (isNew) {
-        await api.songs.create({
-          ...savedMaster,
-          isMaster: true,
-          isHQOnly: savedMaster.isHQOnly,
-          is_hq_only: savedMaster.isHQOnly,
-          status: savedMaster.isHQOnly ? 'hq_only' : 'active',
-        });
+        await api.songs.create({ ...savedMaster, isMaster: true, isHQOnly: savedMaster.isHQOnly, is_hq_only: savedMaster.isHQOnly, status: savedMaster.isHQOnly ? 'hq_only' : 'active' });
       } else {
-        await api.songs.update(savedMaster.id, {
-          ...savedMaster,
-          isMaster: true,
-          isHQOnly: savedMaster.isHQOnly,
-          is_hq_only: savedMaster.isHQOnly,
-          status: savedMaster.isHQOnly ? 'hq_only' : 'active',
-        });
+        await api.songs.update(savedMaster.id, { ...savedMaster, isMaster: true, isHQOnly: savedMaster.isHQOnly, is_hq_only: savedMaster.isHQOnly, status: savedMaster.isHQOnly ? 'hq_only' : 'active' });
       }
     } catch (err) {
       console.log('[MasterLibrary] Save to backend note:', err);
@@ -290,33 +231,20 @@ export default function MasterLibraryScreen({ navigation }: any) {
   }
 
   function handleMasterSongDeleted(songId: string) {
-    setMasterSongs(prev => prev.filter(s => s.id !== songId));
-    if (selectedDetailSong?.id === songId) {
-      setSelectedDetailSong(null);
-      setDetailModalVisible(false);
-    }
+    removeMasterSong(songId);
+    if (selectedDetailSong?.id === songId) { setSelectedDetailSong(null); setDetailModalVisible(false); }
     setEditModalVisible(false);
     api.songs.delete(songId).catch(() => {});
   }
 
   function handleToggleHideSong(song: MasterSong) {
-    const nextHidden = !song.isHidden;
-    setMasterSongs(prev =>
-      prev.map(s => (s.id === song.id ? { ...s, isHidden: nextHidden } : s))
-    );
+    toggleHideMasterSong(song.id);
   }
 
   function handleDeleteMasterSong(song: MasterSong) {
     Alert.alert('Delete Repertoire Track', `Are you sure you want to delete "${song.title}" from the catalog?`, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          setMasterSongs(prev => prev.filter(s => s.id !== song.id));
-          api.songs.delete(song.id).catch(() => {});
-        },
-      },
+      { text: 'Delete', style: 'destructive', onPress: () => { removeMasterSong(song.id); api.songs.delete(song.id).catch(() => {}); } },
     ]);
   }
 
@@ -324,12 +252,11 @@ export default function MasterLibraryScreen({ navigation }: any) {
     Alert.alert('Delete Zone Song', `Delete "${song.title}" from regional repertoire?`, [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete',
-        style: 'destructive',
+        text: 'Delete', style: 'destructive',
         onPress: async () => {
           try {
             await api.songs.deleteSubgroupSong(song.id);
-            setZoneSongs(prev => prev.filter(s => s.id !== song.id));
+            removeZoneSong(song.id);
           } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to delete song.');
           }
@@ -407,10 +334,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              fetchMasterSongs();
-            }}
+            onRefresh={refetch}
             tintColor="#7c3aed"
             colors={['#7c3aed']}
           />

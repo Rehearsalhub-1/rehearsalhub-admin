@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+﻿import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
+import { useSchedule } from '../hooks/useSchedule';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,13 +129,9 @@ const TABS = [
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
+  const { programs, activeProgramId, setActiveProgramId, loading, refreshing, refetch, upsertProgram, removeProgram } = useSchedule();
 
-  const [programs, setPrograms] = useState<ScheduleProgram[]>([]);
-  const [activeProgramId, setActiveProgramId] = useState<string>('');
   const [viewHistory, setViewHistory] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
   const [activeTab, setActiveTab] = useState('schedule');
   const [selectedWeekId, setSelectedWeekId] = useState<string>('default_week_1');
   const [selectedDayId, setSelectedDayId] = useState<string>('default_day_1');
@@ -166,38 +163,7 @@ export default function ScheduleScreen() {
   const [genericField5, setGenericField5] = useState('');
   const [genericBool, setGenericBool] = useState(false);
 
-  // ── Fetch Programs ──────────────────────────────────────────────────────────
-  const fetchPrograms = useCallback(async () => {
-    try {
-      const zoneId = isChurchMode ? undefined : activeZone?.id;
-      const subGroupId = isChurchMode ? activeChurch?.id : undefined;
-      const res = await api.schedule.getAll(zoneId, undefined, subGroupId);
-      const data = Array.isArray(res?.data) ? res.data : [];
-      setPrograms(data);
-
-      if (data.length > 0) {
-        setActiveProgramId(prev => {
-          if (prev && data.some(p => p.id === prev)) return prev;
-          const curr = data.find(p => p.isCurrent && !p.isArchived);
-          if (curr) return curr.id;
-          const firstActive = data.find(p => !p.isArchived);
-          return firstActive ? firstActive.id : data[0].id;
-        });
-      } else {
-        setActiveProgramId('');
-      }
-    } catch (e) {
-      console.error('[ScheduleScreen] fetch error:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [activeZone?.id, isChurchMode, activeChurch?.id]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchPrograms();
-  }, [fetchPrograms]);
+  // ── Active program derived from list ───────────────────────────────────────
 
   const activeProgram = useMemo(() => {
     return programs.find(p => p.id === activeProgramId) || programs[0] || null;
@@ -250,7 +216,7 @@ export default function ScheduleScreen() {
   const updateProgramData = async (payload: Partial<ScheduleProgram>) => {
     if (!activeProgramId) return;
     try {
-      setPrograms(prev => prev.map(p => p.id === activeProgramId ? { ...p, ...payload } : p));
+      upsertProgram({ ...activeProgram!, ...payload });
       await api.schedule.update(activeProgramId, payload);
     } catch (e: any) {
       console.error('[ScheduleScreen] update error:', e);
@@ -275,10 +241,10 @@ export default function ScheduleScreen() {
       setShowCreateProgramModal(false);
       setNewProgramName('');
       if (res?.data?.id) {
-        setPrograms(prev => [res.data, ...prev]);
+        upsertProgram(res.data);
         setActiveProgramId(res.data.id);
       } else {
-        fetchPrograms();
+        refetch();
       }
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to create schedule');
@@ -296,12 +262,12 @@ export default function ScheduleScreen() {
     if (!activeProgramId) return;
     try {
       await api.schedule.makeCurrent(activeProgramId, selectedWeekId, selectedDayId);
-      setPrograms(prev => prev.map(p => ({
+      programs.forEach(p => upsertProgram({
         ...p,
         isCurrent: p.id === activeProgramId,
         currentWeekId: p.id === activeProgramId ? selectedWeekId : p.currentWeekId,
         currentDayId: p.id === activeProgramId ? selectedDayId : p.currentDayId,
-      })));
+      }));
       Alert.alert('Active Schedule Set', `"${activeProgram?.name}" is now the current rehearsal schedule.`);
     } catch (e: any) {
       Alert.alert('Error', e?.message || 'Failed to set current program');
@@ -328,9 +294,7 @@ export default function ScheduleScreen() {
           onPress: async () => {
             try {
               await api.schedule.delete(activeProgramId);
-              const remaining = programs.filter(p => p.id !== activeProgramId);
-              setPrograms(remaining);
-              setActiveProgramId(remaining[0]?.id || '');
+              removeProgram(activeProgramId);
             } catch (e: any) {
               Alert.alert('Error', e?.message || 'Failed to delete schedule');
             }
@@ -857,7 +821,7 @@ export default function ScheduleScreen() {
           styles.contentInner,
           { paddingBottom: Math.max(insets.bottom, 24) + 40 }
         ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchPrograms(); }} tintColor={Colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {!activeProgram ? (

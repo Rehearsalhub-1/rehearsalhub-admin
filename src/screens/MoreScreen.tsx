@@ -54,7 +54,7 @@ function MenuItem({ iconName, iconColor, iconBg, label, sub, badge, onPress, des
 export default function MoreScreen({ navigation }: any) {
   const { adminUser, signOut } = useAuth();
   const {
-    activeZone, isAllZones, availableZones,
+    activeZone, availableZones,
     isChurchMode, activeChurch, userChurches, toggleRoleMode,
   } = useZoneContext();
 
@@ -86,11 +86,9 @@ export default function MoreScreen({ navigation }: any) {
 
   const roleTitle = adminUser?.isHQAdmin
     ? 'HQ Admin'
-    : isPureChurchAdmin
-    ? 'Church Admin'
-    : hasDualRole
-    ? 'Zonal + Church Admin'
-    : 'Zonal Coordinator';
+    : adminUser?.isChurchAdmin
+    ? 'Church Coordinator'
+    : 'Zonal Admin';
 
   const initial = (adminUser?.name || adminUser?.email || 'A').charAt(0).toUpperCase();
 
@@ -514,8 +512,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 13,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   menuIconWrap: {
     width: 36,

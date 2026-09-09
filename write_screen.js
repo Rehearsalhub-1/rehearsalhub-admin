@@ -1,0 +1,1 @@
+﻿const fs = require('fs'); const dest = 'c:/Users/Eric/Pictures/workholiday/rehearsalhub-admin/src/screens/SubmittedSongsScreen.tsx'; fs.writeFileSync(dest, require('fs').readFileSync(dest.replace('SubmittedSongsScreen','_sss_template'),'utf8'),'utf8'); console.log('done');

@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { usePrograms, Program } from '../hooks/usePrograms';
 import {
   View,
   Text,
@@ -25,25 +26,7 @@ import { api } from '../services/api';
 import { GradientCard, Badge, SearchFilterBar, EmptyState } from '../components/ui';
 import MediaSelectionModal from '../components/MediaSelectionModal';
 
-interface Program {
-  id: string;
-  name: string;
-  date: string;
-  category: string;
-  status?: string;
-  location: string;
-  scope?: string;
-  zoneId?: string;
-  organizationId?: string;
-  groupId?: string;
-  subGroupId?: string;
-  pageCategory?: string;
-  songs?: any[];
-  songIds?: any[];
-  bannerImage?: string;
-  bannerKey?: string;
-  description?: string;
-}
+// Program type is imported from usePrograms hook
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -767,11 +750,9 @@ const ProgramCardItem = React.memo(function ProgramCardItem({
 // ────────────────────────────────────────────────────────────────────────────────
 
 export default function ProgramsScreen({ navigation }: any) {
-  const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [allSongs, setAllSongs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { activeZone, isChurchMode, activeChurch } = useZoneContext();
+  const { programs, allSongs, loading, refreshing, refetch, upsertProgram, removeProgram } = usePrograms();
+
   const [selectedTab, setSelectedTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -779,49 +760,11 @@ export default function ProgramsScreen({ navigation }: any) {
   const [showProgramModal, setShowProgramModal] = useState(false);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
 
-  const fetchPrograms = useCallback(async () => {
-    try {
-      const zoneParam = isChurchMode ? undefined : activeZone?.id;
-      const churchParam = isChurchMode && activeChurch?.id ? activeChurch.id : undefined;
-
-      const options = churchParam
-        ? { groupId: churchParam, subGroupId: churchParam, includeChurch: true }
-        : { zoneId: zoneParam, includeChurch: true };
-
-      const [programsRes, songsRes] = await Promise.all([
-        api.programs.getAll(options).catch(() => ({ data: [] })),
-        api.songs.getZoneSongs(zoneParam).catch(() => ({ data: [] })),
-      ]);
-      setPrograms(Array.isArray(programsRes?.data) ? programsRes.data : []);
-      setAllSongs(Array.isArray(songsRes?.data) ? songsRes.data : []);
-    } catch (e) {
-      console.error('[Programs] fetch error:', e);
-      setPrograms([]);
-      setAllSongs([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [isChurchMode, activeChurch?.id, activeZone?.id, isAllZones]);
-
-  useEffect(() => {
-    fetchPrograms();
-  }, [fetchPrograms]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchPrograms();
-  };
+  const onRefresh = refetch;
 
   const handleProgramSaved = useCallback((savedProg?: any) => {
     if (!savedProg) return;
-    setPrograms(prev => {
-      const exists = prev.some(p => p.id === savedProg.id);
-      if (exists) {
-        return prev.map(p => (p.id === savedProg.id ? { ...p, ...savedProg } : p));
-      }
-      return [savedProg, ...prev];
-    });
+    upsertProgram(savedProg);
   }, []);
 
   const handleDuplicate = useCallback((program: Program) => {
@@ -849,7 +792,7 @@ export default function ProgramsScreen({ navigation }: any) {
             ...copyPayload,
             id: `prog-${Date.now()}`,
           };
-          setPrograms(prev => [copy, ...prev]);
+          upsertProgram(copy);
           Alert.alert('Duplicated', 'Program duplicated successfully.');
         },
       },
@@ -864,7 +807,7 @@ export default function ProgramsScreen({ navigation }: any) {
         style: 'destructive',
         onPress: async () => {
           await api.programs.delete(program.id).catch(() => {});
-          setPrograms(prev => prev.filter(p => p.id !== program.id));
+          removeProgram(program.id);
         },
       },
     ]);
@@ -920,7 +863,7 @@ export default function ProgramsScreen({ navigation }: any) {
         const hasGroup = Boolean(p.groupId || (p as any).group_id || p.subGroupId || (p as any).sub_group_id || p.scope === 'subgroup');
         if (hasGroup) return false;
         // If viewing a specific zone (and not all zones), filter by zone or global HQ
-        if (activeZone?.id && !isAllZones) {
+        if (activeZone?.id) {
           const org = p.organizationId || (p as any).organization_id || p.zoneId || (p as any).zone_id;
           return !org || org === activeZone.id || org === 'zone-001' || org === 'global';
         }
@@ -956,7 +899,7 @@ export default function ProgramsScreen({ navigation }: any) {
     });
 
     return list;
-  }, [programs, isChurchMode, activeChurch?.id, activeZone?.id, isAllZones, selectedTab, searchQuery]);
+  }, [programs, isChurchMode, activeChurch?.id, activeZone?.id, selectedTab, searchQuery]);
 
   const groupedPrograms = useMemo(() => {
     const groups: { year: string; data: Program[] }[] = [];
@@ -1035,9 +978,7 @@ export default function ProgramsScreen({ navigation }: any) {
         subtitle={
           isChurchMode
             ? (activeChurch?.name || 'Local church rehearsals & setlists')
-            : !isAllZones
-            ? (activeZone?.name || 'Rehearsal programs & setlists')
-            : 'All rehearsal programs & setlists'
+            : (activeZone?.name || 'Rehearsal programs & setlists')
         }
         rightElement={
           <TouchableOpacity

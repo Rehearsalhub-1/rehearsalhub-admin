@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
+import { useAttendance } from '../hooks/useAttendance';
 
 export interface AttendanceRecord {
   id: string;
@@ -52,9 +53,17 @@ export default function AttendanceScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
 
-  const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const {
+    allRecords,
+    loading,
+    refreshing,
+    isSessionOpen,
+    togglingSession,
+    refetch,
+    toggleClockinSession,
+    addRecord,
+  } = useAttendance();
+
   const [search, setSearch] = useState('');
 
   // View Mode: Daily Logs vs Cumulative Accumulation (1:1 with Web Admin)
@@ -85,72 +94,6 @@ export default function AttendanceScreen({ navigation }: any) {
   const [manualModalVisible, setManualModalVisible] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualEvent, setManualEvent] = useState('Your Loveworld Rehearsal');
-
-  // Rehearsal Clock-in Live Session Controller
-  const [isSessionOpen, setIsSessionOpen] = useState(true);
-  const [togglingSession, setTogglingSession] = useState(false);
-
-  const fetchSessionStatus = useCallback(async () => {
-    try {
-      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
-      const res = await api.attendance.getSession(scopeId);
-      if (res?.data && typeof res.data.isOpen === 'boolean') {
-        setIsSessionOpen(res.data.isOpen);
-      }
-    } catch (err) {
-      console.warn('[Attendance] Failed to fetch session status:', err);
-    }
-  }, [activeZone?.id, isChurchMode, activeChurch?.id]);
-
-  useEffect(() => {
-    fetchSessionStatus();
-  }, [fetchSessionStatus]);
-
-  async function toggleClockinSession() {
-    const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
-    if (!scopeId) return;
-    const nextState = !isSessionOpen;
-    setTogglingSession(true);
-    try {
-      await api.attendance.toggleSession(scopeId, nextState);
-      setIsSessionOpen(nextState);
-      Alert.alert(
-        nextState ? 'Clock-in Opened' : 'Clock-in Closed',
-        nextState
-          ? 'Rehearsal clock-in is now OPEN. Singers can scan QR or use geofence to check in.'
-          : 'Rehearsal clock-in is now CLOSED. Late arrivals cannot check in.'
-      );
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to toggle clock-in session.');
-    } finally {
-      setTogglingSession(false);
-    }
-  }
-
-  // Fetch Attendance from API
-  const fetchAttendance = useCallback(async () => {
-    try {
-      const zoneId = activeZone?.id || undefined;
-      const churchId = isChurchMode ? activeChurch?.id : undefined;
-      const attRes = await api.attendance.getAll(zoneId, undefined, undefined, churchId).catch(() => ({ data: [] as AttendanceRecord[] }));
-      setAllRecords(Array.isArray(attRes?.data) ? attRes.data : []);
-    } catch {
-      setAllRecords([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [activeZone?.id, isChurchMode, activeChurch?.id]);
-
-  useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchAttendance();
-    fetchSessionStatus();
-  };
 
   // Date Navigation Helpers
   const shiftDate = (days: number) => {
@@ -342,7 +285,7 @@ export default function AttendanceScreen({ navigation }: any) {
         method: 'scanner',
       };
 
-      setAllRecords(prev => [newRecord, ...prev]);
+      addRecord(newRecord);
 
       setScanFeedback({
         type: 'success',
@@ -410,7 +353,7 @@ export default function AttendanceScreen({ navigation }: any) {
       method: 'manual',
     };
 
-    setAllRecords(prev => [newRecord, ...prev]);
+    addRecord(newRecord);
     setManualModalVisible(false);
     setManualName('');
 
@@ -657,7 +600,7 @@ export default function AttendanceScreen({ navigation }: any) {
           data={dailyRecords}
           keyExtractor={item => item.id}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7c3aed']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} colors={['#7c3aed']} />}
           ListEmptyComponent={
             loading ? (
               <View style={styles.emptyContainer}>
@@ -724,7 +667,7 @@ export default function AttendanceScreen({ navigation }: any) {
           data={cumulativeData}
           keyExtractor={(item, index) => `cum-${item.userName}-${index}`}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7c3aed']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} colors={['#7c3aed']} />}
           ListEmptyComponent={
             loading ? (
               <View style={styles.emptyContainer}>
@@ -852,7 +795,7 @@ export default function AttendanceScreen({ navigation }: any) {
               style={styles.sheetItem}
               onPress={() => {
                 setActionMenuVisible(false);
-                onRefresh();
+                refetch();
               }}
               activeOpacity={0.7}
             >

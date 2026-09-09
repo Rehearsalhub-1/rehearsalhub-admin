@@ -49,12 +49,9 @@ export const api = {
 
       const zoneSongs = Array.isArray(zoneSongsRes?.data) ? zoneSongsRes.data : [];
       const masterSongs = Array.isArray(masterSongsRes?.data) ? masterSongsRes.data : [];
-
-      // Deduplicate songs by ID to prevent double-counting master songs returned by zone endpoint
-      const allSongIds = new Set<string>();
-      masterSongs.forEach((s: any) => s.id && allSongIds.add(s.id));
-      zoneSongs.forEach((s: any) => s.id && allSongIds.add(s.id));
-      const totalSongsCount = allSongIds.size || masterSongs.length || zoneSongs.length;
+      // The dashboard KPI tile is explicitly named "Ministered Songs" and clicking it navigates to MasterLibraryScreen (All Ministered Catalog).
+      // The ministered catalog contains exactly the master songs count (e.g. 827 songs).
+      const totalSongsCount = masterSongs.length;
 
       const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
       const totalMembersCount = membersRes?.totalCount ?? membersRes?.count ?? members.length;
@@ -112,20 +109,38 @@ export const api = {
   // ── Programs & Rehearsal Events ──────────────────────────────────────────
   programs: {
     getAll: (paramsOrZoneId?: string | { zoneId?: string; category?: string; groupId?: string; subGroupId?: string; includeChurch?: boolean }) => {
+      const params = new URLSearchParams();
+      let hasChurch = false;
+
       if (typeof paramsOrZoneId === 'string') {
         const cleanZone = paramsOrZoneId && paramsOrZoneId !== 'all' && paramsOrZoneId !== 'global' ? paramsOrZoneId : undefined;
-        return apiClient.get<{ success: boolean; data: any[] }>(`/programs?includeChurch=true${cleanZone ? `&zoneId=${encodeURIComponent(cleanZone)}` : ''}`);
-      }
-      const params = new URLSearchParams();
-      params.append('includeChurch', 'true');
-      if (paramsOrZoneId) {
+        if (cleanZone) params.append('zoneId', cleanZone);
+      } else if (paramsOrZoneId) {
         if (paramsOrZoneId.zoneId && paramsOrZoneId.zoneId !== 'all' && paramsOrZoneId.zoneId !== 'global') {
           params.append('zoneId', paramsOrZoneId.zoneId);
         }
-        if (paramsOrZoneId.groupId) params.append('groupId', paramsOrZoneId.groupId);
-        if (paramsOrZoneId.subGroupId) params.append('subGroupId', paramsOrZoneId.subGroupId);
-        if (paramsOrZoneId.category && paramsOrZoneId.category !== 'all') params.append('category', paramsOrZoneId.category);
+        if (paramsOrZoneId.groupId) {
+          params.append('groupId', paramsOrZoneId.groupId);
+          hasChurch = true;
+        }
+        if (paramsOrZoneId.subGroupId) {
+          params.append('subGroupId', paramsOrZoneId.subGroupId);
+          hasChurch = true;
+        }
+        if (paramsOrZoneId.includeChurch) {
+          hasChurch = true;
+        }
+        if (paramsOrZoneId.category && paramsOrZoneId.category !== 'all') {
+          params.append('category', paramsOrZoneId.category);
+        }
       }
+
+      // Only pass includeChurch=true when explicitly querying for church/subgroup mode
+      // Otherwise rehearsalhub-api isolates where.groupId = null, preventing subgroup leaks!
+      if (hasChurch) {
+        params.append('includeChurch', 'true');
+      }
+
       const query = params.toString() ? `?${params.toString()}` : '';
       return apiClient.get<{ success: boolean; data: any[] }>(`/programs${query}`);
     },
@@ -178,6 +193,8 @@ export const api = {
       if (search) params.append('search', search);
       return apiClient.get<{ success: boolean; data: any[] }>(`/profiles/directory?${params.toString()}`);
     },
+    getZoneMembers: (zoneId: string) =>
+      apiClient.get<{ success: boolean; count?: number; data: any[] }>(`/members/zone/${encodeURIComponent(zoneId)}`),
     getAdminRequests: (zoneId?: string) =>
       apiClient.get<{ success: boolean; data: any[] }>(`/members/admin-requests${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     updateRole: (userId: string, role: string) =>

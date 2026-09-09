@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, TextInput, Modal
@@ -10,28 +10,13 @@ import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
-
-interface Church {
-  id: string;
-  name: string;
-  code: string;
-  zoneId: string;
-  zoneName?: string;
-  coordinatorName?: string;
-  coordinatorEmail?: string;
-  memberCount?: number;
-  status?: 'active' | 'pending' | 'rejected';
-  createdAt?: string;
-}
+import { useChurches, Church } from '../hooks/useChurches';
 
 export default function ChurchesScreen({ navigation }: any) {
-  const { activeZone, isAllZones, isChurchMode } = useZoneContext();
+  const { activeZone, isChurchMode } = useZoneContext();
   const { adminUser } = useAuth();
+  const { churches, pendingRequests, loading, refreshing, refetch, createChurch, approveChurch, rejectChurch, assignCoordinator } = useChurches();
 
-  const [churches, setChurches] = useState<Church[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<Church[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'churches' | 'pending'>('churches');
   const [search, setSearch] = useState('');
 
@@ -56,85 +41,19 @@ export default function ChurchesScreen({ navigation }: any) {
   const [showAddPicker, setShowAddPicker] = useState(false);
   const [actionUserId, setActionUserId] = useState<string | null>(null);
 
-  const fetchChurches = useCallback(async () => {
-    try {
-      const effectiveZoneId = activeZone?.id;
-      const [churchesRes, reqRes] = await Promise.all([
-        api.churches.getAll(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
-        api.churches.getRequests(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
-      ]);
-
-      const churchList = Array.isArray(churchesRes.data) ? churchesRes.data : [];
-      const pendingFromMain = churchList.filter(c => c.status === 'pending');
-      const pendingList = Array.isArray(reqRes.data) ? reqRes.data : [];
-      const combinedPending = [...pendingFromMain, ...pendingList.filter(p => !pendingFromMain.some(m => m.id === p.id))];
-
-      setChurches(churchList.filter(c => c.status === 'active' || !c.status));
-      setPendingRequests(combinedPending);
-    } catch (e) {
-      console.error('[Churches] fetch error:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [activeZone?.id]);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchChurches();
-  }, [fetchChurches]);
-
   async function handleCreateChurch() {
     if (!churchName.trim() || !churchCode.trim()) {
       Alert.alert('Missing Fields', 'Please provide a church name and unique code.');
       return;
     }
-
     setCreating(true);
-    try {
-      await api.churches.create({
-        name: churchName.trim(),
-        code: churchCode.trim().toUpperCase(),
-        zoneId: activeZone?.id || adminUser?.zoneId,
-      });
+    const ok = await createChurch(churchName, churchCode);
+    if (ok) {
       setCreateModal(false);
       setChurchName('');
       setChurchCode('');
-      Alert.alert('Success', 'New church added to directory.');
-      fetchChurches();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to create church');
-    } finally {
-      setCreating(false);
     }
-  }
-
-  async function handleApprove(churchId: string) {
-    try {
-      await api.churches.approve(churchId);
-      Alert.alert('Approved', 'Church approved and activated.');
-      fetchChurches();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to approve church');
-    }
-  }
-
-  async function handleReject(churchId: string) {
-    Alert.alert('Reject Request', 'Reject this church creation request?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reject',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.churches.reject(churchId, 'Declined by coordinator');
-            fetchChurches();
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to reject');
-          }
-        },
-      },
-    ]);
+    setCreating(false);
   }
 
   async function handleAssignCoordinator() {
@@ -142,22 +61,14 @@ export default function ChurchesScreen({ navigation }: any) {
       Alert.alert('Missing Email', 'Enter the member email to appoint as coordinator.');
       return;
     }
-
     setAssigning(true);
-    try {
-      await api.churches.addCoordinator(selectedChurch.id, {
-        identifier: coordinatorEmail.trim().toLowerCase(),
-      });
+    const ok = await assignCoordinator(selectedChurch.id, coordinatorEmail.trim().toLowerCase());
+    if (ok) {
       setAssignModal(false);
       setCoordinatorEmail('');
       setSelectedChurch(null);
-      Alert.alert('Assigned', 'Church Coordinator appointed successfully.');
-      fetchChurches();
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to appoint coordinator');
-    } finally {
-      setAssigning(false);
     }
+    setAssigning(false);
   }
 
   async function handleOpenMembersModal(church: Church) {
@@ -191,7 +102,7 @@ export default function ChurchesScreen({ navigation }: any) {
       });
       const membersRes = await api.churches.getMembers(selectedChurch.id);
       setChurchMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
-      fetchChurches();
+      refetch();
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to add member');
     } finally {
@@ -211,7 +122,7 @@ export default function ChurchesScreen({ navigation }: any) {
           try {
             await api.churches.removeMember(selectedChurch.id, userId);
             setChurchMembers(prev => prev.filter(m => m.userId !== userId && m.id !== userId));
-            fetchChurches();
+            refetch();
           } catch (e: any) {
             Alert.alert('Error', e.message || 'Failed to remove member');
           } finally {
@@ -323,7 +234,7 @@ export default function ChurchesScreen({ navigation }: any) {
           keyExtractor={i => i.id}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, gap: 10 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchChurches(); }} tintColor={Colors.accent} />
+            <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} />
           }
           ListEmptyComponent={
             <View style={styles.center}>
@@ -379,7 +290,7 @@ export default function ChurchesScreen({ navigation }: any) {
           keyExtractor={i => i.id}
           contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchChurches(); }} tintColor={Colors.accent} />
+            <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} />
           }
           ListEmptyComponent={
             <View style={styles.center}>
@@ -400,7 +311,7 @@ export default function ChurchesScreen({ navigation }: any) {
               <View style={styles.pendingActions}>
                 <TouchableOpacity
                   style={styles.approveBtn}
-                  onPress={() => handleApprove(item.id)}
+                  onPress={() => approveChurch(item.id)}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="checkmark" size={14} color={Colors.success} style={{ marginRight: 4 }} />
@@ -409,7 +320,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
                 <TouchableOpacity
                   style={styles.rejectBtn}
-                  onPress={() => handleReject(item.id)}
+                  onPress={() => rejectChurch(item.id)}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="close" size={14} color={Colors.danger} style={{ marginRight: 4 }} />
