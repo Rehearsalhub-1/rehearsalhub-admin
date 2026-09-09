@@ -131,8 +131,6 @@ export const ZONES: Zone[] = [
   { id: 'zone-087', name: 'Loveworld Singers LGN', slug: 'lws-lgn', region: 'Special', invitationCode: 'ZONE087', themeColor: '#7C3AED' },
   { id: 'zone-088', name: 'Special Duty Zone', slug: 'special-duty-zone', region: 'Special', invitationCode: 'ZONE088', themeColor: '#7C3AED' },
   { id: 'zone-090', name: 'Special Zone', slug: 'special-zone', region: 'Special', invitationCode: 'ZONE090', themeColor: '#7C3AED' },
-
-  { id: 'zone-boss', name: 'Central Admin', slug: 'central-admin', region: 'Admin', invitationCode: 'BOSS101', themeColor: '#DC2626' }
 ];
 
 export const HQ_GROUP_IDS = [
@@ -143,7 +141,7 @@ export const HQ_GROUP_IDS = [
 
 export function isHQGroup(zoneId: string | undefined): boolean {
   if (!zoneId) return false;
-  return HQ_GROUP_IDS.includes(zoneId) || zoneId === 'zone-boss';
+  return HQ_GROUP_IDS.includes(zoneId);
 }
 
 export function getZoneByInvitationCode(code: string): Zone | undefined {

@@ -83,11 +83,11 @@ export default function GeofenceScreen() {
   const navigation = useNavigation<any>();
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
 
-  const [venueName, setVenueName] = useState('Central Choir Rehearsal Hall');
+  const [venueName, setVenueName] = useState('');
   const [lat, setLat] = useState('6.458985');
   const [lon, setLon] = useState('3.406232');
   const [radius, setRadius] = useState('200');
-  const [activeEventName, setActiveEventName] = useState('Weekly Choir Rehearsal');
+  const [activeEventName, setActiveEventName] = useState('Choir Rehearsal');
   const [isEnabled, setIsEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

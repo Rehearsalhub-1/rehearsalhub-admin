@@ -199,7 +199,7 @@ export default function LoginScreen({ navigation }: Props) {
               <Ionicons name="musical-notes" size={30} color={Colors.accent} />
             </View>
 
-            <Text style={styles.title}>LoveWorld Singers</Text>
+            <Text style={styles.title}> Rehearsal Hub Portal</Text>
             <Text style={styles.subtitle}>Admin Console</Text>
           </View>
 

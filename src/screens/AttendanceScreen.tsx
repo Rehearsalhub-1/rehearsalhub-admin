@@ -40,21 +40,7 @@ export interface AttendanceRecord {
   method?: 'scanner' | 'manual';
 }
 
-// ── Known Loveworld Singers Roster for matching QR user IDs ──────────────────
-const SINGER_ROSTER: Record<string, { name: string; church: string }> = {
-  'usr-01': { name: 'David Adeyemi', church: 'Central Church 1' },
-  'usr-02': { name: 'Maya Roberts', church: 'Christ Embassy Airport City' },
-  'usr-03': { name: 'Grace Chidera', church: 'Loveworld Arena Lekki' },
-  'usr-04': { name: 'Michael Johnson', church: 'CE Ikeja Central' },
-  'usr-05': { name: 'Samuel Kalu', church: 'Christ Embassy Barking' },
-  'usr-06': { name: 'Olivia Mensah', church: 'CE Accra Avenor' },
-  'usr-07': { name: 'Joshua Peters', church: 'CE Randburg 2' },
-  'usr-08': { name: 'Sophia Eze', church: 'Loveworld City' },
-  'usr-09': { name: 'Cliff M', church: 'CE Houston Central' },
-  'usr-10': { name: 'Eli-J', church: 'Central HQ' },
-};
-
-// ── Realistic Multi-Date Loveworld Singers Attendance Mock Records ───────────
+// ── Live Attendance Tracking ────────────────────────────────────────────────
 const TODAY_STR = new Date().toLocaleDateString('en-CA');
 const YESTERDAY_DATE = new Date(Date.now() - 86400000);
 const YESTERDAY_STR = YESTERDAY_DATE.toLocaleDateString('en-CA');
@@ -309,8 +295,7 @@ export default function AttendanceScreen({ navigation }: any) {
         }
       }
 
-      const matchedSinger = parsedUserId ? SINGER_ROSTER[parsedUserId] : undefined;
-      const singerName = parsedName || matchedSinger?.name || (parsedUserId ? `Singer (${parsedUserId})` : 'Choir Singer');
+      const singerName = parsedName || (parsedUserId ? `Singer (${parsedUserId})` : 'Choir Singer');
       const todayDateString = TODAY_STR;
       const eventName = 'Your Loveworld Rehearsal';
 

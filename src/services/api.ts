@@ -25,20 +25,37 @@ export const api = {
   // ── Dashboard Metrics ────────────────────────────────────────────────────
   dashboard: {
     getStats: async (zoneId?: string, churchId?: string) => {
-      const zoneParam = zoneId && zoneId !== 'all' ? `?zoneId=${encodeURIComponent(zoneId)}` : '';
+      const cleanZoneId = zoneId && zoneId !== 'all' && zoneId !== 'zone-boss' ? zoneId : undefined;
+      const zoneParam = cleanZoneId ? `?zoneId=${encodeURIComponent(cleanZoneId)}` : '';
+
+      const progParams = new URLSearchParams();
+      progParams.append('includeChurch', 'true');
+      if (churchId) {
+        progParams.append('groupId', churchId);
+      } else if (cleanZoneId) {
+        progParams.append('zoneId', cleanZoneId);
+      }
+      const progQuery = `?${progParams.toString()}`;
+
       const [zoneSongsRes, masterSongsRes, membersRes, programsRes, submittedRes] = await Promise.all([
         apiClient.get<any>(`/songs/zone${zoneParam}`).catch(() => ({ data: [] })),
         apiClient.get<any>('/songs/master').catch(() => ({ data: [] })),
         churchId
           ? apiClient.get<any>(`/subgroups/${churchId}/members`).catch(() => ({ data: [] }))
           : apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => ({ data: [] })),
-        apiClient.get<any>(`/programs${zoneParam}`).catch(() => ({ data: [] })),
+        apiClient.get<any>(`/programs${progQuery}`).catch(() => ({ data: [] })),
         apiClient.get<any>(`/submitted-songs${zoneParam}`).catch(() => ({ data: [] })),
       ]);
 
       const zoneSongs = Array.isArray(zoneSongsRes?.data) ? zoneSongsRes.data : [];
       const masterSongs = Array.isArray(masterSongsRes?.data) ? masterSongsRes.data : [];
-      const totalSongsCount = masterSongs.length + zoneSongs.length;
+
+      // Deduplicate songs by ID to prevent double-counting master songs returned by zone endpoint
+      const allSongIds = new Set<string>();
+      masterSongs.forEach((s: any) => s.id && allSongIds.add(s.id));
+      zoneSongs.forEach((s: any) => s.id && allSongIds.add(s.id));
+      const totalSongsCount = allSongIds.size || masterSongs.length || zoneSongs.length;
+
       const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
       const totalMembersCount = membersRes?.totalCount ?? membersRes?.count ?? members.length;
       const programs = Array.isArray(programsRes?.data) ? programsRes.data : [];

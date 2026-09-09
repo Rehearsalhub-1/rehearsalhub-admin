@@ -63,9 +63,14 @@ export default function ZoneHeader({
     ? 'HQ Admin'
     : 'Zonal Admin';
 
+  const rawZoneName = activeZone?.name;
+  const cleanZoneName = (rawZoneName && rawZoneName.toLowerCase() !== 'central admin')
+    ? rawZoneName
+    : (isHQ ? 'Loveworld Singers HQ' : 'Your Zone');
+
   const badgeLabel = isChurchMode
     ? (activeChurch?.name || 'Church Choir')
-    : (activeZone?.name ?? (isHQ ? 'Loveworld Singers HQ' : 'Your Zone'));
+    : cleanZoneName;
 
   const scopeBadgeColor = isChurchMode ? '#d97706' : isHQ ? '#4f46e5' : '#7c3aed';
   const scopeBadgeBg = isChurchMode ? '#fffbeb' : isHQ ? '#eef2ff' : '#faf5ff';

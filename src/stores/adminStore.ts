@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient, clearTokens, SessionExpiredError } from '../lib/apiClient';
 import { api } from '../services/api';
-import { ZONES } from '../constants/zones';
 
+// No hardcoded zones: zones are dynamically fetched from the live database
 export interface ZoneOption {
   id: string;
   name: string;
@@ -22,7 +22,7 @@ export interface AdminUser {
   id: string;
   email: string;
   name?: string;
-  role: string;
+  role: 'hq_admin' | 'zone_admin' | 'church_coordinator';
   zoneId: string | null;
   isHQAdmin: boolean;
   isZoneAdmin: boolean;
@@ -38,16 +38,14 @@ interface AdminState {
   isAuthenticated: boolean;
   loading: boolean;
 
-  // Zone Scoping
+  // Active Context Scoping
   activeZone: ZoneOption | null;
   availableZones: ZoneOption[];
   isAllZones: boolean;
 
-  // Church Scoping (supports multiple churches/subgroups)
+  // Church Scope (for dual-role coordinators and church admins)
   activeChurch: ChurchOption | null;
   userChurches: ChurchOption[];
-
-  // Role Mode: 'org' (HQ/Zonal) or 'church' (Local Church Choir)
   activeRoleMode: 'org' | 'church';
   isChurchMode: boolean;
 
@@ -61,12 +59,6 @@ interface AdminState {
   signOut: () => Promise<void>;
 }
 
-const STATIC_CONFIG_ZONES: ZoneOption[] = ZONES.map((z: any) => ({
-  id: z.id,
-  name: z.name,
-  invitationCode: z.invitationCode,
-}));
-
 export const useAdminStore = create<AdminState>((set, get) => ({
   adminUser: null,
   isAuthenticated: false,
@@ -78,7 +70,6 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   activeChurch: null,
   userChurches: [],
-
   activeRoleMode: 'org',
   isChurchMode: false,
 
@@ -108,43 +99,49 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   refreshUser: async () => {
     try {
-      // 1. Fetch current profile
-      let meRes: any = null;
+      set({ loading: true });
+
+      // 0. Load cached session first for instant offline startup
       try {
-        meRes = await api.auth.me();
-      } catch (authErr: any) {
-        if (authErr instanceof SessionExpiredError) {
-          await get().signOut();
-          return;
-        }
-        // Network failure / offline: check for cached admin session before logging out
-        const cachedRaw = await SecureStore.getItemAsync('admin_cached_session').catch(() => null);
+        const cachedRaw = await SecureStore.getItemAsync('admin_cached_session');
         if (cachedRaw) {
-          try {
-            const cached = JSON.parse(cachedRaw);
-            if (cached?.adminUser) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached?.adminUser && !get().adminUser) {
+            set({
+              adminUser: cached.adminUser,
+              isAuthenticated: true,
+              loading: false,
+              activeZone: cached.activeZone ?? null,
+              availableZones: cached.availableZones ?? [],
+              activeChurch: cached.activeChurch ?? null,
+              userChurches: cached.userChurches ?? [],
+              activeRoleMode: cached.activeRoleMode ?? 'org',
+              isChurchMode: cached.isChurchMode ?? false,
+            });
+            if (cached.activeZone || cached.activeChurch) {
               apiClient.setMobileTenantScope({
-                zoneId: cached.activeZone?.id || null,
-                zoneCode: cached.activeZone?.invitationCode || null,
+                zoneId: cached.activeZone?.id ?? null,
+                zoneCode: cached.activeZone?.invitationCode ?? null,
                 churchId: cached.isChurchMode ? (cached.activeChurch?.id ?? null) : null,
                 scope: cached.isChurchMode ? 'church' : (cached.activeZone ? 'zone' : 'global'),
               });
-              set({
-                adminUser: cached.adminUser,
-                isAuthenticated: true,
-                loading: false,
-                activeZone: cached.activeZone || null,
-                availableZones: cached.availableZones || [],
-                activeChurch: cached.activeChurch || null,
-                userChurches: cached.userChurches || [],
-                activeRoleMode: cached.activeRoleMode || 'org',
-                isChurchMode: Boolean(cached.isChurchMode),
-              });
-              return;
             }
-          } catch {}
+          }
         }
-        set({ adminUser: null, isAuthenticated: false, loading: false });
+      } catch {}
+
+      // 1. Fetch authenticated user profile
+      let meRes: any = null;
+      try {
+        meRes = await api.auth.me();
+      } catch (authErr) {
+        if (authErr instanceof SessionExpiredError) {
+          await SecureStore.deleteItemAsync('admin_cached_session').catch(() => {});
+          await clearTokens();
+          set({ adminUser: null, isAuthenticated: false, loading: false });
+          return;
+        }
+        set({ loading: false });
         return;
       }
 
@@ -156,16 +153,20 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       const raw = meRes.data;
       const rawRole = (raw.role || '').toLowerCase().trim();
 
-      // 2. Concurrently fetch verified memberships, user churches, and organizations from DB
+      // 2. Fetch verified data
       const [membersMineRes, churchesMineRes, orgsRes] = await Promise.all([
         api.organizations.getMine().catch(() => null),
         api.churches.mine().catch(() => null),
         api.organizations.getAll().catch(() => null),
       ]);
 
-      const dbZones: any[] = Array.isArray(orgsRes?.data) ? orgsRes.data : [];
+      // Filter out any legacy 'zone-boss' or 'Central Admin' from live database organizations
+      const rawDbZones: any[] = Array.isArray(orgsRes?.data) ? orgsRes.data : [];
+      const dbZones: any[] = rawDbZones.filter(
+        (z: any) => z && z.id !== 'zone-boss' && (z.name || '').toLowerCase() !== 'central admin' && z.code !== 'BOSS101'
+      );
 
-      // 3. Extract all user memberships (exactly like rehearsalhubv2 loadZoneMemberships)
+      // 3. Extract user memberships and strip any legacy 'zone-boss' references
       let allMemberships: any[] = [];
       if (membersMineRes?.data) {
         if (Array.isArray(membersMineRes.data.memberships)) {
@@ -180,58 +181,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         }
       }
 
-      const isHqUser =
-        rawRole === 'hq_admin' ||
-        rawRole === 'admin' ||
-        rawRole === 'super_admin' ||
-        rawRole === 'boss' ||
-        rawRole === 'org_admin' ||
-        Boolean(raw.hasHqAccess || raw.has_hq_access);
+      allMemberships = allMemberships.filter((m: any) => {
+        const orgId = m.organizationId || m.zoneId || m.organization?.id;
+        const orgName = m.organization?.name || m.zoneName;
+        return orgId !== 'zone-boss' && (orgName || '').toLowerCase() !== 'central admin';
+      });
 
-      // 4. Resolve the admin's zones
-      // Rule: Zonal admins are locked to ONE zone (can admin multiple churches).
-      // HQ Admins are locked to Loveworld Singers HQ (their own choir at LCA). HQ is a real zone.
-      let userZones: ZoneOption[];
-      if (isHqUser) {
-        const hqZone =
-          dbZones.find((z: any) => z.isHq || z.id === 'zone-001' || z.region === 'Headquarters') ||
-          STATIC_CONFIG_ZONES.find((z: any) => z.id === 'zone-001') || {
-            id: 'zone-001',
-            name: 'Loveworld Singers HQ',
-            invitationCode: 'ZONE001',
-            role: 'hq_admin',
-          };
-        userZones = [
-          {
-            id: hqZone.id,
-            name: hqZone.name || 'Loveworld Singers HQ',
-            invitationCode: hqZone.invitationCode || 'ZONE001',
-            role: 'hq_admin',
-          },
-        ];
-      } else {
-        const adminMem = allMemberships.find(m => {
-          const r = (m.role || '').toLowerCase();
-          return r.includes('admin') || r.includes('coordinator') || r.includes('leader');
-        });
-        const targetZoneId = adminMem?.organizationId || adminMem?.zoneId || raw.zoneId || '';
-        const matched =
-          dbZones.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId) ||
-          STATIC_CONFIG_ZONES.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId) || {
-            id: targetZoneId,
-            name: targetZoneId || 'Your Zone',
-            invitationCode: targetZoneId || '',
-          };
-        const lockedZone: ZoneOption = {
-          id: matched.id,
-          name: matched.name,
-          invitationCode: matched.invitationCode || matched.id,
-          role: adminMem?.role || 'zone_admin',
-        };
-        userZones = [lockedZone];
-      }
-
-      // 5. Resolve user churches (support MULTIPLE churches)
+      // 4. Resolve user churches (support multiple churches)
       const userChurches: ChurchOption[] = [];
       const rawGroups = Array.isArray(churchesMineRes?.data) ? churchesMineRes.data : [];
       rawGroups.forEach((g: any) => {
@@ -245,7 +201,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         }
       });
 
-      // Also inspect memberships for church/group associations
+      // Inspect memberships for church/group associations
       allMemberships.forEach((m: any) => {
         const group = m.group || (m.groupId ? { id: m.groupId, name: m.groupName } : null);
         if (group && group.id && !userChurches.some(c => c.id === group.id)) {
@@ -258,57 +214,150 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         }
       });
 
-      // Also inspect profile church info
       if (raw.churchId && !userChurches.some(c => c.id === raw.churchId)) {
         userChurches.push({
           id: raw.churchId,
           name: raw.churchName || raw.church || 'Local Church Choir',
         });
-      } else if (raw.church && userChurches.length === 0) {
-        userChurches.push({
-          id: 'church-primary',
-          name: raw.church,
-        });
       }
 
-      // 6. Determine roles
-      const isZoneAdmin = isHqUser || rawRole === 'zone_admin' || rawRole === 'zone_coordinator';
-      const isChurchAdmin =
-        isZoneAdmin ||
+      // 5. DETERMINE STRICTLY ONE OF THE THREE ROLES
+      const hqMem = allMemberships.find((m: any) => {
+        const orgId = m.organizationId || m.zoneId || m.organization?.id;
+        return orgId === 'zone-001' || m.organization?.isHq || m.hasHqAccess;
+      });
+
+      const isHqUser = Boolean(
+        rawRole === 'hq_admin' ||
+        rawRole === 'super_admin' ||
+        raw.hasHqAccess ||
+        raw.has_hq_access ||
+        hqMem
+      );
+
+      const isPureChurchRole =
         rawRole === 'church_coordinator' ||
-        rawRole === 'subgroup_admin' ||
-        rawRole === 'subgroup_coordinator' ||
+        rawRole === 'church_admin' ||
         rawRole === 'group_admin' ||
-        rawRole === 'coordinator' ||
-        userChurches.some(c => {
-          const r = (c.role || '').toLowerCase();
-          return r.includes('coordinator') || r.includes('admin') || r.includes('leader');
+        rawRole === 'subgroup_admin' ||
+        rawRole === 'subgroup_coordinator';
+
+      const isZoneAdminUser = !isHqUser && !isPureChurchRole && (
+        rawRole === 'zone_admin' ||
+        rawRole === 'zone_coordinator' ||
+        rawRole === 'org_admin' ||
+        rawRole === 'admin' ||
+        allMemberships.some((m: any) => {
+          const r = (m.role || '').toLowerCase();
+          return (r.includes('admin') || r.includes('coord') || r.includes('leader')) && !m.groupId;
+        })
+      );
+
+      let canonicalRole: 'hq_admin' | 'zone_admin' | 'church_coordinator';
+      if (isHqUser) {
+        canonicalRole = 'hq_admin';
+      } else if (isZoneAdminUser) {
+        canonicalRole = 'zone_admin';
+      } else {
+        canonicalRole = 'church_coordinator';
+      }
+
+      // 6. Resolve User's Zone directly from Live Database
+      let userZones: ZoneOption[];
+      if (canonicalRole === 'hq_admin') {
+        const hqZone = dbZones.find((z: any) => z.isHq || z.id === 'zone-001') || {
+          id: 'zone-001',
+          name: 'Loveworld Singers HQ',
+          invitationCode: 'ZONE001',
+          role: 'hq_admin',
+        };
+        userZones = [
+          {
+            id: hqZone.id,
+            name: hqZone.name || 'Loveworld Singers HQ',
+            invitationCode: hqZone.invitationCode || hqZone.code || 'ZONE001',
+            role: 'hq_admin',
+          },
+        ];
+      } else {
+        const adminMem = allMemberships.find((m: any) => {
+          const r = (m.role || '').toLowerCase();
+          const orgId = m.organizationId || m.zoneId || m.organization?.id;
+          return (r.includes('admin') || r.includes('coord') || r.includes('leader')) && orgId !== 'zone-boss';
         });
 
-      const isPureChurchAdmin = isChurchAdmin && !isHqUser && !isZoneAdmin;
-      const hasDualRole = (isHqUser || isZoneAdmin) && (isChurchAdmin || userChurches.length > 0);
+        const anyMem = allMemberships.find((m: any) => {
+          const orgId = m.organizationId || m.zoneId || m.organization?.id;
+          return orgId && orgId !== 'zone-boss';
+        });
 
-      // 7. Resolve default active zone
+        let targetZoneId =
+          adminMem?.organizationId ||
+          adminMem?.zoneId ||
+          raw.zoneId ||
+          raw.zone_id ||
+          anyMem?.organizationId ||
+          anyMem?.zoneId ||
+          '';
+
+        if (targetZoneId === 'zone-boss') {
+          targetZoneId = '';
+        }
+
+        const matchedDbZone =
+          (targetZoneId && dbZones.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId || z.code === targetZoneId)) ||
+          dbZones[0] ||
+          null;
+
+        const resolvedZoneName =
+          matchedDbZone?.name ||
+          adminMem?.organization?.name ||
+          adminMem?.zoneName ||
+          raw.zoneName ||
+          (targetZoneId ? `Zone (${targetZoneId})` : 'Your Zone');
+
+        const resolvedZoneCode =
+          matchedDbZone?.invitationCode ||
+          matchedDbZone?.code ||
+          adminMem?.organization?.invitationCode ||
+          adminMem?.zoneCode ||
+          raw.zoneCode ||
+          targetZoneId ||
+          'ZONE';
+
+        const lockedZone: ZoneOption = {
+          id: matchedDbZone?.id || targetZoneId || 'zone-001',
+          name: resolvedZoneName,
+          invitationCode: resolvedZoneCode,
+          role: canonicalRole,
+        };
+        userZones = [lockedZone];
+      }
+
+      // 7. Resolve default active zone & church
       const currentActiveZone = get().activeZone;
       const defaultZone =
         (currentActiveZone && userZones.find(z => z.id === currentActiveZone.id)) ||
         userZones[0] ||
         null;
-      const isAllZones = false;
 
-      // 8. Resolve default active church
       const currentActiveChurch = get().activeChurch;
       const defaultChurch =
         (currentActiveChurch && userChurches.find(c => c.id === currentActiveChurch.id)) ||
         userChurches[0] ||
         null;
 
-      // 9. Initial role mode
+      const isPureChurchAdmin = canonicalRole === 'church_coordinator';
+      const isZoneAdmin = canonicalRole === 'zone_admin';
+      const isChurchAdmin = isPureChurchAdmin || userChurches.length > 0;
+      const hasDualRole = isZoneAdmin && userChurches.length > 0;
+
+      // Initial role mode
       const currentRoleMode = get().activeRoleMode;
       const activeRoleMode = isPureChurchAdmin ? 'church' : currentRoleMode || 'org';
       const isChurchMode = activeRoleMode === 'church';
 
-      // 10. Seed Tenant Scope Headers for API client
+      // Seed Tenant Scope Headers for API client
       apiClient.setMobileTenantScope({
         zoneId: defaultZone?.id || null,
         zoneCode: defaultZone?.invitationCode || null,
@@ -320,9 +369,9 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         id: raw.id,
         email: raw.email,
         name: raw.name || raw.firstName || (raw.email ? raw.email.split('@')[0] : 'Administrator'),
-        role: rawRole || (isHqUser ? 'hq_admin' : isZoneAdmin ? 'zone_admin' : 'coordinator'),
+        role: canonicalRole,
         zoneId: defaultZone?.id || null,
-        isHQAdmin: isHqUser,
+        isHQAdmin: canonicalRole === 'hq_admin',
         isZoneAdmin,
         isChurchAdmin,
         hasDualRole,

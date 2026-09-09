@@ -112,18 +112,25 @@ export default function DashboardScreen({ navigation }: any) {
     }).slice(0, 5);
   }, [members, memberSearch]);
 
+  const rawZoneName = activeZone?.name;
+  const cleanZoneName = (rawZoneName && rawZoneName.toLowerCase() !== 'central admin')
+    ? rawZoneName
+    : 'Assigned Zone';
+
   const liveScopeTitle = isChurchMode
     ? `${activeChurch?.name || 'Church Choir'} • Live Scope`
     : isAllZones
     ? 'Global Ministry Overview • Live'
-    : `${activeZone?.name || 'Assigned Zone'} • Live Metrics`;
+    : `${cleanZoneName} • Live Metrics`;
 
   const formatRoleTag = (role: string) => {
     switch (role) {
       case 'hq_admin':
         return 'HQ Admin';
+      case 'zone_admin':
       case 'zone_coordinator':
         return 'Zonal Coord';
+      case 'church_admin':
       case 'church_coordinator':
         return 'Church Coord';
       default:

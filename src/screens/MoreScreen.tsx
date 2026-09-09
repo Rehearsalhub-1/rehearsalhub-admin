@@ -75,9 +75,14 @@ export default function MoreScreen({ navigation }: any) {
     ]);
   }
 
+  const rawZoneName = activeZone?.name;
+  const cleanZoneName = (rawZoneName && rawZoneName.toLowerCase() !== 'central admin')
+    ? rawZoneName
+    : (adminUser?.isHQAdmin ? 'Loveworld Singers HQ' : 'Your Zone');
+
   const zoneLabel = isChurchMode
     ? (activeChurch?.name || 'Church Choir')
-    : (activeZone?.name ?? (adminUser?.isHQAdmin ? 'Loveworld Singers HQ' : 'Your Zone'));
+    : cleanZoneName;
 
   const roleTitle = adminUser?.isHQAdmin
     ? 'HQ Admin'
