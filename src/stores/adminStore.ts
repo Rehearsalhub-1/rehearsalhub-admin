@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { apiClient, clearTokens } from '../lib/apiClient';
+import { apiClient, clearTokens, SessionExpiredError } from '../lib/apiClient';
 import { api } from '../services/api';
 import { ZONES } from '../constants/zones';
 
@@ -109,7 +109,45 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   refreshUser: async () => {
     try {
       // 1. Fetch current profile
-      const meRes = await api.auth.me().catch(() => null);
+      let meRes: any = null;
+      try {
+        meRes = await api.auth.me();
+      } catch (authErr: any) {
+        if (authErr instanceof SessionExpiredError) {
+          await get().signOut();
+          return;
+        }
+        // Network failure / offline: check for cached admin session before logging out
+        const cachedRaw = await SecureStore.getItemAsync('admin_cached_session').catch(() => null);
+        if (cachedRaw) {
+          try {
+            const cached = JSON.parse(cachedRaw);
+            if (cached?.adminUser) {
+              apiClient.setMobileTenantScope({
+                zoneId: cached.activeZone?.id || null,
+                zoneCode: cached.activeZone?.invitationCode || null,
+                churchId: cached.isChurchMode ? (cached.activeChurch?.id ?? null) : null,
+                scope: cached.isChurchMode ? 'church' : (cached.activeZone ? 'zone' : 'global'),
+              });
+              set({
+                adminUser: cached.adminUser,
+                isAuthenticated: true,
+                loading: false,
+                activeZone: cached.activeZone || null,
+                availableZones: cached.availableZones || [],
+                activeChurch: cached.activeChurch || null,
+                userChurches: cached.userChurches || [],
+                activeRoleMode: cached.activeRoleMode || 'org',
+                isChurchMode: Boolean(cached.isChurchMode),
+              });
+              return;
+            }
+          } catch {}
+        }
+        set({ adminUser: null, isAuthenticated: false, loading: false });
+        return;
+      }
+
       if (!meRes || !meRes.data) {
         set({ adminUser: null, isAuthenticated: false, loading: false });
         return;
@@ -293,6 +331,20 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         userChurches,
       };
 
+      // Persist session cache for seamless offline resilience
+      SecureStore.setItemAsync(
+        'admin_cached_session',
+        JSON.stringify({
+          adminUser,
+          activeZone: defaultZone,
+          availableZones: userZones,
+          activeChurch: defaultChurch,
+          userChurches,
+          activeRoleMode,
+          isChurchMode,
+        })
+      ).catch(() => {});
+
       set({
         adminUser,
         isAuthenticated: true,
@@ -367,6 +419,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       const refreshToken = (await SecureStore.getItemAsync('refreshToken')) || undefined;
       await api.auth.logout(refreshToken).catch(() => {});
     } catch {}
+    await SecureStore.deleteItemAsync('admin_cached_session').catch(() => {});
     await clearTokens();
     set({
       adminUser: null,
