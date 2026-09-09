@@ -106,7 +106,7 @@ export default function AttendanceScreen({ navigation }: any) {
 
   const fetchSessionStatus = useCallback(async () => {
     try {
-      const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
+      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
       const res = await api.attendance.getSession(scopeId);
       if (res?.data && typeof res.data.isOpen === 'boolean') {
         setIsSessionOpen(res.data.isOpen);
@@ -121,11 +121,12 @@ export default function AttendanceScreen({ navigation }: any) {
   }, [fetchSessionStatus]);
 
   async function toggleClockinSession() {
-    const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
+    const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
+    if (!scopeId) return;
     const nextState = !isSessionOpen;
     setTogglingSession(true);
     try {
-      await api.attendance.toggleSession(scopeId || 'zone-001', nextState);
+      await api.attendance.toggleSession(scopeId, nextState);
       setIsSessionOpen(nextState);
       Alert.alert(
         nextState ? 'Clock-in Opened' : 'Clock-in Closed',
@@ -143,7 +144,7 @@ export default function AttendanceScreen({ navigation }: any) {
   // Fetch Attendance from API
   const fetchAttendance = useCallback(async () => {
     try {
-      const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
+      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
       const attRes = await api.attendance.getAll(scopeId).catch(() => ({ data: [] as AttendanceRecord[] }));
       setAllRecords(Array.isArray(attRes?.data) ? attRes.data : []);
     } catch {
@@ -363,7 +364,7 @@ export default function AttendanceScreen({ navigation }: any) {
         message: `${singerName} marked Present!`,
       });
 
-      const scopeId = isChurchMode ? activeChurch?.id : (activeZone?.id || 'zone-001');
+      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
       api.attendance.recordCheckIn({
         idempotencyKey,
         userId: parsedUserId,

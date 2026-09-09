@@ -265,7 +265,7 @@ export default function ScheduleScreen() {
       return;
     }
     try {
-      const orgId = activeZone?.id || 'zone-001';
+      const orgId = activeZone?.id;
       const subGroupId = isChurchMode ? activeChurch?.id : undefined;
       const res = await api.schedule.create({
         name: trimmed,

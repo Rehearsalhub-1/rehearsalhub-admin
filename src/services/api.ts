@@ -94,6 +94,8 @@ export const api = {
   programs: {
     getAll: (paramsOrZoneId?: string | { zoneId?: string; category?: string; groupId?: string; subGroupId?: string; includeChurch?: boolean }) => {
       const params = new URLSearchParams();
+      // Always include church programs — matches rehearsalhubv2 behavior
+      params.append('includeChurch', 'true');
       if (typeof paramsOrZoneId === 'string') {
         if (paramsOrZoneId) params.append('zoneId', paramsOrZoneId);
       } else if (paramsOrZoneId) {
@@ -101,7 +103,6 @@ export const api = {
         if (paramsOrZoneId.category) params.append('category', paramsOrZoneId.category);
         if (paramsOrZoneId.groupId) params.append('groupId', paramsOrZoneId.groupId);
         if (paramsOrZoneId.subGroupId) params.append('subGroupId', paramsOrZoneId.subGroupId);
-        if (paramsOrZoneId.includeChurch) params.append('includeChurch', 'true');
       }
       const query = params.toString() ? `?${params.toString()}` : '';
       return apiClient.get<{ success: boolean; data: any[] }>(`/programs${query}`);

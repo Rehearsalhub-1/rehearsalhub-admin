@@ -176,7 +176,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           const r = (m.role || '').toLowerCase();
           return r.includes('admin') || r.includes('coordinator') || r.includes('leader');
         });
-        const targetZoneId = adminMem?.organizationId || adminMem?.zoneId || raw.zoneId || 'zone-001';
+        const targetZoneId = adminMem?.organizationId || adminMem?.zoneId || raw.zoneId || '';
         const matched =
           dbZones.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId) ||
           STATIC_CONFIG_ZONES.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId) || {
@@ -274,7 +274,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       apiClient.setMobileTenantScope({
         zoneId: defaultZone?.id || null,
         zoneCode: defaultZone?.invitationCode || null,
-        scope: isChurchMode ? 'global' : 'zone',
+        churchId: isChurchMode ? (defaultChurch?.id ?? null) : null,
+        scope: isChurchMode ? 'church' : (defaultZone ? 'zone' : 'global'),
       });
 
       const adminUser: AdminUser = {
@@ -319,7 +320,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     apiClient.setMobileTenantScope({
       zoneId: targetZone.id,
       zoneCode: targetZone.invitationCode,
-      scope: isChurchMode ? 'global' : 'zone',
+      churchId: isChurchMode ? get().activeChurch?.id ?? null : null,
+      scope: isChurchMode ? 'church' : 'zone',
     });
   },
 
@@ -338,7 +340,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     apiClient.setMobileTenantScope({
       zoneId: activeZone?.id ?? null,
       zoneCode: activeZone?.invitationCode ?? null,
-      churchId: church.id,
+      churchId: isChurchMode ? church.id : null,
       scope: isChurchMode ? 'church' : 'zone',
     });
   },

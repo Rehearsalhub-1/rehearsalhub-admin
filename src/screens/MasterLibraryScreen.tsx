@@ -80,7 +80,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const fetchZoneSongs = useCallback(async () => {
     setZoneSongsLoading(true);
     try {
-      const result = await api.songs.getZoneSongs(activeZone?.id || 'zone-001');
+      const result = await api.songs.getZoneSongs(activeZone?.id);
       setZoneSongs(Array.isArray(result?.data) ? result.data : []);
     } catch (e) {
       console.log('[ZoneSongs] fetch note:', e);

@@ -4,6 +4,8 @@ const BASE_URL = (process.env.EXPO_PUBLIC_BACKEND_URL || 'https://rehearsalhub-a
   .replace(/\/+$/, '')
   .replace(/\/api$/, '');
 
+const API_KEY = process.env.EXPO_PUBLIC_INTERNAL_API_KEY ?? '';
+
 export class SessionExpiredError extends Error {
   constructor() {
     super('Session expired');
@@ -100,7 +102,10 @@ async function refreshSession(): Promise<string> {
 
       const res = await fetch(`${BASE_URL}/auth/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+        },
         body: JSON.stringify({ refreshToken, userId }),
       });
 
@@ -137,6 +142,7 @@ async function request<T>(
   const token = await getAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'x-api-key': API_KEY,
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -256,12 +262,15 @@ async function uploadRequest<T>(
   timeoutMs = 60000,
 ): Promise<T> {
   const token = await getAccessToken();
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    'x-api-key': API_KEY,
+  };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const scope = getMobileTenantScope();
   if (scope.zoneId) headers['x-zone-id'] = scope.zoneId;
   if (scope.zoneCode) headers['x-zone-code'] = scope.zoneCode;
+  if (scope.churchId) headers['x-church-id'] = scope.churchId;
   headers['x-scope'] = scope.scope;
 
   const controller = new AbortController();

@@ -113,7 +113,7 @@ export default function CalendarScreen() {
         endTime: endTime.trim(),
         location: location.trim() || 'Main Rehearsal Hall',
         category,
-        zoneId: activeZone?.id || 'zone-001',
+        zoneId: activeZone?.id,
       };
 
       if (editingEventId) {

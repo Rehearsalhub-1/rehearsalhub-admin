@@ -99,7 +99,7 @@ export default function GeofenceScreen() {
     ? `geofence_${activeChurch.id}`
     : isHQ
     ? 'geofence_hq'
-    : `geofence_${activeZone?.id || 'zone-001'}`;
+    : `geofence_${activeZone?.id || 'default'}`;
 
   const currentScopeTitle = isChurchMode
     ? (activeChurch?.name || 'Local Church Choir')
@@ -200,7 +200,7 @@ export default function GeofenceScreen() {
         radius: radNum,
         activeEventName: activeEventName.trim() || 'Rehearsal',
         isEnabled,
-        zoneId: isChurchMode ? (activeChurch?.id || '') : (activeZone?.id || 'zone-001'),
+        zoneId: isChurchMode ? (activeChurch?.id || '') : (activeZone?.id || ''),
         scope: isChurchMode ? 'church' : 'zone',
         updatedAt: new Date().toISOString(),
       };

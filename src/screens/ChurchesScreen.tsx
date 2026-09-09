@@ -58,7 +58,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
   const fetchChurches = useCallback(async () => {
     try {
-      const effectiveZoneId = activeZone?.id || 'zone-001';
+      const effectiveZoneId = activeZone?.id;
       const [churchesRes, reqRes] = await Promise.all([
         api.churches.getAll(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
         api.churches.getRequests(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
@@ -95,7 +95,7 @@ export default function ChurchesScreen({ navigation }: any) {
       await api.churches.create({
         name: churchName.trim(),
         code: churchCode.trim().toUpperCase(),
-        zoneId: activeZone?.id || adminUser?.zoneId || 'zone-001',
+        zoneId: activeZone?.id || adminUser?.zoneId,
       });
       setCreateModal(false);
       setChurchName('');
@@ -169,7 +169,7 @@ export default function ChurchesScreen({ navigation }: any) {
     try {
       const [membersRes, dirRes] = await Promise.all([
         api.churches.getMembers(church.id).catch(() => ({ data: [] })),
-        api.members.getDirectory(church.zoneId || activeZone?.id || 'zone-001').catch(() => ({ data: [] })),
+        api.members.getDirectory(church.zoneId || activeZone?.id).catch(() => ({ data: [] })),
       ]);
       setChurchMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
       setDirectory(Array.isArray(dirRes.data) ? dirRes.data : []);

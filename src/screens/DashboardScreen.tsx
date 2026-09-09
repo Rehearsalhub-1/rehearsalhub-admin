@@ -40,7 +40,7 @@ export default function DashboardScreen({ navigation }: any) {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const zoneId = isAllZones ? undefined : (activeZone?.id || 'zone-001');
+      const zoneId = isAllZones ? undefined : (activeZone?.id || undefined);
       const churchId = isChurchMode ? activeChurch?.id : undefined;
 
       const [statsRes, programsRes, membersRes] = await Promise.all([

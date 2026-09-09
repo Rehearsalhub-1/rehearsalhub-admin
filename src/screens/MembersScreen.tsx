@@ -41,7 +41,7 @@ export default function MembersScreen() {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const effectiveZoneId = isAllZones ? undefined : (activeZone?.id || 'zone-001');
+      const effectiveZoneId = isAllZones ? undefined : (activeZone?.id || undefined);
       const [dirRes, reqRes] = await Promise.all([
         api.members.getDirectory(effectiveZoneId).catch(() => ({ data: [] })),
         api.members.getAdminRequests(effectiveZoneId).catch(() => ({ data: [] })),

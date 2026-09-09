@@ -90,7 +90,7 @@ export default function NotificationsScreen() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [category, setCategory] = useState<CategoryOption['value']>('rehearsal');
-  const [audienceType, setAudienceType] = useState<'zone' | 'church' | 'individual'>('zone');
+  const [audienceType, setAudienceType] = useState<'zone' | 'church' | 'individual'>(isChurchMode ? 'church' : 'zone');
   const [selectedChurchId, setSelectedChurchId] = useState(activeChurch?.id || '');
   const [targetEmail, setTargetEmail] = useState('');
   const [sending, setSending] = useState(false);
@@ -100,12 +100,15 @@ export default function NotificationsScreen() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [refreshingHistory, setRefreshingHistory] = useState(false);
 
-  // Sync selected church with active church
+  // Sync selected church with active church & mode
   useEffect(() => {
     if (activeChurch?.id) {
       setSelectedChurchId(activeChurch.id);
     }
-  }, [activeChurch?.id]);
+    if (isChurchMode) {
+      setAudienceType('church');
+    }
+  }, [activeChurch?.id, isChurchMode]);
 
   // Load sent history
   const fetchSentHistory = useCallback(async () => {
@@ -176,7 +179,7 @@ export default function NotificationsScreen() {
         payload.targetChurchId = churchId;
       } else {
         // Scoped to active zone / HQ
-        payload.targetOrgId = activeZone?.id || 'zone-001';
+        payload.targetOrgId = activeZone?.id;
       }
 
       const res = await api.notifications.send(payload as any);

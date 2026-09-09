@@ -261,8 +261,8 @@ export function ProgramModal({
       } else {
         const createPayload = {
           ...payload,
-          organizationId: activeZoneId || 'zone-001',
-          zoneId: activeZoneId || 'zone-001',
+          organizationId: activeZoneId,
+          zoneId: activeZoneId,
           songIds: [],
           ...(isChurchMode && activeChurchId
             ? { groupId: activeChurchId, subGroupId: activeChurchId, scope: 'subgroup' }
@@ -783,11 +783,11 @@ export default function ProgramsScreen({ navigation }: any) {
     try {
       const options = isChurchMode && activeChurch?.id
         ? { groupId: activeChurch.id, subGroupId: activeChurch.id, includeChurch: true }
-        : { zoneId: !isAllZones ? (activeZone?.id || 'zone-001') : undefined };
+        : { zoneId: !isAllZones ? (activeZone?.id || undefined) : undefined };
 
       const [programsRes, songsRes] = await Promise.all([
         api.programs.getAll(options).catch(() => ({ data: [] })),
-        api.songs.getZoneSongs(activeZone?.id || 'zone-001').catch(() => ({ data: [] })),
+        api.songs.getZoneSongs(activeZone?.id).catch(() => ({ data: [] })),
       ]);
       setPrograms(Array.isArray(programsRes?.data) ? programsRes.data : []);
       setAllSongs(Array.isArray(songsRes?.data) ? songsRes.data : []);
@@ -1114,7 +1114,7 @@ export default function ProgramsScreen({ navigation }: any) {
       <ProgramModal
         visible={showProgramModal}
         editingProgram={editingProgram}
-        activeZoneId={activeZone?.id ?? 'zone-001'}
+        activeZoneId={activeZone?.id}
         isChurchMode={isChurchMode}
         activeChurchId={activeChurch?.id}
         onClose={() => setShowProgramModal(false)}
