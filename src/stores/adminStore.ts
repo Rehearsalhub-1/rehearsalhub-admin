@@ -262,102 +262,55 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         canonicalRole = 'church_coordinator';
       }
 
-      // 6. Resolve User's Zone directly from Live Database
-      let userZones: ZoneOption[];
-      if (canonicalRole === 'hq_admin') {
-        const hqZone = dbZones.find((z: any) => z.isHq || z.id === 'zone-001') || {
-          id: 'zone-001',
-          name: 'Loveworld Singers HQ',
-          invitationCode: 'ZONE001',
-          role: 'hq_admin',
-        };
+      // 6. Resolve User's Zone directly from Live Database (Identical to rehearsalhubv2)
+      const userZones: ZoneOption[] = [];
+      for (const mem of allMemberships) {
+        const zId = mem.organizationId || mem.organization_id || mem.zoneId || mem.zone_id || mem.id;
+        const orgName = mem.organization?.name || mem.zoneName || zId;
+        const orgCode = mem.organization?.invitationCode || mem.organization?.code || mem.zoneCode || zId;
 
-        // HQ Admin has oversight of all ministry zones
-        const otherZones = dbZones
-          .filter((z: any) => z && z.id !== hqZone.id)
-          .map((z: any) => ({
-            id: z.id,
-            name: z.name || 'Zone',
-            invitationCode: z.invitationCode || z.code || z.id,
-            role: 'hq_admin',
-          }));
+        if (zId && zId !== 'zone-boss') {
+          const matched = dbZones.find((z: any) =>
+            String(z.id) === String(zId) ||
+            (z.invitationCode && String(z.invitationCode).toLowerCase() === String(zId).toLowerCase()) ||
+            (z.name && String(z.name).toLowerCase() === String(orgName).toLowerCase())
+          ) || { id: String(zId), name: orgName, invitationCode: orgCode };
 
-        userZones = [
-          {
-            id: hqZone.id,
-            name: hqZone.name || 'Loveworld Singers HQ',
-            invitationCode: hqZone.invitationCode || hqZone.code || 'ZONE001',
-            role: 'hq_admin',
-          },
-          ...otherZones,
-        ];
-      } else {
-        const adminMem = allMemberships.find((m: any) => {
-          const r = (m.role || '').toLowerCase();
-          const orgId = m.organizationId || m.zoneId || m.organization?.id;
-          return (r.includes('admin') || r.includes('coord') || r.includes('leader')) && orgId !== 'zone-boss';
-        });
-
-        const anyMem = allMemberships.find((m: any) => {
-          const orgId = m.organizationId || m.zoneId || m.organization?.id;
-          return orgId && orgId !== 'zone-boss';
-        });
-
-        let targetZoneId =
-          adminMem?.organizationId ||
-          adminMem?.zoneId ||
-          raw.zoneId ||
-          raw.zone_id ||
-          anyMem?.organizationId ||
-          anyMem?.zoneId ||
-          '';
-
-        if (targetZoneId === 'zone-boss') {
-          targetZoneId = '';
+          if (!userZones.some(z => String(z.id) === String(matched.id))) {
+            userZones.push({
+              id: matched.id,
+              name: matched.name || 'Your Zone',
+              invitationCode: matched.invitationCode || matched.code || 'ZONE',
+              role: canonicalRole,
+            });
+          }
         }
+      }
 
-        const matchedDbZone =
-          (targetZoneId && dbZones.find((z: any) => z.id === targetZoneId || z.invitationCode === targetZoneId || z.code === targetZoneId)) ||
-          dbZones[0] ||
-          null;
-
-        const resolvedZoneName =
-          matchedDbZone?.name ||
-          adminMem?.organization?.name ||
-          adminMem?.zoneName ||
-          raw.zoneName ||
-          (targetZoneId ? `Zone (${targetZoneId})` : 'Your Zone');
-
-        const resolvedZoneCode =
-          matchedDbZone?.invitationCode ||
-          matchedDbZone?.code ||
-          adminMem?.organization?.invitationCode ||
-          adminMem?.zoneCode ||
-          raw.zoneCode ||
-          targetZoneId ||
-          'ZONE';
-
-        const lockedZone: ZoneOption = {
-          id: matchedDbZone?.id || targetZoneId || 'zone-001',
-          name: resolvedZoneName,
-          invitationCode: resolvedZoneCode,
+      // If user profile has a direct zone or is HQ user, ensure that zone is in userZones
+      if (userZones.length === 0) {
+        const fallbackZone =
+          (raw.zoneId && dbZones.find((z: any) => z.id === raw.zoneId)) ||
+          (isHqUser ? dbZones.find((z: any) => z.isHq || z.id === 'zone-001') : null) ||
+          dbZones[0] || {
+            id: 'zone-001',
+            name: 'Loveworld Singers HQ',
+            invitationCode: 'ZONE001',
+            role: canonicalRole,
+          };
+        userZones.push({
+          id: fallbackZone.id,
+          name: fallbackZone.name || 'Your Zone',
+          invitationCode: fallbackZone.invitationCode || fallbackZone.code || 'ZONE',
           role: canonicalRole,
-        };
-        userZones = [lockedZone];
+        });
       }
 
       // 7. Resolve default active zone & church
-      const isHQ = canonicalRole === 'hq_admin';
       const currentActiveZone = get().activeZone;
-      const currentIsAllZones = get().isAllZones;
-
-      // For HQ Admin: default to All Zones (Global Overview) so they see everything
-      const isAllZones = isHQ ? (currentActiveZone ? false : true) : false;
-      const defaultZone = isAllZones
-        ? null
-        : (currentActiveZone && userZones.find(z => z.id === currentActiveZone.id)) ||
-          userZones[0] ||
-          null;
+      const defaultZone =
+        (currentActiveZone && userZones.find(z => z.id === currentActiveZone.id)) ||
+        userZones[0];
 
       const currentActiveChurch = get().activeChurch;
       const defaultChurch =
@@ -365,22 +318,34 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         userChurches[0] ||
         null;
 
+      // If HQ Admin, HQ NEVER does church (HQ handles official ministry repertoire & rehearsals only)
+      if (canonicalRole === 'hq_admin') {
+        userChurches.length = 0;
+      }
+
       const isPureChurchAdmin = canonicalRole === 'church_coordinator';
       const isZoneAdmin = canonicalRole === 'zone_admin';
-      const isChurchAdmin = isPureChurchAdmin || userChurches.length > 0;
+      const isChurchAdmin = isPureChurchAdmin || (isZoneAdmin && userChurches.length > 0);
       const hasDualRole = isZoneAdmin && userChurches.length > 0;
 
-      // Initial role mode
+      // Initial role mode:
+      // If HQ Admin -> ALWAYS 'org' (Zone) mode
+      // If pure church admin -> 'church' mode
+      // If zone admin with church -> keep current mode or default to 'org' (Zone) mode
       const currentRoleMode = get().activeRoleMode;
-      const activeRoleMode = isPureChurchAdmin ? 'church' : currentRoleMode || 'org';
+      const activeRoleMode = canonicalRole === 'hq_admin'
+        ? 'org'
+        : isPureChurchAdmin
+        ? 'church'
+        : currentRoleMode || 'org';
       const isChurchMode = activeRoleMode === 'church';
 
-      // Seed Tenant Scope Headers for API client
+      // Seed Tenant Scope Headers for API client (Strictly ONE place at a time)
       apiClient.setMobileTenantScope({
         zoneId: defaultZone?.id || null,
         zoneCode: defaultZone?.invitationCode || null,
         churchId: isChurchMode ? (defaultChurch?.id ?? null) : null,
-        scope: isChurchMode ? 'church' : (isAllZones || !defaultZone ? 'global' : 'zone'),
+        scope: isChurchMode ? 'church' : 'zone',
       });
 
       const adminUser: AdminUser = {
@@ -405,7 +370,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           adminUser,
           activeZone: defaultZone,
           availableZones: userZones,
-          isAllZones,
+          isAllZones: false,
           activeChurch: defaultChurch,
           userChurches,
           activeRoleMode,
@@ -419,7 +384,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         loading: false,
         activeZone: defaultZone,
         availableZones: userZones,
-        isAllZones,
+        isAllZones: false,
         activeChurch: defaultChurch,
         userChurches,
         activeRoleMode,
@@ -432,33 +397,26 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   switchZone: (zone: ZoneOption | null) => {
-    const { isChurchMode, availableZones } = get();
-    if (zone === null) {
-      // Switch to All Zones (Global Ministry Overview)
-      set({ activeZone: null, isAllZones: true });
-      apiClient.setMobileTenantScope({
-        zoneId: null,
-        zoneCode: null,
-        churchId: isChurchMode ? (get().activeChurch?.id ?? null) : null,
-        scope: isChurchMode ? 'church' : 'global',
-      });
-      return;
-    }
-
+    if (!zone) return;
+    const { availableZones } = get();
     const targetZone = availableZones.find(z => z.id === zone.id) || zone;
-    set({ activeZone: targetZone, isAllZones: false });
+
+    set({ activeZone: targetZone, isAllZones: false, activeRoleMode: 'org', isChurchMode: false });
     apiClient.setMobileTenantScope({
       zoneId: targetZone.id,
       zoneCode: targetZone.invitationCode,
-      churchId: isChurchMode ? (get().activeChurch?.id ?? null) : null,
-      scope: isChurchMode ? 'church' : 'zone',
+      churchId: null,
+      scope: 'zone',
     });
   },
 
   switchChurch: (church: ChurchOption) => {
-    const { activeZone, isChurchMode } = get();
+    const { activeZone } = get();
     set(state => ({
       activeChurch: church,
+      activeRoleMode: 'church',
+      isChurchMode: true,
+      isAllZones: false,
       adminUser: state.adminUser
         ? {
             ...state.adminUser,
@@ -470,8 +428,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     apiClient.setMobileTenantScope({
       zoneId: activeZone?.id ?? null,
       zoneCode: activeZone?.invitationCode ?? null,
-      churchId: isChurchMode ? church.id : null,
-      scope: isChurchMode ? 'church' : 'zone',
+      churchId: church.id,
+      scope: 'church',
     });
   },
 

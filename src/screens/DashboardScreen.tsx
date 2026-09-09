@@ -40,12 +40,12 @@ export default function DashboardScreen({ navigation }: any) {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const zoneId = isAllZones ? undefined : (activeZone?.id || undefined);
+      const zoneId = isChurchMode ? undefined : activeZone?.id;
       const churchId = isChurchMode ? activeChurch?.id : undefined;
 
       const [statsRes, programsRes, membersRes] = await Promise.all([
         api.dashboard.getStats(zoneId, churchId).catch(() => null),
-        api.programs.getAll(isChurchMode && churchId ? { groupId: churchId, subGroupId: churchId, includeChurch: true } : { zoneId }).catch(() => ({ data: [] })),
+        api.programs.getAll(isChurchMode && churchId ? { groupId: churchId, subGroupId: churchId, includeChurch: true } : { zoneId, includeChurch: true }).catch(() => ({ data: [] })),
         (isChurchMode && churchId ? api.churches.getMembers(churchId) : api.members.getDirectory(zoneId, 10)).catch(() => ({ data: [] })),
       ]);
 

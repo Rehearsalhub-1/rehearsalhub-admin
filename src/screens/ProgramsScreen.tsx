@@ -781,9 +781,7 @@ export default function ProgramsScreen({ navigation }: any) {
 
   const fetchPrograms = useCallback(async () => {
     try {
-      const zoneParam = isChurchMode
-        ? undefined
-        : (isAllZones || !activeZone?.id || activeZone.id === 'all' || activeZone.id === 'global' ? undefined : activeZone.id);
+      const zoneParam = isChurchMode ? undefined : activeZone?.id;
       const churchParam = isChurchMode && activeChurch?.id ? activeChurch.id : undefined;
 
       const options = churchParam
