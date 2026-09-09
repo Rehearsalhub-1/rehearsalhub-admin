@@ -46,7 +46,7 @@ export default function DashboardScreen({ navigation }: any) {
       const [statsRes, programsRes, membersRes] = await Promise.all([
         api.dashboard.getStats(zoneId, churchId).catch(() => null),
         api.programs.getAll(isChurchMode && churchId ? { groupId: churchId, subGroupId: churchId, includeChurch: true } : { zoneId }).catch(() => ({ data: [] })),
-        api.members.getDirectory(zoneId, 10).catch(() => ({ data: [] })),
+        (isChurchMode && churchId ? api.churches.getMembers(churchId) : api.members.getDirectory(zoneId, 10)).catch(() => ({ data: [] })),
       ]);
 
       if (statsRes) {
@@ -65,9 +65,9 @@ export default function DashboardScreen({ navigation }: any) {
           id: u.id || u.userId,
           first_name: u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer',
           last_name: u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '',
-          designation: u.designation || '',
+          designation: u.voicePart || u.designation || '',
           role: u.role || 'member',
-          church: u.church || u.churchName || '',
+          church: isChurchMode ? (activeChurch?.name || '') : (u.church || u.churchName || ''),
           is_active: u.is_active !== false,
         })));
       } else {

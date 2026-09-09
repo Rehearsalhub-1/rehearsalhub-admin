@@ -22,7 +22,7 @@ const INITIAL_MEMBERS: Member[] = [];
 
 export default function MembersScreen() {
   const insets = useSafeAreaInsets();
-  const { activeZone, isAllZones } = useZoneContext();
+  const { activeZone, isAllZones, isChurchMode, activeChurch } = useZoneContext();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +41,42 @@ export default function MembersScreen() {
 
   const fetchMembers = useCallback(async () => {
     try {
+      if (isChurchMode && activeChurch?.id) {
+        const churchRes = await api.churches.getMembers(activeChurch.id).catch(() => ({ data: [] }));
+        const rawChurch = Array.isArray(churchRes?.data) ? churchRes.data : [];
+        const mappedChurchMembers: Member[] = rawChurch.map((u: any) => {
+          const firstName = u.firstName || (u.name || '').split(' ')[0] || 'Singer';
+          const lastName = u.lastName || (u.name || '').split(' ').slice(1).join(' ') || '';
+          const r = (u.role || 'member').toLowerCase();
+          return {
+            id: u.userId || u.id,
+            membershipId: u.id,
+            first_name: firstName,
+            last_name: lastName,
+            email: u.email || '',
+            username: u.username || '',
+            alias: u.alias || '',
+            phone: u.phone || '',
+            church: activeChurch.name,
+            designation: u.voicePart || '',
+            zoneId: activeZone?.id || '',
+            zoneName: activeZone?.name || '',
+            role: (r.includes('admin') || r.includes('coord') ? 'church_admin' : 'member') as any,
+            isAdmin: r.includes('admin') || r.includes('coord'),
+            is_active: u.status !== 'inactive',
+            can_access_ongoing: true,
+            can_access_pre_rehearsal: true,
+            canAnnotate: true,
+            canSeeArchive: false,
+            can_access_archive: false,
+            created_at: u.joinedAt,
+            pending_hq_approval: false,
+          };
+        });
+        setMembers(mappedChurchMembers);
+        return;
+      }
+
       const effectiveZoneId = isAllZones ? undefined : (activeZone?.id || undefined);
       const [dirRes, reqRes] = await Promise.all([
         api.members.getDirectory(effectiveZoneId).catch(() => ({ data: [] })),
@@ -119,7 +155,7 @@ export default function MembersScreen() {
       setRefreshing(false);
       setLoading(false);
     }
-  }, [activeZone?.id, isAllZones]);
+  }, [activeZone?.id, isAllZones, isChurchMode, activeChurch?.id]);
 
   useEffect(() => {
     fetchMembers();
@@ -237,9 +273,10 @@ export default function MembersScreen() {
   // Remove Member
   const handleRemoveFromZone = (id: string) => {
     const target = members.find(m => m.id === id);
+    const scopeLabel = isChurchMode ? `this church choir (${activeChurch?.name})` : 'the zone directory';
     Alert.alert(
       'Remove Member',
-      `Are you sure you want to remove ${target?.first_name || 'this member'} from the zone directory?`,
+      `Are you sure you want to remove ${target?.first_name || 'this member'} from ${scopeLabel}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -247,7 +284,11 @@ export default function MembersScreen() {
           style: 'destructive',
           onPress: async () => {
             setMembers(prev => prev.filter(m => m.id !== id));
-            await api.members.removeFromZone(id).catch(() => {});
+            if (isChurchMode && activeChurch?.id) {
+              await api.churches.removeMember(activeChurch.id, id).catch(() => {});
+            } else {
+              await api.members.removeFromZone(id).catch(() => {});
+            }
             Alert.alert('Removed', `${target?.first_name || 'Member'} was removed.`);
           },
         },
@@ -283,7 +324,9 @@ export default function MembersScreen() {
       {/* ── 1. Minimal Executive Header ───────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Members</Text>
+          <Text style={styles.headerTitle}>
+            {isChurchMode ? `${activeChurch?.name || 'Church'} Members` : 'Members'}
+          </Text>
           <View style={styles.countBadge}>
             <Text style={styles.countBadgeText}>{approvedMembers.length}</Text>
           </View>

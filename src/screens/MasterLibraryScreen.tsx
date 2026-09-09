@@ -121,6 +121,9 @@ export default function MasterLibraryScreen({ navigation }: any) {
   // Filtered Master Songs
   const filteredMasterSongs = useMemo(() => {
     return masterSongs.filter(song => {
+      // Non-HQ admins cannot view hidden master songs
+      if (!adminUser?.isHQAdmin && song.isHidden) return false;
+
       // 1. Status Tab filter
       if (masterStatusTab === 'active' && (song.isHistory || song.isHidden)) return false;
       if (masterStatusTab === 'history' && !song.isHistory) return false;
@@ -335,27 +338,6 @@ export default function MasterLibraryScreen({ navigation }: any) {
     ]);
   }
 
-  if (!adminUser?.isHQAdmin) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <ZoneHeader title="All Ministered" showBack={true} />
-        <View style={styles.centerRestricted}>
-          <View style={styles.restrictedIconBox}>
-            <Ionicons name="lock-closed" size={32} color="#7c3aed" />
-          </View>
-          <Text style={styles.restrictedTitle}>HQ Admin Access Only</Text>
-          <Text style={styles.restrictedSub}>
-            The Master "All Ministered" repertoire is managed exclusively by Loveworld Singers HQ Administrators.
-          </Text>
-          <TouchableOpacity style={styles.goBackBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
-            <Text style={styles.goBackBtnText}>Back to Dashboard</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ZoneHeader title="All Ministered" showBack={true} />
@@ -378,14 +360,16 @@ export default function MasterLibraryScreen({ navigation }: any) {
           ) : null}
         </View>
 
-        <TouchableOpacity
-          style={styles.cleanAddBtn}
-          onPress={handleOpenCreateModal}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="add" size={18} color="#ffffff" style={{ marginRight: 3 }} />
-          <Text style={styles.cleanAddBtnText}>+ Song</Text>
-        </TouchableOpacity>
+        {adminUser?.isHQAdmin && (
+          <TouchableOpacity
+            style={styles.cleanAddBtn}
+            onPress={handleOpenCreateModal}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={18} color="#ffffff" style={{ marginRight: 3 }} />
+            <Text style={styles.cleanAddBtnText}>+ Song</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ── CLEAN STATUS FILTER TABS ─────────────────────────────────────── */}
@@ -394,7 +378,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
           { id: 'all', label: 'All', count: masterStats.total },
           { id: 'active', label: 'Active', count: masterStats.active },
           { id: 'history', label: 'History', count: masterStats.history },
-          { id: 'hidden', label: 'Hidden', count: masterStats.hidden },
+          ...(adminUser?.isHQAdmin ? [{ id: 'hidden', label: 'Hidden', count: masterStats.hidden }] : []),
         ].map(t => {
           const isActive = masterStatusTab === t.id;
           return (
@@ -446,8 +430,8 @@ export default function MasterLibraryScreen({ navigation }: any) {
                   ? 'No songs match your search or status filter.'
                   : 'The master catalog has no registered songs yet.'
               }
-              actionLabel="+ Add Master Song"
-              onAction={handleOpenCreateModal}
+              actionLabel={adminUser?.isHQAdmin ? "+ Add Master Song" : undefined}
+              onAction={adminUser?.isHQAdmin ? handleOpenCreateModal : undefined}
             />
           )
         }
@@ -532,38 +516,54 @@ export default function MasterLibraryScreen({ navigation }: any) {
                   )}
                 </View>
 
-                <View style={styles.cardActionsGroup}>
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => handleOpenEditModal(item)}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  >
-                    <Ionicons name="pencil" size={15} color="#7c3aed" />
-                  </TouchableOpacity>
+                {adminUser?.isHQAdmin ? (
+                  <View style={styles.cardActionsGroup}>
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => handleOpenEditModal(item)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="pencil" size={15} color="#7c3aed" />
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => handleToggleHideSong(item)}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  >
-                    <Ionicons
-                      name={item.isHidden ? 'eye-outline' : 'eye-off-outline'}
-                      size={15}
-                      color="#94a3b8"
-                    />
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => handleToggleHideSong(item)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    >
+                      <Ionicons
+                        name={item.isHidden ? 'eye-outline' : 'eye-off-outline'}
+                        size={15}
+                        color="#94a3b8"
+                      />
+                    </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => handleDeleteMasterSong(item)}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                  >
-                    <Ionicons name="trash-outline" size={15} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => handleDeleteMasterSong(item)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+                    >
+                      <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.cardActionsGroup}>
+                    <TouchableOpacity
+                      style={styles.actionBtn}
+                      onPress={() => {
+                        setSelectedDetailSong(item);
+                        setDetailModalVisible(true);
+                      }}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="eye-outline" size={16} color="#7c3aed" />
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
           );
@@ -579,6 +579,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
           setDetailModalVisible(false);
           handleOpenEditModal(songToEdit);
         }}
+        canEdit={Boolean(adminUser?.isHQAdmin)}
       />
 
       {/* ── CREATE / EDIT MASTER SONG MODAL ────────────────────────────────── */}

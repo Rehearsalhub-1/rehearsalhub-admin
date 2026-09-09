@@ -55,6 +55,7 @@ interface MasterSongDetailModalProps {
   song: MasterSong | null;
   onClose: () => void;
   onEdit: (song: MasterSong) => void;
+  canEdit?: boolean;
 }
 
 export default function MasterSongDetailModal({
@@ -62,6 +63,7 @@ export default function MasterSongDetailModal({
   song,
   onClose,
   onEdit,
+  canEdit = true,
 }: MasterSongDetailModalProps) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'lyrics' | 'conductor' | 'history'>('lyrics');
@@ -223,17 +225,21 @@ export default function MasterSongDetailModal({
             )}
           </View>
 
-          <TouchableOpacity
-            onPress={() => {
-              onClose();
-              onEdit(song);
-            }}
-            style={styles.editBtn}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="pencil" size={14} color="#7c3aed" style={{ marginRight: 4 }} />
-            <Text style={styles.editBtnText}>Edit</Text>
-          </TouchableOpacity>
+          {canEdit ? (
+            <TouchableOpacity
+              onPress={() => {
+                onClose();
+                onEdit(song);
+              }}
+              style={styles.editBtn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="pencil" size={14} color="#7c3aed" style={{ marginRight: 4 }} />
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 44 }} />
+          )}
         </View>
 
         <ScrollView

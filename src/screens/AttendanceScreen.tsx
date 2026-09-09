@@ -144,8 +144,9 @@ export default function AttendanceScreen({ navigation }: any) {
   // Fetch Attendance from API
   const fetchAttendance = useCallback(async () => {
     try {
-      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
-      const attRes = await api.attendance.getAll(scopeId).catch(() => ({ data: [] as AttendanceRecord[] }));
+      const zoneId = activeZone?.id || undefined;
+      const churchId = isChurchMode ? activeChurch?.id : undefined;
+      const attRes = await api.attendance.getAll(zoneId, undefined, undefined, churchId).catch(() => ({ data: [] as AttendanceRecord[] }));
       setAllRecords(Array.isArray(attRes?.data) ? attRes.data : []);
     } catch {
       setAllRecords([]);
