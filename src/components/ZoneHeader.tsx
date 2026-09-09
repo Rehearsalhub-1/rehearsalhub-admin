@@ -39,24 +39,12 @@ export default function ZoneHeader({
   const navigation = useNavigation<any>();
   const {
     activeZone,
-    isAllZones,
     isChurchMode,
     activeChurch,
-    userChurches,
-    availableZones,
-    switchZone,
-    switchChurch,
-    toggleRoleMode,
-    setRoleMode,
   } = useZoneContext();
   const { adminUser } = useAuth();
 
-  const [switcherModalVisible, setSwitcherModalVisible] = useState(false);
-
   const isHQ = adminUser?.isHQAdmin === true;
-  // Standard app rule: HQ never does church
-  const effectiveChurches = isHQ ? [] : userChurches;
-  const hasMultipleWorkspaces = (availableZones.length + effectiveChurches.length) > 1;
 
   const scopeTitle = isHQ
     ? 'HQ Admin'
@@ -79,12 +67,6 @@ export default function ZoneHeader({
       onBack();
     } else if (navigation?.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
-    }
-  }
-
-  function handlePillPress() {
-    if (hasMultipleWorkspaces) {
-      setSwitcherModalVisible(true);
     }
   }
 
@@ -138,13 +120,11 @@ export default function ZoneHeader({
           {rightElement ? (
             rightElement
           ) : showZonePicker ? (
-            <TouchableOpacity
+            <View
               style={[
                 styles.zonePill,
                 isChurchMode ? styles.churchPillActive : styles.zonePillActive,
               ]}
-              onPress={handlePillPress}
-              activeOpacity={hasMultipleWorkspaces ? 0.75 : 1}
             >
               <Ionicons
                 name={isChurchMode ? 'business-outline' : 'globe-outline'}
@@ -158,114 +138,10 @@ export default function ZoneHeader({
               >
                 {badgeLabel}
               </Text>
-              {hasMultipleWorkspaces && (
-                <View style={[styles.modeToggleChip, isChurchMode ? { backgroundColor: '#fef3c7' } : { backgroundColor: '#ede9fe' }]}>
-                  <Ionicons name="chevron-down" size={11} color={isChurchMode ? '#b45309' : '#6d28d9'} />
-                </View>
-              )}
-            </TouchableOpacity>
+            </View>
           ) : null}
         </View>
       </View>
-
-      {/* ── Single Workspace Switcher Modal (Standard Multi-Tenant Switcher) ── */}
-      {hasMultipleWorkspaces && (
-        <Modal
-          visible={switcherModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setSwitcherModalVisible(false)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setSwitcherModalVisible(false)}>
-            <Pressable style={styles.modalContainer} onPress={e => e.stopPropagation()}>
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={styles.modalTitle}>Switch Workspace</Text>
-                  <Text style={styles.modalSubtitle}>Select which choir you want to manage</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.closeBtn}
-                  onPress={() => setSwitcherModalVisible(false)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close" size={20} color="#64748b" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-                {/* 1. Zones Section */}
-                {availableZones.map((z: ZoneOption) => {
-                  const isSelected = !isChurchMode && activeZone?.id === z.id;
-                  return (
-                    <TouchableOpacity
-                      key={z.id}
-                      style={[styles.scopeItem, isSelected && styles.scopeItemActiveZone]}
-                      onPress={() => {
-                        switchZone(z);
-                        setSwitcherModalVisible(false);
-                      }}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[styles.scopeItemIcon, { backgroundColor: '#eef2ff' }]}>
-                        <Ionicons name="globe" size={18} color="#4f46e5" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.scopeItemName, isSelected && styles.scopeItemNameActiveZone]}>
-                          {z.name}
-                        </Text>
-                        <Text style={styles.scopeItemMeta}>
-                          {isHQ ? 'Loveworld Singers HQ' : `Zone Code: ${z.invitationCode || z.id}`}
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <View style={styles.activeCheckBadge}>
-                          <Ionicons name="checkmark-circle" size={18} color="#4f46e5" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-
-                {/* 2. Churches Section (Only for Zone Admins / Church Coordinators, NOT HQ) */}
-                {effectiveChurches.map((c: ChurchOption) => {
-                  const isSelected = isChurchMode && activeChurch?.id === c.id;
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[styles.scopeItem, isSelected && styles.scopeItemActiveChurch]}
-                      onPress={() => {
-                        switchChurch(c);
-                        setSwitcherModalVisible(false);
-                      }}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[styles.scopeItemIcon, { backgroundColor: '#fffbeb' }]}>
-                        <Ionicons name="business" size={18} color="#d97706" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.scopeItemName, isSelected && styles.scopeItemNameActiveChurch]}>
-                          {c.name}
-                        </Text>
-                        <Text style={styles.scopeItemMeta}>
-                          Local Church Choir
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <View style={styles.activeCheckBadge}>
-                          <Ionicons name="checkmark-circle" size={18} color="#d97706" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-
-                <View style={{ height: 16 }} />
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      )}
-
     </>
   );
 }
