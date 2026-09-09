@@ -31,7 +31,6 @@ const ALLOWED_STUDIO_ROLES = [
   'super_admin',
   'admin',
   'hq_admin',
-  'boss',
   'org_admin',
   'zone_admin',
   'zone_coordinator',

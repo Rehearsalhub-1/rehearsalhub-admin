@@ -148,16 +148,17 @@ async function request<T>(
 
   // ── TENANT SCOPE HEADERS ──────────────────────────────────────────────────
   const scope = getMobileTenantScope();
-  if (scope.zoneId) {
-    headers['x-zone-id'] = scope.zoneId;
-  }
-  if (scope.zoneCode) {
-    headers['x-zone-code'] = scope.zoneCode;
-  }
-  if (scope.churchId) {
+  if (scope.scope === 'church' && scope.churchId) {
     headers['x-church-id'] = scope.churchId;
+    if (scope.zoneId && scope.zoneId !== 'all') headers['x-zone-id'] = scope.zoneId;
+    headers['x-scope'] = 'church';
+  } else if (scope.scope === 'zone' && scope.zoneId && scope.zoneId !== 'all' && scope.zoneId !== 'global') {
+    headers['x-zone-id'] = scope.zoneId;
+    if (scope.zoneCode) headers['x-zone-code'] = scope.zoneCode;
+    headers['x-scope'] = 'zone';
+  } else {
+    headers['x-scope'] = 'global';
   }
-  headers['x-scope'] = scope.scope;
   // ─────────────────────────────────────────────────────────────────────────
 
   const controller = new AbortController();

@@ -39,7 +39,7 @@ export const api = {
 
       const [zoneSongsRes, masterSongsRes, membersRes, programsRes, submittedRes] = await Promise.all([
         apiClient.get<any>(`/songs/zone${zoneParam}`).catch(() => ({ data: [] })),
-        apiClient.get<any>('/songs/master').catch(() => ({ data: [] })),
+        apiClient.get<any>('/master-songs').catch(() => ({ data: [] })),
         churchId
           ? apiClient.get<any>(`/subgroups/${churchId}/members`).catch(() => ({ data: [] }))
           : apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => ({ data: [] })),
@@ -78,15 +78,17 @@ export const api = {
   // ── Songs & Master Catalog ────────────────────────────────────────────────
   songs: {
     getMasterSongs: (params?: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/songs/master${params ? `?${params}` : ''}`),
+      apiClient.get<{ success: boolean; data: any[] }>(`/master-songs${params ? `?${params}` : ''}`),
+    getMaster: () =>
+      apiClient.get<any>('/master-songs'),
     getZoneSongs: (zoneId?: string) =>
       apiClient.get<{ success: boolean; data: any[] }>(`/songs/zone${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     getById: (songId: string) =>
       apiClient.get<{ success: boolean; data: any }>(`/songs/${songId}`),
     getProgramSongs: (programId: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/songs/praise-night?praiseNightId=${encodeURIComponent(programId)}`),
+      apiClient.get<{ success: boolean; data: any[] }>(`/praise-night-songs?praiseNightId=${encodeURIComponent(programId)}`),
     getPraiseNightSongs: (praiseNightId: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/songs/praise-night?praiseNightId=${encodeURIComponent(praiseNightId)}`),
+      apiClient.get<{ success: boolean; data: any[] }>(`/praise-night-songs?praiseNightId=${encodeURIComponent(praiseNightId)}`),
     setActiveSong: (songId: string) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isActive: true }),
     toggleActive: (songId: string, isActive: boolean) =>
@@ -110,20 +112,25 @@ export const api = {
   // ── Programs & Rehearsal Events ──────────────────────────────────────────
   programs: {
     getAll: (paramsOrZoneId?: string | { zoneId?: string; category?: string; groupId?: string; subGroupId?: string; includeChurch?: boolean }) => {
-      const params = new URLSearchParams();
-      // Always include church programs — matches rehearsalhubv2 behavior
-      params.append('includeChurch', 'true');
       if (typeof paramsOrZoneId === 'string') {
-        if (paramsOrZoneId) params.append('zoneId', paramsOrZoneId);
-      } else if (paramsOrZoneId) {
-        if (paramsOrZoneId.zoneId) params.append('zoneId', paramsOrZoneId.zoneId);
-        if (paramsOrZoneId.category) params.append('category', paramsOrZoneId.category);
+        const cleanZone = paramsOrZoneId && paramsOrZoneId !== 'all' && paramsOrZoneId !== 'global' ? paramsOrZoneId : undefined;
+        return apiClient.get<{ success: boolean; data: any[] }>(`/programs?includeChurch=true${cleanZone ? `&zoneId=${encodeURIComponent(cleanZone)}` : ''}`);
+      }
+      const params = new URLSearchParams();
+      params.append('includeChurch', 'true');
+      if (paramsOrZoneId) {
+        if (paramsOrZoneId.zoneId && paramsOrZoneId.zoneId !== 'all' && paramsOrZoneId.zoneId !== 'global') {
+          params.append('zoneId', paramsOrZoneId.zoneId);
+        }
         if (paramsOrZoneId.groupId) params.append('groupId', paramsOrZoneId.groupId);
         if (paramsOrZoneId.subGroupId) params.append('subGroupId', paramsOrZoneId.subGroupId);
+        if (paramsOrZoneId.category && paramsOrZoneId.category !== 'all') params.append('category', paramsOrZoneId.category);
       }
       const query = params.toString() ? `?${params.toString()}` : '';
       return apiClient.get<{ success: boolean; data: any[] }>(`/programs${query}`);
     },
+    getMemberRehearsals: () =>
+      apiClient.get<{ success: boolean; data: any[] }>('/subgroups/member-rehearsals'),
     getById: (programId: string) =>
       apiClient.get<{ success: boolean; data: any }>(`/programs/${programId}`),
     create: (data: Record<string, any>) =>

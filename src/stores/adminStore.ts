@@ -271,6 +271,17 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           invitationCode: 'ZONE001',
           role: 'hq_admin',
         };
+
+        // HQ Admin has oversight of all ministry zones
+        const otherZones = dbZones
+          .filter((z: any) => z && z.id !== hqZone.id)
+          .map((z: any) => ({
+            id: z.id,
+            name: z.name || 'Zone',
+            invitationCode: z.invitationCode || z.code || z.id,
+            role: 'hq_admin',
+          }));
+
         userZones = [
           {
             id: hqZone.id,
@@ -278,6 +289,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             invitationCode: hqZone.invitationCode || hqZone.code || 'ZONE001',
             role: 'hq_admin',
           },
+          ...otherZones,
         ];
       } else {
         const adminMem = allMemberships.find((m: any) => {
@@ -335,11 +347,17 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       }
 
       // 7. Resolve default active zone & church
+      const isHQ = canonicalRole === 'hq_admin';
       const currentActiveZone = get().activeZone;
-      const defaultZone =
-        (currentActiveZone && userZones.find(z => z.id === currentActiveZone.id)) ||
-        userZones[0] ||
-        null;
+      const currentIsAllZones = get().isAllZones;
+
+      // For HQ Admin: default to All Zones (Global Overview) so they see everything
+      const isAllZones = isHQ ? (currentActiveZone ? false : true) : false;
+      const defaultZone = isAllZones
+        ? null
+        : (currentActiveZone && userZones.find(z => z.id === currentActiveZone.id)) ||
+          userZones[0] ||
+          null;
 
       const currentActiveChurch = get().activeChurch;
       const defaultChurch =
@@ -362,7 +380,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         zoneId: defaultZone?.id || null,
         zoneCode: defaultZone?.invitationCode || null,
         churchId: isChurchMode ? (defaultChurch?.id ?? null) : null,
-        scope: isChurchMode ? 'church' : (defaultZone ? 'zone' : 'global'),
+        scope: isChurchMode ? 'church' : (isAllZones || !defaultZone ? 'global' : 'zone'),
       });
 
       const adminUser: AdminUser = {
@@ -387,6 +405,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           adminUser,
           activeZone: defaultZone,
           availableZones: userZones,
+          isAllZones,
           activeChurch: defaultChurch,
           userChurches,
           activeRoleMode,
@@ -400,7 +419,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         loading: false,
         activeZone: defaultZone,
         availableZones: userZones,
-        isAllZones: false,
+        isAllZones,
         activeChurch: defaultChurch,
         userChurches,
         activeRoleMode,
@@ -414,14 +433,24 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   switchZone: (zone: ZoneOption | null) => {
     const { isChurchMode, availableZones } = get();
-    const targetZone = (zone && availableZones.find(z => z.id === zone.id)) || availableZones[0] || null;
-    if (!targetZone) return;
+    if (zone === null) {
+      // Switch to All Zones (Global Ministry Overview)
+      set({ activeZone: null, isAllZones: true });
+      apiClient.setMobileTenantScope({
+        zoneId: null,
+        zoneCode: null,
+        churchId: isChurchMode ? (get().activeChurch?.id ?? null) : null,
+        scope: isChurchMode ? 'church' : 'global',
+      });
+      return;
+    }
 
+    const targetZone = availableZones.find(z => z.id === zone.id) || zone;
     set({ activeZone: targetZone, isAllZones: false });
     apiClient.setMobileTenantScope({
       zoneId: targetZone.id,
       zoneCode: targetZone.invitationCode,
-      churchId: isChurchMode ? get().activeChurch?.id ?? null : null,
+      churchId: isChurchMode ? (get().activeChurch?.id ?? null) : null,
       scope: isChurchMode ? 'church' : 'zone',
     });
   },

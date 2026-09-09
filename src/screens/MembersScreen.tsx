@@ -103,10 +103,10 @@ export default function MembersScreen() {
           designation: u.designation || '',
           zoneId: u.zoneId || u.organizationId || '',
           zoneName: u.zoneName || u.organization?.name || '',
-          role: (r.includes('admin') || r === 'boss'
+          role: (r.includes('admin') || r.includes('coord')
             ? (r.includes('church') ? 'church_admin' : (r.includes('hq') ? 'hq_admin' : 'zone_admin'))
             : 'member') as any,
-          isAdmin: r.includes('admin') || r === 'boss',
+          isAdmin: r.includes('admin') || r.includes('coord'),
           is_active: u.is_active !== false && u.isActive !== false,
           can_access_ongoing: u.can_access_ongoing !== false,
           can_access_pre_rehearsal: u.can_access_pre_rehearsal !== false,

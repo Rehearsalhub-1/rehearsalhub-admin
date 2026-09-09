@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useZoneContext, ChurchOption } from '../context/ZoneContext';
+import { useZoneContext, ChurchOption, ZoneOption } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
 
 interface Props {
@@ -51,6 +51,7 @@ export default function ZoneHeader({
   } = useZoneContext();
   const { adminUser } = useAuth();
 
+  const [zoneModalVisible, setZoneModalVisible] = useState(false);
   const [churchModalVisible, setChurchModalVisible] = useState(false);
 
   const isHQ = adminUser?.isHQAdmin === true;
@@ -66,10 +67,12 @@ export default function ZoneHeader({
   const rawZoneName = activeZone?.name;
   const cleanZoneName = (rawZoneName && rawZoneName.toLowerCase() !== 'central admin')
     ? rawZoneName
-    : (isHQ ? 'Loveworld Singers HQ' : 'Your Zone');
+    : 'Your Zone';
 
   const badgeLabel = isChurchMode
     ? (activeChurch?.name || 'Church Choir')
+    : isHQ && (isAllZones || !activeZone)
+    ? 'All Ministry Zones'
     : cleanZoneName;
 
   const scopeBadgeColor = isChurchMode ? '#d97706' : isHQ ? '#4f46e5' : '#7c3aed';
@@ -90,6 +93,9 @@ export default function ZoneHeader({
     if (isChurchMode && hasMultipleChurches) {
       // In church mode with multiple churches: allow picking which church to administer
       setChurchModalVisible(true);
+    } else if (isHQ && availableZones.length > 1) {
+      // HQ Admin can select between All Ministry Zones or any specific zone
+      setZoneModalVisible(true);
     } else if (hasDualRole) {
       // Direct 1-tap toggle between Hub Mode and Church Mode (zero confusion)
       toggleRoleMode();
@@ -270,6 +276,97 @@ export default function ZoneHeader({
         </Modal>
       )}
 
+      {/* ── HQ Zone Picker Modal (Allows HQ Admin to view All Zones or select any zone) ── */}
+      {isHQ && (
+        <Modal
+          visible={zoneModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setZoneModalVisible(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setZoneModalVisible(false)}>
+            <Pressable style={styles.modalContainer} onPress={e => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>Ministry Zone Scope</Text>
+                  <Text style={styles.modalSubtitle}>Select a zone to oversee or view all zones</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={() => setZoneModalVisible(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
+                {/* Option 1: All Zones (Global Overview) */}
+                <TouchableOpacity
+                  style={[styles.scopeItem, isAllZones && styles.scopeItemActiveZone]}
+                  onPress={() => {
+                    switchZone(null);
+                    setZoneModalVisible(false);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.scopeItemIcon, { backgroundColor: '#eef2ff' }]}>
+                    <Ionicons name="globe" size={18} color="#4f46e5" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.scopeItemName, isAllZones && styles.scopeItemNameActiveZone]}>
+                      All Ministry Zones
+                    </Text>
+                    <Text style={styles.scopeItemMeta}>
+                      Global Ministry Overview • All Rehearsals
+                    </Text>
+                  </View>
+                  {isAllZones && (
+                    <View style={styles.activeCheckBadge}>
+                      <Ionicons name="checkmark-circle" size={18} color="#4f46e5" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* Option 2..N: Individual Zones */}
+                {availableZones.map((z: ZoneOption) => {
+                  const isSelected = !isAllZones && activeZone?.id === z.id;
+                  return (
+                    <TouchableOpacity
+                      key={z.id}
+                      style={[styles.scopeItem, isSelected && styles.scopeItemActiveZone]}
+                      onPress={() => {
+                        switchZone(z);
+                        setZoneModalVisible(false);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <View style={[styles.scopeItemIcon, { backgroundColor: '#faf5ff' }]}>
+                        <Ionicons name="location" size={18} color="#7c3aed" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.scopeItemName, isSelected && styles.scopeItemNameActiveZone]}>
+                          {z.name}
+                        </Text>
+                        <Text style={styles.scopeItemMeta}>
+                          Code: {z.invitationCode || z.id}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <View style={styles.activeCheckBadge}>
+                          <Ionicons name="checkmark-circle" size={18} color="#7c3aed" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+
+                <View style={{ height: 16 }} />
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
 
     </>
   );

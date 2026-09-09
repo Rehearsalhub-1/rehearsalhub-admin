@@ -781,13 +781,18 @@ export default function ProgramsScreen({ navigation }: any) {
 
   const fetchPrograms = useCallback(async () => {
     try {
-      const options = isChurchMode && activeChurch?.id
-        ? { groupId: activeChurch.id, subGroupId: activeChurch.id, includeChurch: true }
-        : { zoneId: !isAllZones ? (activeZone?.id || undefined) : undefined };
+      const zoneParam = isChurchMode
+        ? undefined
+        : (isAllZones || !activeZone?.id || activeZone.id === 'all' || activeZone.id === 'global' ? undefined : activeZone.id);
+      const churchParam = isChurchMode && activeChurch?.id ? activeChurch.id : undefined;
+
+      const options = churchParam
+        ? { groupId: churchParam, subGroupId: churchParam, includeChurch: true }
+        : { zoneId: zoneParam, includeChurch: true };
 
       const [programsRes, songsRes] = await Promise.all([
         api.programs.getAll(options).catch(() => ({ data: [] })),
-        api.songs.getZoneSongs(activeZone?.id).catch(() => ({ data: [] })),
+        api.songs.getZoneSongs(zoneParam).catch(() => ({ data: [] })),
       ]);
       setPrograms(Array.isArray(programsRes?.data) ? programsRes.data : []);
       setAllSongs(Array.isArray(songsRes?.data) ? songsRes.data : []);
