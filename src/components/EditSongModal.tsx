@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import MediaSelectionModal from './MediaSelectionModal';
 
 export interface PraiseNightSong {
@@ -173,7 +173,7 @@ export default function EditSongModal({
   });
 
   // Audio Playback
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioPlayer | null>(null);
   const [playingAudioUrl, setPlayingAudioUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
 
@@ -264,8 +264,8 @@ export default function EditSongModal({
   const stopAudio = useCallback(async () => {
     try {
       if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        soundRef.current.pause();
+        soundRef.current.remove();
         soundRef.current = null;
       }
     } catch {
@@ -292,20 +292,17 @@ export default function EditSongModal({
     setAudioLoading(true);
     setPlayingAudioUrl(url);
     try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
       });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true },
-        status => {
-          if (status.isLoaded && status.didJustFinish) {
-            setPlayingAudioUrl(null);
-          }
+      const player = createAudioPlayer({ uri: url });
+      (player as any).addListener('playbackStatusUpdate', (status: any) => {
+        if (status.didJustFinish) {
+          setPlayingAudioUrl(null);
         }
-      );
-      soundRef.current = sound;
+      });
+      player.play();
+      soundRef.current = player;
     } catch {
       Alert.alert('Playback Error', 'Unable to play this audio track.');
       setPlayingAudioUrl(null);

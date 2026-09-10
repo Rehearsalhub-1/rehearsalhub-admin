@@ -1,52 +1,45 @@
-import React from 'react';
-import { useAdminStore, ZoneOption, ChurchOption } from '../stores/adminStore';
+import { useAdminStore } from '../stores/adminStore';
 
-export type { ZoneOption, ChurchOption };
+export interface ChurchOption {
+  id: string;
+  name: string;
+}
 
-export interface ZoneContextType {
-  activeZone: ZoneOption | null;
-  availableZones: ZoneOption[];
-  isAllZones: boolean;
-  setActiveZone: (zone: ZoneOption | null) => void;
-  switchZone: (zone: ZoneOption | null) => void;
-  activeRoleMode: 'org' | 'church';
-  isChurchMode: boolean;
-  activeChurch: ChurchOption | null;
-  userChurches: ChurchOption[];
-  switchChurch: (church: ChurchOption) => void;
-  toggleRoleMode: () => void;
-  setRoleMode: (mode: 'org' | 'church') => void;
+export interface ZoneOption {
+  id: string;
+  name: string;
+  invitationCode?: string;
 }
 
 /**
- * Direct hook into useAdminStore — ONE SINGLE SOURCE OF TRUTH (Zero Context Overhead)
+ * Legacy compat shim — screens that import from ZoneContext continue to work.
+ * All values now derive from the single AdminSession in adminStore.
  */
-export function useZoneContext(): ZoneContextType {
-  const activeZone = useAdminStore(s => s.activeZone);
-  const availableZones = useAdminStore(s => s.availableZones);
-  const isAllZones = useAdminStore(s => s.isAllZones);
-  const switchZone = useAdminStore(s => s.switchZone);
-  const activeRoleMode = useAdminStore(s => s.activeRoleMode);
-  const isChurchMode = useAdminStore(s => s.isChurchMode);
-  const activeChurch = useAdminStore(s => s.activeChurch);
-  const userChurches = useAdminStore(s => s.userChurches);
-  const switchChurch = useAdminStore(s => s.switchChurch);
-  const toggleRoleMode = useAdminStore(s => s.toggleRoleMode);
-  const setRoleMode = useAdminStore(s => s.setRoleMode);
+export function useZoneContext() {
+  const session = useAdminStore(s => s.session);
 
   return {
-    activeZone,
-    availableZones,
-    isAllZones,
-    setActiveZone: switchZone,
-    switchZone,
-    activeRoleMode,
-    isChurchMode,
-    activeChurch,
-    userChurches,
-    switchChurch,
-    toggleRoleMode,
-    setRoleMode,
+    activeZone: session
+      ? { id: session.zoneId, name: session.zoneName, invitationCode: '' }
+      : null,
+    availableZones: session
+      ? [{ id: session.zoneId, name: session.zoneName, invitationCode: '' }]
+      : [],
+    isAllZones: false,
+    activeChurch: session?.churchId
+      ? { id: session.churchId, name: session.churchName || '' }
+      : null,
+    userChurches: session?.churchId
+      ? [{ id: session.churchId, name: session.churchName || '' }]
+      : [],
+    isChurchMode: session?.mode === 'church',
+    activeRoleMode: (session?.mode === 'church' ? 'church' : 'org') as 'church' | 'org',
+    // No-ops — mode changes go through adminStore.setMode()
+    setActiveZone: () => {},
+    switchZone: () => {},
+    switchChurch: () => {},
+    toggleRoleMode: () => {},
+    setRoleMode: () => {},
   };
 }
 

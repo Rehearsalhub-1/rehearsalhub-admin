@@ -64,16 +64,12 @@ export default function DashboardScreen({ navigation }: any) {
 
   const formatRoleTag = (role: string) => {
     switch (role) {
-      case 'hq_admin':
-        return 'HQ Admin';
+      case 'hq_admin': return 'HQ Admin';
       case 'zone_admin':
-      case 'zone_coordinator':
-        return 'Zonal Coord';
+      case 'zone_coordinator': return 'Zonal Coord';
       case 'church_admin':
-      case 'church_coordinator':
-        return 'Church Coord';
-      default:
-        return 'Singer';
+      case 'church_coordinator': return 'Church Coord';
+      default: return 'Singer';
     }
   };
 
@@ -86,66 +82,40 @@ export default function DashboardScreen({ navigation }: any) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refetch}
-            tintColor={Colors.accent}
-            colors={[Colors.accent]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} colors={[Colors.accent]} />
         }
       >
-        {/* ── Greeting Banner ──────────────────────────────────────────────── */}
+        {/* Greeting */}
         <View style={styles.greetingBox}>
           <Text style={styles.greetingName}>
             Welcome, {adminUser?.name ? adminUser.name.split(' ')[0] : 'Director'} 👋
           </Text>
-          <Text style={styles.greetingSub}>
-            Loveworld Singers Executive Administration Portal
-          </Text>
+          <Text style={styles.greetingSub}>Loveworld Singers Executive Administration Portal</Text>
         </View>
 
-        {/* ── Live Scope Toolbar ────────────────────────────────────────────── */}
+        {/* Scope Toolbar */}
         <View style={styles.toolbar}>
           <View style={styles.liveIndicatorRow}>
             <View style={styles.pulseDot} />
-            <Text style={styles.liveScopeText} numberOfLines={1}>
-              {liveScopeTitle}
-            </Text>
+            <Text style={styles.liveScopeText} numberOfLines={1}>{liveScopeTitle}</Text>
           </View>
-
           <View style={styles.toolbarBtnsRow}>
-            <TouchableOpacity
-              style={styles.joinCodeBtn}
-              onPress={copyInviteCode}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={copiedCode ? 'checkmark' : 'copy-outline'}
-                size={13}
-                color="#7c3aed"
-                style={{ marginRight: 4 }}
-              />
-              <Text style={styles.joinCodeBtnText}>
-                {copiedCode ? 'Copied' : `Code: ${invitationCode}`}
-              </Text>
+            <TouchableOpacity style={styles.joinCodeBtn} onPress={copyInviteCode} activeOpacity={0.7}>
+              <Ionicons name={copiedCode ? 'checkmark' : 'copy-outline'} size={13} color="#7c3aed" style={{ marginRight: 4 }} />
+              <Text style={styles.joinCodeBtnText}>{copiedCode ? 'Copied' : `Code: ${invitationCode}`}</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.newProgBtn}
-              onPress={() => navigation.navigate('Programs')}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity style={styles.newProgBtn} onPress={() => navigation.navigate('Programs')} activeOpacity={0.8}>
               <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 2 }} />
-              <Text style={styles.newProgBtnText}>Program</Text>
+              <Text style={styles.newProgBtnText}>New Program</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── KPI Grid ─────────────────────────────────────────────────────── */}
+        {/* KPI Grid */}
         <View style={styles.kpiGrid}>
           <View style={styles.kpiRow}>
             <StatTile
-              label="Zone Members"
+              label={isChurchMode ? 'Church Members' : 'Zone Members'}
               value={stats.totalMembers}
               icon="people"
               color="#4f46e5"
@@ -159,11 +129,10 @@ export default function DashboardScreen({ navigation }: any) {
               icon="calendar"
               color="#7c3aed"
               badgeLabel="REHEARSALS"
-              subtitle="Ongoing & upcoming"
+              subtitle="All rehearsal sets"
               onPress={() => navigation.navigate('Programs')}
             />
           </View>
-
           <View style={styles.kpiRow}>
             <StatTile
               label="Ministered Songs"
@@ -171,77 +140,29 @@ export default function DashboardScreen({ navigation }: any) {
               icon="musical-notes"
               color="#d97706"
               badgeLabel="CATALOG"
-              subtitle="Arrangements & scores"
+              subtitle="Master repertoire"
               onPress={() => navigation.navigate('MasterLibrary')}
             />
             <StatTile
-              label="Submissions"
+              label="Pending Reviews"
               value={stats.pendingSongs}
-              icon="sparkles"
+              icon="cloud-upload"
               color="#e11d48"
-              badgeLabel={stats.pendingSongs > 0 ? 'ACTION' : 'UP TO DATE'}
-              subtitle="Awaiting review"
+              badgeLabel={stats.pendingSongs > 0 ? 'ACTION NEEDED' : 'ALL CLEAR'}
+              subtitle="Song submissions"
               onPress={() => navigation.navigate('SubmittedSongs')}
             />
           </View>
         </View>
 
-        {/* ── Quick Admin Actions Launchpad ─────────────────────────────────── */}
-        <View style={styles.sectionBox}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleWrap}>
-              <Ionicons name="flash" size={15} color="#7c3aed" style={{ marginRight: 6 }} />
-              <Text style={styles.sectionTitle}>Quick Admin Actions</Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('More')}
-              style={styles.viewAllLink}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.viewAllText}>All Modules</Text>
-              <Ionicons name="chevron-forward" size={12} color="#7c3aed" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.launchpadGrid}>
-            {[
-              { label: 'Programs', desc: 'Rehearsal sets', icon: 'calendar', bg: '#f5f3ff', color: '#7c3aed', route: 'Programs' },
-              { label: 'Submissions', desc: `${stats.pendingSongs} pending`, icon: 'cloud-upload', bg: '#fff1f2', color: '#e11d48', route: 'SubmittedSongs' },
-              { label: 'Ministered', desc: 'Master catalog', icon: 'musical-notes', bg: '#fffbeb', color: '#d97706', route: 'MasterLibrary' },
-              { label: 'Singers', desc: 'Choir directory', icon: 'people', bg: '#eef2ff', color: '#4f46e5', route: 'Members' },
-              { label: 'Attendance', desc: 'QR Check-in', icon: 'qr-code', bg: '#ecfdf5', color: '#059669', route: 'Attendance' },
-              { label: 'Analytics', desc: 'Insights & logs', icon: 'bar-chart', bg: '#f0fdf4', color: '#16a34a', route: 'Analytics' },
-            ].map(item => (
-              <TouchableOpacity
-                key={item.label}
-                style={styles.launchpadTile}
-                onPress={() => navigation.navigate(item.route)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.launchpadIconBox, { backgroundColor: item.bg }]}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
-                </View>
-                <Text style={styles.launchpadTitle} numberOfLines={1}>{item.label}</Text>
-                <Text style={[styles.launchpadDesc, item.label === 'Submissions' && { color: '#e11d48' }]} numberOfLines={1}>
-                  {item.desc}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Recent Programs ───────────────────────────────────────────────── */}
+        {/* Recent Programs */}
         <View style={styles.sectionBox}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>Recent Programs</Text>
               <Text style={styles.sectionSubtitle}>Active & upcoming rehearsal setlists</Text>
             </View>
-            <TouchableOpacity
-              style={styles.viewAllLink}
-              onPress={() => navigation.navigate('Programs')}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.viewAllLink} onPress={() => navigation.navigate('Programs')} activeOpacity={0.7}>
               <Text style={styles.viewAllText}>View All</Text>
               <Ionicons name="arrow-forward" size={12} color="#7c3aed" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
@@ -255,14 +176,14 @@ export default function DashboardScreen({ navigation }: any) {
             ) : recentPrograms.length === 0 ? (
               <View style={styles.emptyInlineCard}>
                 <Ionicons name="calendar-outline" size={24} color="#94a3b8" style={{ marginBottom: 6 }} />
-                <Text style={styles.emptyInlineTitle}>No Recent Programs</Text>
+                <Text style={styles.emptyInlineTitle}>No Programs Yet</Text>
                 <Text style={styles.emptyInlineSub}>
-                  Rehearsal setlists will appear here once created.
+                  Tap "New Program" above to create your first rehearsal setlist.
                 </Text>
               </View>
             ) : (
               recentPrograms.map(prog => {
-                const isOngoing = prog.status === 'ongoing' || prog.category === 'Ongoing';
+                const isOngoing = prog.status === 'ongoing' || prog.category === 'ongoing';
                 const initial = (prog.name || 'P').charAt(0).toUpperCase();
                 return (
                   <TouchableOpacity
@@ -272,24 +193,18 @@ export default function DashboardScreen({ navigation }: any) {
                     activeOpacity={0.75}
                   >
                     <View style={[styles.programAvatar, isOngoing && styles.programAvatarOngoing]}>
-                      <Text style={[styles.programAvatarText, isOngoing && styles.programAvatarTextOngoing]}>
-                        {initial}
-                      </Text>
+                      <Text style={[styles.programAvatarText, isOngoing && styles.programAvatarTextOngoing]}>{initial}</Text>
                     </View>
                     <View style={styles.programInfo}>
                       <Text style={styles.programName} numberOfLines={1}>{prog.name}</Text>
                       <View style={styles.programMetaRow}>
                         <Ionicons name="time-outline" size={12} color="#94a3b8" style={{ marginRight: 3 }} />
-                        <Text style={styles.programMetaText}>{prog.date}</Text>
-                        <Text style={styles.programCategoryTag}>• {prog.category}</Text>
+                        <Text style={styles.programMetaText}>{prog.date || 'Date TBD'}</Text>
+                        {prog.category ? <Text style={styles.programCategoryTag}>• {prog.category}</Text> : null}
                       </View>
                     </View>
                     <View style={styles.programRight}>
-                      <Badge
-                        label={isOngoing ? 'Active' : 'Archived'}
-                        variant={isOngoing ? 'ongoing' : 'draft'}
-                        size="sm"
-                      />
+                      <Badge label={isOngoing ? 'Active' : 'Archived'} variant={isOngoing ? 'ongoing' : 'draft'} size="sm" />
                       <Ionicons name="chevron-forward" size={14} color="#cbd5e1" style={{ marginLeft: 4 }} />
                     </View>
                   </TouchableOpacity>
@@ -299,19 +214,19 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* ── Members Directory Preview ─────────────────────────────────────── */}
+        {/* Members Directory Preview */}
         <View style={[styles.sectionBox, { marginBottom: 30 }]}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>Members Directory</Text>
-              <Text style={styles.sectionSubtitle}>{stats.totalMembers} singers registered</Text>
+              <Text style={styles.sectionSubtitle}>
+                {stats.totalMembers > 0
+                  ? `${stats.totalMembers} singers registered`
+                  : 'Registered singers appear here'}
+              </Text>
             </View>
-            <TouchableOpacity
-              style={styles.viewAllLink}
-              onPress={() => navigation.navigate('Members')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.viewAllText}>All</Text>
+            <TouchableOpacity style={styles.viewAllLink} onPress={() => navigation.navigate('Members')} activeOpacity={0.7}>
+              <Text style={styles.viewAllText}>View All</Text>
               <Ionicons name="arrow-forward" size={12} color="#7c3aed" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
@@ -320,7 +235,7 @@ export default function DashboardScreen({ navigation }: any) {
             <Ionicons name="search" size={14} color="#94a3b8" style={{ marginRight: 8 }} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search singers in this zone..."
+              placeholder="Search singers..."
               placeholderTextColor="#94a3b8"
               value={memberSearch}
               onChangeText={setMemberSearch}
@@ -328,10 +243,7 @@ export default function DashboardScreen({ navigation }: any) {
               autoCorrect={false}
             />
             {memberSearch.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setMemberSearch('')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
+              <TouchableOpacity onPress={() => setMemberSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close-circle" size={15} color="#94a3b8" />
               </TouchableOpacity>
             )}
@@ -345,15 +257,19 @@ export default function DashboardScreen({ navigation }: any) {
             ) : filteredMembers.length === 0 ? (
               <View style={styles.emptyInlineCard}>
                 <Ionicons name="people-outline" size={24} color="#94a3b8" style={{ marginBottom: 6 }} />
-                <Text style={styles.emptyInlineTitle}>No Members Found</Text>
+                <Text style={styles.emptyInlineTitle}>
+                  {memberSearch ? 'No matching singers' : 'No Members Yet'}
+                </Text>
                 <Text style={styles.emptyInlineSub}>
-                  Registered singers will appear in this directory preview.
+                  {memberSearch
+                    ? `No singers found for "${memberSearch}". Try a different name.`
+                    : 'Singers who join your zone will appear here.'}
                 </Text>
               </View>
             ) : (
               filteredMembers.map(m => {
-                const fullName = `${m.first_name} ${m.last_name}`;
-                const initial = `${m.first_name[0]}${m.last_name[0]}`.toUpperCase();
+                const fullName = `${m.first_name} ${m.last_name}`.trim();
+                const initials = `${m.first_name?.[0] || ''}${m.last_name?.[0] || ''}`.toUpperCase() || 'S';
                 const isLead = m.role !== 'member';
                 return (
                   <TouchableOpacity
@@ -363,22 +279,16 @@ export default function DashboardScreen({ navigation }: any) {
                     activeOpacity={0.7}
                   >
                     <View style={[styles.memberAvatar, isLead && styles.memberAvatarLead]}>
-                      <Text style={[styles.memberAvatarText, isLead && styles.memberAvatarTextLead]}>
-                        {initial}
-                      </Text>
+                      <Text style={[styles.memberAvatarText, isLead && styles.memberAvatarTextLead]}>{initials}</Text>
                       {m.is_active && <View style={styles.onlineDot} />}
                     </View>
                     <View style={styles.memberMeta}>
                       <Text style={styles.memberName} numberOfLines={1}>{fullName}</Text>
                       <Text style={styles.memberSub} numberOfLines={1}>
-                        {m.designation} • {m.church}
+                        {[m.designation, m.church].filter(Boolean).join(' • ') || 'Choir Member'}
                       </Text>
                     </View>
-                    <Badge
-                      label={formatRoleTag(m.role)}
-                      variant={isLead ? 'alto' : 'ongoing'}
-                      size="sm"
-                    />
+                    <Badge label={formatRoleTag(m.role)} variant={isLead ? 'alto' : 'ongoing'} size="sm" />
                   </TouchableOpacity>
                 );
               })
@@ -410,16 +320,10 @@ const styles = StyleSheet.create({
   kpiRow: { flexDirection: 'row', gap: 10 },
   sectionBox: { backgroundColor: '#ffffff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16, shadowColor: '#64748b', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  sectionTitleWrap: { flexDirection: 'row', alignItems: 'center' },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: '#0f172a' },
   sectionSubtitle: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
   viewAllLink: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: '#f5f3ff' },
   viewAllText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
-  launchpadGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  launchpadTile: { width: '31.5%', backgroundColor: '#f8fafc', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: '#f1f5f9' },
-  launchpadIconBox: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  launchpadTitle: { fontSize: 12, fontWeight: '700', color: '#0f172a' },
-  launchpadDesc: { fontSize: 10, color: '#94a3b8', marginTop: 1 },
   programsList: { gap: 8 },
   programCard: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9' },
   programAvatar: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
@@ -446,5 +350,5 @@ const styles = StyleSheet.create({
   memberSub: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
   emptyInlineCard: { paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#f1f5f9' },
   emptyInlineTitle: { fontSize: 13, fontWeight: '700', color: '#475569' },
-  emptyInlineSub: { fontSize: 11, color: '#94a3b8', marginTop: 2, textAlign: 'center' },
+  emptyInlineSub: { fontSize: 11, color: '#94a3b8', marginTop: 4, textAlign: 'center', lineHeight: 16 },
 });

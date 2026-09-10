@@ -308,7 +308,7 @@ export default function DashboardHeroCarousel() {
             <LinearGradient
               colors={['rgba(15, 23, 42, 0.15)', 'rgba(15, 23, 42, 0.72)', 'rgba(15, 23, 42, 0.94)']}
               locations={[0, 0.52, 1]}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
             />
 
             {/* Content Container */}
@@ -406,12 +406,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   image: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },
   content: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     padding: 14,
     justifyContent: 'space-between',
   },

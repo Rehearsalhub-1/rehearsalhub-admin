@@ -20,6 +20,7 @@ import { Colors } from '../constants/Colors';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api, SessionExpiredError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useAdminStore } from '../stores/adminStore';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -65,7 +66,8 @@ export default function LoginScreen({ navigation }: Props) {
         setMultipleAccounts(null);
         await api.auth.storeTokens(jwtToken, refreshToken, user.id);
         await refreshUser();
-        navigation.replace('MainTabs');
+        const currentSession = useAdminStore.getState().session;
+        navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
       } else {
         Alert.alert('Login Failed', retryRes.error || 'Failed to authenticate');
       }
@@ -137,7 +139,8 @@ export default function LoginScreen({ navigation }: Props) {
         const { accessToken: jwtToken, refreshToken, user } = res.data;
         await api.auth.storeTokens(jwtToken, refreshToken, user.id);
         await refreshUser();
-        navigation.replace('MainTabs');
+        const currentSession = useAdminStore.getState().session;
+        navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
       }
     } catch (err: any) {
       if (!err?.message?.includes('cancel') && !err?.message?.includes('dismissed')) {
@@ -167,7 +170,8 @@ export default function LoginScreen({ navigation }: Props) {
       const { accessToken, refreshToken, user } = result.data;
       await api.auth.storeTokens(accessToken, refreshToken, user.id);
       await refreshUser();
-      navigation.replace('MainTabs');
+      const currentSession = useAdminStore.getState().session;
+      navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
     } catch (error: any) {
       if (error instanceof SessionExpiredError) {
         Alert.alert('Login Failed', 'Session expired. Please try again.');

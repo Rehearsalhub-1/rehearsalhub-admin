@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Colors } from '../constants/Colors';
 
 export interface SongSubmissionMessage {
@@ -132,7 +132,7 @@ export default function SubmissionReviewModal({
   const [activeTab, setActiveTab] = useState<'chat' | 'lyrics' | 'solfas' | 'notes'>('chat');
 
   // Audio Playback
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [player, setPlayer] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
 
@@ -151,18 +151,19 @@ export default function SubmissionReviewModal({
 
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync().catch(() => {});
+      if (player) {
+        player.pause();
+        player.remove();
       }
     };
-  }, [sound]);
+  }, [player]);
 
   useEffect(() => {
     if (!visible) {
-      if (sound) {
-        sound.stopAsync().catch(() => {});
-        sound.unloadAsync().catch(() => {});
-        setSound(null);
+      if (player) {
+        player.pause();
+        player.remove();
+        setPlayer(null);
       }
       setIsPlaying(false);
       setActiveTab('chat');
@@ -188,35 +189,31 @@ export default function SubmissionReviewModal({
     }
 
     try {
-      if (sound) {
-        const status = await sound.getStatusAsync();
-        if (status.isLoaded) {
-          if (status.isPlaying) {
-            await sound.pauseAsync();
-            setIsPlaying(false);
-            return;
-          } else {
-            await sound.playAsync();
-            setIsPlaying(true);
-            return;
+      if (player) {
+        if (player.playing) {
+          player.pause();
+          setIsPlaying(false);
+          return;
+        } else {
+          if (player.currentTime >= player.duration && player.duration > 0) {
+            await player.seekTo(0);
           }
+          player.play();
+          setIsPlaying(true);
+          return;
         }
       }
 
       setAudioLoading(true);
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: audioUrl },
-        { shouldPlay: true },
-        playbackStatus => {
-          if (playbackStatus.isLoaded) {
-            setIsPlaying(playbackStatus.isPlaying);
-            if (playbackStatus.didJustFinish) {
-              setIsPlaying(false);
-            }
-          }
+      const newPlayer = createAudioPlayer({ uri: audioUrl });
+      (newPlayer as any).addListener('playbackStatusUpdate', (status: any) => {
+        setIsPlaying(status.playing);
+        if (status.didJustFinish) {
+          setIsPlaying(false);
         }
-      );
-      setSound(newSound);
+      });
+      newPlayer.play();
+      setPlayer(newPlayer);
       setIsPlaying(true);
     } catch (e: any) {
       Alert.alert('Playback Error', 'Unable to play reference audio: ' + (e.message || 'Stream error'));

@@ -1,11 +1,11 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, TextInput, Modal,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
 import { EmptyState } from '../components/ui';
 import SubmissionReviewModal, {
   SongSubmission, SongSubmissionMessage, getCleanSubmitterName,
@@ -81,22 +81,29 @@ export default function SubmittedSongsScreen({ navigation }: any) {
     if (!url) { Alert.alert('No Audio', 'No audio track uploaded.'); return; }
     try {
       if (playingSongId === song.id && soundRef.current) {
-        await soundRef.current.stopAsync().catch(() => {});
-        await soundRef.current.unloadAsync().catch(() => {});
-        soundRef.current = null; setPlayingSongId(null); return;
+        soundRef.current.pause();
+        soundRef.current.remove();
+        soundRef.current = null;
+        setPlayingSongId(null);
+        return;
       }
       if (soundRef.current) {
-        await soundRef.current.stopAsync().catch(() => {});
-        await soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current.pause();
+        soundRef.current.remove();
         soundRef.current = null;
       }
       setPlayingSongId(song.id);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url }, { shouldPlay: true },
-        s => { if (s.isLoaded && s.didJustFinish) setPlayingSongId(null); }
-      );
-      soundRef.current = sound;
-    } catch { setPlayingSongId(null); }
+      const player = createAudioPlayer({ uri: url });
+      (player as any).addListener('playbackStatusUpdate', (status: any) => {
+        if (status.didJustFinish) {
+          setPlayingSongId(null);
+        }
+      });
+      player.play();
+      soundRef.current = player;
+    } catch {
+      setPlayingSongId(null);
+    }
   }
 
   const filteredSongs = useMemo(() => songs.filter(song => {

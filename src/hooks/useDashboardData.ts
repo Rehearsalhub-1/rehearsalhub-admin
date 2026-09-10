@@ -1,7 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { useZoneContext } from '../context/ZoneContext';
-import { api } from '../services/api';
+import { useState, useCallback, useEffect } from 'react';
+import { apiClient } from '../lib/apiClient';
+import { useAdminStore } from '../stores/adminStore';
 
 export interface DashboardStats {
   totalMembers: number;
@@ -10,17 +9,7 @@ export interface DashboardStats {
   pendingSongs: number;
 }
 
-export interface DashboardMemberPreview {
-  id: string;
-  first_name: string;
-  last_name: string;
-  designation: string;
-  role: string;
-  church: string;
-  is_active: boolean;
-}
-
-const INITIAL_STATS: DashboardStats = {
+const EMPTY_STATS: DashboardStats = {
   totalMembers: 0,
   activePrograms: 0,
   totalSongs: 0,
@@ -28,95 +17,96 @@ const INITIAL_STATS: DashboardStats = {
 };
 
 export function useDashboardData() {
-  const { activeZone, isChurchMode, activeChurch } = useZoneContext();
+  const session = useAdminStore(s => s.session);
 
-  const [stats, setStats] = useState<DashboardStats>(INITIAL_STATS);
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [recentPrograms, setRecentPrograms] = useState<any[]>([]);
-  const [members, setMembers] = useState<DashboardMemberPreview[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetch = useCallback(async () => {
-    try {
-      const zoneId = isChurchMode ? undefined : activeZone?.id;
-      const churchId = isChurchMode ? activeChurch?.id : undefined;
+  const fetchData = useCallback(async () => {
+    if (!session) return;
 
+    // Scope by mode — ONE clear rule
+    const statsQuery =
+      session.mode === 'church' && session.churchId
+        ? `?churchId=${session.churchId}`
+        : `?zoneId=${session.zoneId}`;
+
+    const programsUrl =
+      session.mode === 'church' && session.churchId
+        ? `/programs?groupId=${session.churchId}&includeChurch=true`
+        : `/programs?zoneId=${session.zoneId}`;
+
+    const membersUrl =
+      session.mode === 'church' && session.churchId
+        ? `/subgroups/${session.churchId}/members`
+        : `/members/zone/${session.zoneId}`;
+
+    try {
       const [statsRes, programsRes, membersRes] = await Promise.all([
-        api.dashboard.getStats(zoneId, churchId).catch(() => null),
-        api.programs
-          .getAll(
-            isChurchMode && churchId
-              ? { groupId: churchId, subGroupId: churchId, includeChurch: true }
-              : { zoneId, includeChurch: true }
+        apiClient
+          .get<{ success: boolean; data: DashboardStats }>(
+            `/admin/dashboard/stats${statsQuery}`
           )
-          .catch(() => ({ data: [] })),
-        (isChurchMode && churchId
-          ? api.churches.getMembers(churchId)
-          : api.members.getDirectory(zoneId, 10)
-        ).catch(() => ({ data: [] })),
+          .catch(() => null),
+        apiClient
+          .get<{ success: boolean; data: any[] }>(programsUrl)
+          .catch(() => null),
+        apiClient
+          .get<{ success: boolean; data: any[] }>(membersUrl)
+          .catch(() => null),
       ]);
 
-      if (statsRes) {
+      if (statsRes?.data) {
         setStats({
-          totalMembers: statsRes.totalMembers ?? 0,
-          activePrograms: statsRes.activePrograms ?? 0,
-          totalSongs: statsRes.totalSongs ?? 0,
-          pendingSongs: statsRes.pendingSongs ?? 0,
+          totalMembers: statsRes.data.totalMembers ?? 0,
+          activePrograms: statsRes.data.activePrograms ?? 0,
+          totalSongs: statsRes.data.totalSongs ?? 0,
+          pendingSongs: statsRes.data.pendingSongs ?? 0,
         });
       }
 
-      setRecentPrograms(Array.isArray(programsRes?.data) ? programsRes.data.slice(0, 4) : []);
+      setRecentPrograms(
+        Array.isArray(programsRes?.data) ? programsRes.data.slice(0, 4) : []
+      );
 
-      if (Array.isArray(membersRes?.data)) {
-        setMembers(
-          membersRes.data.slice(0, 5).map((u: any) => ({
-            id: u.id || u.userId,
-            first_name: u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer',
-            last_name: u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '',
-            designation: u.voicePart || u.designation || '',
-            role: u.role || 'member',
-            church: isChurchMode ? (activeChurch?.name || '') : (u.church || u.churchName || ''),
-            is_active: u.is_active !== false,
-          }))
-        );
-      } else {
-        setMembers([]);
-      }
+      setMembers(
+        Array.isArray(membersRes?.data)
+          ? membersRes.data.slice(0, 5).map((u: any) => ({
+              id: u.userId || u.id,
+              first_name:
+                u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer',
+              last_name:
+                u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '',
+              designation: u.voicePart || u.designation || '',
+              role: u.role || 'member',
+              church: u.church || u.churchName || '',
+              is_active: u.status !== 'INACTIVE' && u.is_active !== false,
+            }))
+          : []
+      );
     } catch (err) {
       console.warn('[useDashboardData] fetch error:', err);
-      setRecentPrograms([]);
-      setMembers([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeZone?.id, isChurchMode, activeChurch?.id]);
+  }, [session?.zoneId, session?.churchId, session?.mode]);
 
-  // Reset stale data and re-fetch immediately when scope switches
-  const lastScopeRef = useRef<string>('');
   useEffect(() => {
-    const scopeKey = `${activeZone?.id ?? ''}:${isChurchMode ? (activeChurch?.id ?? '') : ''}`;
-    if (lastScopeRef.current !== '' && lastScopeRef.current !== scopeKey) {
-      setStats(INITIAL_STATS);
-      setRecentPrograms([]);
-      setMembers([]);
-      setLoading(true);
-    }
-    lastScopeRef.current = scopeKey;
-    fetch();
-  }, [fetch]);
-
-  // Re-fetch when screen regains focus (e.g. returning from MoreScreen after scope switch)
-  useFocusEffect(
-    useCallback(() => {
-      fetch();
-    }, [fetch])
-  );
+    setStats(EMPTY_STATS);
+    setRecentPrograms([]);
+    setMembers([]);
+    setLoading(true);
+    fetchData();
+  }, [fetchData]);
 
   const refetch = useCallback(() => {
     setRefreshing(true);
-    fetch();
-  }, [fetch]);
+    fetchData();
+  }, [fetchData]);
 
   return { stats, recentPrograms, members, loading, refreshing, refetch };
 }

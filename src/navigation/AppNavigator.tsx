@@ -24,6 +24,7 @@ import MediaLibraryScreen   from '../screens/MediaLibraryScreen';
 import SupportChatScreen    from '../screens/SupportChatScreen';
 import ProgramSongsScreen  from '../screens/ProgramSongsScreen';
 import GeofenceScreen      from '../screens/GeofenceScreen';
+import ModePickerScreen from '../screens/ModePickerScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -104,6 +105,7 @@ export default function AppNavigator({ initialRoute = 'Login' }: { initialRoute?
   return (
     <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="ModePicker" component={ModePickerScreen} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
 
       <Stack.Screen name="Programs" component={ProgramsScreen} />

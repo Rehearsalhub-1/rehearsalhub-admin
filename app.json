@@ -10,12 +10,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0b0514"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.karaoke.rehearsalhubadmin"
@@ -25,7 +19,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0b0514"
       },
-      "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.karaoke.rehearsalhubadmin"
     },
@@ -37,7 +30,9 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-updates"
+      "expo-updates",
+      "expo-audio",
+      "expo-video"
     ],
     "extra": {
       "eas": {

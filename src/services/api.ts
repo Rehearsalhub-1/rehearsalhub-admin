@@ -23,52 +23,17 @@ export const api = {
   },
 
   // ── Dashboard Metrics ────────────────────────────────────────────────────
+  // Stats are fetched directly from /admin/dashboard/stats by useDashboardData.
+  // No client-side aggregation — the API does it in a single DB round-trip.
   dashboard: {
-    getStats: async (zoneId?: string, churchId?: string) => {
-      const cleanZoneId = zoneId && zoneId !== 'all' && zoneId !== 'zone-boss' ? zoneId : undefined;
-      const zoneParam = cleanZoneId ? `?zoneId=${encodeURIComponent(cleanZoneId)}` : '';
-
-      const progParams = new URLSearchParams();
-      progParams.append('includeChurch', 'true');
-      if (churchId) {
-        progParams.append('groupId', churchId);
-      } else if (cleanZoneId) {
-        progParams.append('zoneId', cleanZoneId);
-      }
-      const progQuery = `?${progParams.toString()}`;
-
-      const [zoneSongsRes, masterSongsRes, membersRes, programsRes, submittedRes] = await Promise.all([
-        apiClient.get<any>(`/songs/zone${zoneParam}`).catch(() => ({ data: [] })),
-        apiClient.get<any>('/master-songs').catch(() => ({ data: [] })),
-        churchId
-          ? apiClient.get<any>(`/subgroups/${churchId}/members`).catch(() => ({ data: [] }))
-          : apiClient.get<any>(`/profiles/directory${zoneParam}`).catch(() => ({ data: [] })),
-        apiClient.get<any>(`/programs${progQuery}`).catch(() => ({ data: [] })),
-        apiClient.get<any>(`/submitted-songs${zoneParam}`).catch(() => ({ data: [] })),
-      ]);
-
-      const zoneSongs = Array.isArray(zoneSongsRes?.data) ? zoneSongsRes.data : [];
-      const masterSongs = Array.isArray(masterSongsRes?.data) ? masterSongsRes.data : [];
-      // The dashboard KPI tile is explicitly named "Ministered Songs" and clicking it navigates to MasterLibraryScreen (All Ministered Catalog).
-      // The ministered catalog contains exactly the master songs count (e.g. 827 songs).
-      const totalSongsCount = masterSongs.length;
-
-      const members = Array.isArray(membersRes?.data) ? membersRes.data : [];
-      const totalMembersCount = membersRes?.totalCount ?? membersRes?.count ?? members.length;
-      const programs = Array.isArray(programsRes?.data) ? programsRes.data : [];
-      const submitted = Array.isArray(submittedRes?.data) ? submittedRes.data : [];
-
-      const activePrograms = programs.filter((p: any) => (p.status || p.category) === 'ongoing');
-      const upcomingPrograms = programs.filter((p: any) => (p.status || p.category) === 'pre-rehearsal');
-
-      return {
-        totalSongs: totalSongsCount,
-        pendingSongs: submitted.filter((s: any) => s.status === 'pending' || !s.status).length,
-        totalMembers: totalMembersCount,
-        activePrograms: programs.length,
-        currentLiveProgram: activePrograms[0] || upcomingPrograms[0] || null,
-        recentSubmissions: submitted.slice(0, 5),
-      };
+    getStats: (_zoneId?: string, _churchId?: string) => {
+      // Deprecated: use apiClient.get('/admin/dashboard/stats?zoneId=...') directly.
+      // Kept as a stub so existing call sites don't crash during the transition.
+      console.warn('[api.dashboard.getStats] deprecated — use /admin/dashboard/stats endpoint directly');
+      return Promise.resolve({
+        totalSongs: 0, pendingSongs: 0, totalMembers: 0,
+        activePrograms: 0, currentLiveProgram: null, recentSubmissions: [],
+      });
     },
   },
 

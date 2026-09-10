@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Colors } from '../constants/Colors';
 
 export interface MasterSong {
@@ -69,25 +69,26 @@ export default function MasterSongDetailModal({
   const [activeTab, setActiveTab] = useState<'lyrics' | 'conductor' | 'history'>('lyrics');
 
   // Audio Playback
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [player, setPlayer] = useState<AudioPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activePart, setActivePart] = useState<string>('full');
   const [audioLoading, setAudioLoading] = useState(false);
 
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync().catch(() => {});
+      if (player) {
+        player.pause();
+        player.remove();
       }
     };
-  }, [sound]);
+  }, [player]);
 
   useEffect(() => {
     if (!visible) {
-      if (sound) {
-        sound.stopAsync().catch(() => {});
-        sound.unloadAsync().catch(() => {});
-        setSound(null);
+      if (player) {
+        player.pause();
+        player.remove();
+        setPlayer(null);
       }
       setIsPlaying(false);
       setActivePart('full');
@@ -133,43 +134,39 @@ export default function MasterSongDetailModal({
     }
 
     try {
-      if (sound && targetKey === activePart) {
-        const status = await sound.getStatusAsync();
-        if (status.isLoaded) {
-          if (status.isPlaying) {
-            await sound.pauseAsync();
-            setIsPlaying(false);
-            return;
-          } else {
-            await sound.playAsync();
-            setIsPlaying(true);
-            return;
+      if (player && targetKey === activePart) {
+        if (player.playing) {
+          player.pause();
+          setIsPlaying(false);
+          return;
+        } else {
+          if (player.currentTime >= player.duration && player.duration > 0) {
+            await player.seekTo(0);
           }
+          player.play();
+          setIsPlaying(true);
+          return;
         }
       }
 
       // If switching part or new audio
       setAudioLoading(true);
-      if (sound) {
-        await sound.stopAsync().catch(() => {});
-        await sound.unloadAsync().catch(() => {});
-        setSound(null);
+      if (player) {
+        player.pause();
+        player.remove();
+        setPlayer(null);
       }
 
       setActivePart(targetKey);
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: targetUrl },
-        { shouldPlay: true },
-        playbackStatus => {
-          if (playbackStatus.isLoaded) {
-            setIsPlaying(playbackStatus.isPlaying);
-            if (playbackStatus.didJustFinish) {
-              setIsPlaying(false);
-            }
-          }
+      const newPlayer = createAudioPlayer({ uri: targetUrl });
+      (newPlayer as any).addListener('playbackStatusUpdate', (status: any) => {
+        setIsPlaying(status.playing);
+        if (status.didJustFinish) {
+          setIsPlaying(false);
         }
-      );
-      setSound(newSound);
+      });
+      newPlayer.play();
+      setPlayer(newPlayer);
       setIsPlaying(true);
     } catch (e: any) {
       console.log('Audio playback error:', e);

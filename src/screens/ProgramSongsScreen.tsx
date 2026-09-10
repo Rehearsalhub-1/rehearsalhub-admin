@@ -19,7 +19,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
 import { Colors } from '../constants/Colors';
 import { api } from '../services/api';
 import { EmptyState, Badge } from '../components/ui';

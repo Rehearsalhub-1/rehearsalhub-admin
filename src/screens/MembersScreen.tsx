@@ -231,12 +231,12 @@ export default function MembersScreen() {
 
       <MemberManagementModal
         visible={modalVisible}
-        member={selectedMember}
+        member={selectedMember as any}
         onClose={() => { setModalVisible(false); setSelectedMember(null); }}
-        onSave={saveMember}
-        onRemove={removeFromZone}
-        onApprove={approve}
-        onReject={reject}
+        onSave={saveMember as any}
+        onRemove={removeFromZone as any}
+        onApprove={approve as any}
+        onReject={reject as any}
       />
     </SafeAreaView>
   );

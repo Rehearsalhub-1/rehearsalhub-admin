@@ -19,7 +19,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { Audio, Video, ResizeMode } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import * as WebBrowser from 'expo-web-browser';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
@@ -92,6 +93,22 @@ const CATEGORY_TABS: { id: CategoryFilter; label: string; icon: keyof typeof Ion
   { id: 'document', label: 'Scores & Sheets', icon: 'document-text-outline' },
 ];
 
+function InAppVideoViewer({ item }: { item: MediaItem }) {
+  const videoSource = item.url || item.videoUrl || '';
+  const player = useVideoPlayer(videoSource, p => {
+    p.play();
+  });
+
+  return (
+    <VideoView
+      style={styles.nativeVideo}
+      player={player}
+      nativeControls={true}
+      contentFit="contain"
+    />
+  );
+}
+
 export default function MediaLibraryScreen() {
   const { activeZone } = useZoneContext();
 
@@ -123,11 +140,10 @@ export default function MediaLibraryScreen() {
   const [playbackPos, setPlaybackPos] = useState<number>(0);
   const [playbackDur, setPlaybackDur] = useState<number>(0);
   const [showFullPlayerModal, setShowFullPlayerModal] = useState<boolean>(false);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef = useRef<AudioPlayer | null>(null);
 
   // In-App Video Player State
   const [activeVideoItem, setActiveVideoItem] = useState<MediaItem | null>(null);
-  const videoPlayerRef = useRef<Video | null>(null);
 
   // In-App Image Lightbox State
   const [activeImageItem, setActiveImageItem] = useState<MediaItem | null>(null);
@@ -151,7 +167,7 @@ export default function MediaLibraryScreen() {
 
   // Toast
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const toastTimer = useRef<NodeJS.Timeout | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = useCallback((msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -164,8 +180,8 @@ export default function MediaLibraryScreen() {
   const stopCurrentAudio = useCallback(async () => {
     if (soundRef.current) {
       try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        soundRef.current.pause();
+        soundRef.current.remove();
       } catch {}
       soundRef.current = null;
     }
@@ -415,14 +431,17 @@ export default function MediaLibraryScreen() {
       if (isPlaying) {
         if (soundRef.current) {
           try {
-            await soundRef.current.pauseAsync();
+            soundRef.current.pause();
           } catch {}
         }
         setIsPlaying(false);
       } else {
         if (soundRef.current) {
           try {
-            await soundRef.current.playAsync();
+            if (soundRef.current.currentTime >= soundRef.current.duration && soundRef.current.duration > 0) {
+              await soundRef.current.seekTo(0);
+            }
+            soundRef.current.play();
             setIsPlaying(true);
           } catch {}
         }
@@ -439,28 +458,24 @@ export default function MediaLibraryScreen() {
     setActiveAudioItem(item);
     setIsBuffering(true);
     try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
       });
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: item.url },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded) {
-            setPlaybackPos(status.positionMillis || 0);
-            setPlaybackDur(status.durationMillis || 0);
-            setIsPlaying(status.isPlaying);
-            if (status.didJustFinish) {
-              setIsPlaying(false);
-              setPlaybackPos(0);
-            }
-          }
+      const player = createAudioPlayer({ uri: item.url }, { updateInterval: 250 });
+      (player as any).addListener('playbackStatusUpdate', (status: any) => {
+        setPlaybackPos((status.currentTime || 0) * 1000);
+        setPlaybackDur((status.duration || 0) * 1000);
+        setIsPlaying(status.playing);
+        setIsBuffering(status.isBuffering);
+        if (status.didJustFinish) {
+          setIsPlaying(false);
+          setPlaybackPos(0);
         }
-      );
+      });
 
-      soundRef.current = sound;
+      player.play();
+      soundRef.current = player;
       setIsPlaying(true);
     } catch (err: any) {
       Alert.alert('Playback Notice', 'Could not stream audio: ' + (err?.message || 'Unsupported format'));
@@ -473,9 +488,9 @@ export default function MediaLibraryScreen() {
   const handleSeekRelative = async (offsetMillis: number) => {
     if (!soundRef.current) return;
     try {
-      const newPos = Math.max(0, Math.min(playbackDur, playbackPos + offsetMillis));
-      await soundRef.current.setPositionAsync(newPos);
-      setPlaybackPos(newPos);
+      const newPosMs = Math.max(0, Math.min(playbackDur, playbackPos + offsetMillis));
+      await soundRef.current.seekTo(newPosMs / 1000);
+      setPlaybackPos(newPosMs);
     } catch {}
   };
 
@@ -1481,14 +1496,7 @@ export default function MediaLibraryScreen() {
 
             <View style={styles.videoWrapper}>
               {activeVideoItem?.url ? (
-                <Video
-                  ref={videoPlayerRef}
-                  source={{ uri: activeVideoItem.url || activeVideoItem.videoUrl || '' }}
-                  useNativeControls
-                  resizeMode={ResizeMode.CONTAIN}
-                  shouldPlay={true}
-                  style={styles.nativeVideo}
-                />
+                <InAppVideoViewer item={activeVideoItem} />
               ) : null}
             </View>
           </SafeAreaView>
@@ -2122,7 +2130,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   playOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.35)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -779,11 +779,11 @@ export default function ProgramsScreen({ navigation }: any) {
             location: program.location,
             category: 'pre-rehearsal',
             status: 'pre-rehearsal',
-            organizationId: program.organizationId || program.zoneId,
-            zoneId: program.zoneId || program.organizationId,
-            groupId: program.groupId || program.subGroupId,
-            subGroupId: program.subGroupId || program.groupId,
-            scope: program.scope,
+            organizationId: program.organizationId || (program as any).zoneId,
+            zoneId: (program as any).zoneId || program.organizationId,
+            groupId: program.groupId || (program as any).subGroupId,
+            subGroupId: (program as any).subGroupId || program.groupId,
+            scope: (program as any).scope,
             songIds: program.songIds || [],
           };
           const res = await api.programs.create(copyPayload).catch(() => null);
@@ -847,36 +847,16 @@ export default function ProgramsScreen({ navigation }: any) {
   );
 
   const filteredPrograms = useMemo(() => {
+    // usePrograms already handles zone/church scoping and HQ bleed removal.
+    // Here we only apply UI-level filters: tab, search, and sort.
     let list = [...programs];
 
-    // 1. Strict Scope Filtering (Org / Zone vs Church mode)
-    if (isChurchMode) {
-      // In church mode: only show programs belonging to this church
-      list = list.filter(p => {
-        const pGroup = p.groupId || (p as any).group_id || p.subGroupId || (p as any).sub_group_id;
-        return pGroup === activeChurch?.id || p.scope === 'subgroup';
-      });
-    } else {
-      // In Org / Zonal mode: strictly exclude any church / subgroup programs
-      // (matching rehearsalhubv2 line 665: pages.filter(p => p.scope !== 'subgroup' && !p.subGroupId && !p.groupId))
-      list = list.filter(p => {
-        const hasGroup = Boolean(p.groupId || (p as any).group_id || p.subGroupId || (p as any).sub_group_id || p.scope === 'subgroup');
-        if (hasGroup) return false;
-        // If viewing a specific zone (and not all zones), filter by zone or global HQ
-        if (activeZone?.id) {
-          const org = p.organizationId || (p as any).organization_id || p.zoneId || (p as any).zone_id;
-          return !org || org === activeZone.id || org === 'zone-001' || org === 'global';
-        }
-        return true;
-      });
-    }
-
-    // 2. Status / Tab filter
+    // Status / Tab filter
     if (selectedTab !== 'all') {
       list = list.filter(p => (p.status || p.category) === selectedTab);
     }
 
-    // 3. Search filter
+    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(
@@ -887,7 +867,7 @@ export default function ProgramsScreen({ navigation }: any) {
       );
     }
 
-    // 4. Sort: ongoing live first, then chronological descending
+    // Sort: ongoing first, then chronological descending
     list.sort((a, b) => {
       const aOngoing = (a.status || a.category) === 'ongoing';
       const bOngoing = (b.status || b.category) === 'ongoing';
@@ -899,7 +879,7 @@ export default function ProgramsScreen({ navigation }: any) {
     });
 
     return list;
-  }, [programs, isChurchMode, activeChurch?.id, activeZone?.id, selectedTab, searchQuery]);
+  }, [programs, selectedTab, searchQuery]);
 
   const groupedPrograms = useMemo(() => {
     const groups: { year: string; data: Program[] }[] = [];

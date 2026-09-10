@@ -57,7 +57,7 @@ function AuthGate() {
 
   return (
     <SafeAreaProvider style={{ flex: 1, backgroundColor: Colors.background }}>
-      <StatusBar style="dark" backgroundColor={Colors.background} />
+      <StatusBar style="dark" />
       <NavigationContainer theme={NavTheme}>
         <AppNavigator initialRoute={isAdmin ? 'MainTabs' : 'Login'} />
       </NavigationContainer>

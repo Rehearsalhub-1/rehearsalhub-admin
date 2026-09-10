@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
+import { useAdminStore } from '../stores/adminStore';
 import ZoneHeader from '../components/ZoneHeader';
 
 interface MenuItemProps {
@@ -58,7 +59,8 @@ export default function MoreScreen({ navigation }: any) {
     isChurchMode, activeChurch, userChurches, toggleRoleMode,
   } = useZoneContext();
 
-  const hasDualRole = Boolean(adminUser?.hasDualRole) || (userChurches.length > 0 && !adminUser?.isChurchAdmin);
+  const session = useAdminStore(s => s.session);
+  const hasDualRole = Boolean(session?.isDualRole);
   const isPureChurchAdmin = Boolean(adminUser?.isChurchAdmin) && !adminUser?.isHQAdmin && !hasDualRole;
 
   async function handleLogout() {
@@ -134,7 +136,20 @@ export default function MoreScreen({ navigation }: any) {
 
         {/* ── Dual-Role Scope Switcher Card (only for dual-role admins) ── */}
         {hasDualRole && (
-          <TouchableOpacity style={styles.scopeCard} onPress={toggleRoleMode} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.scopeCard} onPress={() => {
+            Alert.alert(
+              'Switch Admin Mode',
+              'To switch between Zone Admin and Church Admin mode, sign out and choose your mode on the next login.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Sign Out & Switch',
+                  style: 'destructive',
+                  onPress: () => handleLogout(),
+                },
+              ]
+            );
+          }} activeOpacity={0.85}>
             <View style={styles.scopeCardLeft}>
               <View style={[styles.scopeIconWrap, { backgroundColor: isChurchMode ? '#fff7ed' : '#eef2ff' }]}>
                 <Ionicons

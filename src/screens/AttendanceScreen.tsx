@@ -822,7 +822,7 @@ export default function AttendanceScreen({ navigation }: any) {
         <SafeAreaView style={styles.scannerSafeArea}>
           <View style={styles.cameraContainer}>
             <CameraView
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               facing="back"
               enableTorch={torchOn}
               barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
@@ -1294,7 +1294,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   actionSheetContent: {
     backgroundColor: '#ffffff',
@@ -1358,7 +1358,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   overlayLayer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'space-between',
     backgroundColor: 'rgba(0,0,0,0.3)',
   },

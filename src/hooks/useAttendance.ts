@@ -60,9 +60,14 @@ export function useAttendance() {
     fetchAttendance();
   }, [fetchAttendance]);
 
-  // Re-fetch on tab focus
+  // Re-fetch on tab focus — skip on initial mount (useEffect already handles that)
+  const mountedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
+      if (!mountedRef.current) {
+        mountedRef.current = true;
+        return;
+      }
       fetchAttendance();
       fetchSessionStatus();
     }, [fetchAttendance, fetchSessionStatus])

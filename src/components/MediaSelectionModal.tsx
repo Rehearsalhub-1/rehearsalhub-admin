@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import * as DocumentPicker from 'expo-document-picker';
 import { Colors } from '../constants/Colors';
 import { api } from '../services/api';
@@ -73,7 +73,7 @@ export default function MediaSelectionModal({
   // Audio Playback Preview State
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
   const [audioLoadingUrl, setAudioLoadingUrl] = useState<string | null>(null);
-  const soundRef = React.useRef<Audio.Sound | null>(null);
+  const soundRef = React.useRef<AudioPlayer | null>(null);
 
   // Image Preview Modal State
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
@@ -81,8 +81,8 @@ export default function MediaSelectionModal({
   const stopAudio = useCallback(async () => {
     if (soundRef.current) {
       try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        soundRef.current.pause();
+        soundRef.current.remove();
       } catch {}
       soundRef.current = null;
     }
@@ -109,20 +109,17 @@ export default function MediaSelectionModal({
     await stopAudio();
     setAudioLoadingUrl(url);
     try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        allowsRecordingIOS: false,
+      await setAudioModeAsync({
+        playsInSilentMode: true,
       });
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true },
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setPlayingUrl(null);
-          }
+      const player = createAudioPlayer({ uri: url });
+      (player as any).addListener('playbackStatusUpdate', (status: any) => {
+        if (status.didJustFinish) {
+          setPlayingUrl(null);
         }
-      );
-      soundRef.current = sound;
+      });
+      player.play();
+      soundRef.current = player;
       setPlayingUrl(url);
     } catch (err: any) {
       Alert.alert('Playback Error', 'Could not play audio preview: ' + (err?.message || 'Unsupported format'));

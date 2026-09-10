@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Colors } from '../constants/Colors';
 import MediaSelectionModal from './MediaSelectionModal';
 import { MasterSong } from './MasterSongDetailModal';
@@ -97,18 +97,28 @@ export default function MasterEditSongModal({
 
   // Audio Playback for Stem Testing
   const [playingKey, setPlayingKey] = useState<string | null>(null);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [player, setPlayer] = useState<AudioPlayer | null>(null);
 
   // UI state
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync().catch(() => {});
+      if (player) {
+        player.pause();
+        player.remove();
       }
     };
-  }, [sound]);
+  }, [player]);
+
+  useEffect(() => {
+    if (!visible && player) {
+      player.pause();
+      player.remove();
+      setPlayer(null);
+      setPlayingKey(null);
+    }
+  }, [visible, player]);
 
   useEffect(() => {
     if (visible) {
@@ -191,10 +201,10 @@ export default function MasterEditSongModal({
         setCustomParts([]);
       }
     } else {
-      if (sound) {
-        sound.stopAsync().catch(() => {});
-        sound.unloadAsync().catch(() => {});
-        setSound(null);
+      if (player) {
+        player.pause();
+        player.remove();
+        setPlayer(null);
       }
       setPlayingKey(null);
     }
@@ -240,31 +250,29 @@ export default function MasterEditSongModal({
   async function handleToggleStemAudio(stemKey: string, url: string) {
     if (!url) return;
     try {
-      if (playingKey === stemKey && sound) {
-        await sound.stopAsync().catch(() => {});
-        await sound.unloadAsync().catch(() => {});
-        setSound(null);
+      if (playingKey === stemKey && player) {
+        player.pause();
+        player.remove();
+        setPlayer(null);
         setPlayingKey(null);
         return;
       }
 
-      if (sound) {
-        await sound.stopAsync().catch(() => {});
-        await sound.unloadAsync().catch(() => {});
-        setSound(null);
+      if (player) {
+        player.pause();
+        player.remove();
+        setPlayer(null);
       }
 
       setPlayingKey(stemKey);
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: url },
-        { shouldPlay: true },
-        status => {
-          if (status.isLoaded && status.didJustFinish) {
-            setPlayingKey(null);
-          }
+      const newPlayer = createAudioPlayer({ uri: url });
+      (newPlayer as any).addListener('playbackStatusUpdate', (status: any) => {
+        if (status.didJustFinish) {
+          setPlayingKey(null);
         }
-      );
-      setSound(newSound);
+      });
+      newPlayer.play();
+      setPlayer(newPlayer);
     } catch (e) {
       console.log('Stem play error:', e);
       setPlayingKey(null);
