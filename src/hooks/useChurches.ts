@@ -29,19 +29,10 @@ export function useChurches() {
   const fetch = useCallback(async () => {
     try {
       const effectiveZoneId = activeZone?.id;
-      const [churchesRes, reqRes] = await Promise.all([
-        api.churches.getAll(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
-        api.churches.getRequests(effectiveZoneId).catch(() => ({ data: [] as Church[] })),
-      ]);
+      const churchesRes = await api.churches.getAll(effectiveZoneId).catch(() => ({ data: [] as Church[] }));
       const churchList = Array.isArray(churchesRes.data) ? churchesRes.data : [];
-      const pendingFromMain = churchList.filter(c => c.status === 'pending');
-      const pendingList = Array.isArray(reqRes.data) ? reqRes.data : [];
-      const combined = [
-        ...pendingFromMain,
-        ...pendingList.filter(p => !pendingFromMain.some(m => m.id === p.id)),
-      ];
       setChurches(churchList.filter(c => c.status === 'active' || !c.status));
-      setPendingRequests(combined);
+      setPendingRequests([]);
     } catch (e) {
       console.error('[useChurches] fetch:', e);
     } finally {

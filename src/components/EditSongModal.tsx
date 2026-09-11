@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import MediaSelectionModal from './MediaSelectionModal';
+import { stripHtml } from '../lib/stripHtml';
 
 export interface PraiseNightSong {
   id?: string;
@@ -214,9 +215,9 @@ export default function EditSongModal({
       setSongLeadGuitarist(song.leadGuitarist || '');
       setSongDrummer(song.drummer || '');
 
-      setSongLyrics(song.lyrics || '');
-      setSongSolfas(song.solfas || song.solfa || '');
-      setSongNotation(song.notation || '');
+      setSongLyrics(stripHtml(song.lyrics));
+      setSongSolfas(stripHtml(song.solfas || song.solfa));
+      setSongNotation(stripHtml(song.notation));
 
       // Parse latest comment
       let commentText = song.coordinatorComment || '';
@@ -515,6 +516,17 @@ export default function EditSongModal({
         created_by: 'Coordinator',
       };
       setHistoryEntries(prev => [newEntry, ...prev]);
+      // Persist to API
+      if (song?.id) {
+        const { apiClient } = require('../lib/apiClient');
+        apiClient.post('/songs/history', {
+          songId: song.id,
+          type: historyFormType,
+          description: historyFormDesc.trim(),
+          old_value: originalHistoryValues.old_value,
+          new_value: originalHistoryValues.new_value,
+        }).catch(() => {});
+      }
       Alert.alert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
     }
 
@@ -977,7 +989,7 @@ export default function EditSongModal({
             <View style={styles.audioFileMetaRow}>
               <View style={styles.audioDotPurple} />
               <Text style={styles.audioFileName} numberOfLines={1}>
-                {songAudioFile.split('/').pop() || 'Master Audio Track'}
+                {songAudioFile.split('/').pop() || 'Full Audio Track'}
               </Text>
               <TouchableOpacity
                 onPress={() => setSongAudioFile('')}

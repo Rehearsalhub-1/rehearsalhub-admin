@@ -851,9 +851,14 @@ export default function ProgramsScreen({ navigation }: any) {
     // Here we only apply UI-level filters: tab, search, and sort.
     let list = [...programs];
 
-    // Status / Tab filter
+    // Status / Tab filter — check both status and category since DB values
+    // may be inconsistent from migration (status and category can differ)
     if (selectedTab !== 'all') {
-      list = list.filter(p => (p.status || p.category) === selectedTab);
+      list = list.filter(p => {
+        const s = (p.status || '').toLowerCase().trim();
+        const c = (p.category || '').toLowerCase().trim();
+        return s === selectedTab || c === selectedTab;
+      });
     }
 
     // Search filter
@@ -869,8 +874,8 @@ export default function ProgramsScreen({ navigation }: any) {
 
     // Sort: ongoing first, then chronological descending
     list.sort((a, b) => {
-      const aOngoing = (a.status || a.category) === 'ongoing';
-      const bOngoing = (b.status || b.category) === 'ongoing';
+      const aOngoing = a.status === 'ongoing' || a.category === 'ongoing';
+      const bOngoing = b.status === 'ongoing' || b.category === 'ongoing';
       if (aOngoing && !bOngoing) return -1;
       if (!aOngoing && bOngoing) return 1;
       const dateA = new Date(a.date || 0).getTime();
@@ -922,8 +927,8 @@ export default function ProgramsScreen({ navigation }: any) {
 
   const renderItem = useCallback(
     ({ item }: { item: Program }) => {
-      const isOngoing = (item.status || item.category) === 'ongoing';
-      const isPreRehearsal = (item.status || item.category) === 'pre-rehearsal';
+      const isOngoing = item.status === 'ongoing' || item.category === 'ongoing';
+      const isPreRehearsal = item.status === 'pre-rehearsal' || item.category === 'pre-rehearsal';
 
       let stats = songStatsMap[String(item.id)];
       if (!stats) {

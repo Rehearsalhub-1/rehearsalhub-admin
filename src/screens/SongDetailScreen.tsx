@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
+import { stripHtml } from '../lib/stripHtml';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
@@ -191,7 +192,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
                 multiline
               />
             ) : (
-              <Text style={styles.bodyText}>{song?.lyrics || 'No lyrics available for this song.'}</Text>
+              <Text style={styles.bodyText}>{stripHtml(song?.lyrics) || 'No lyrics available for this song.'}</Text>
             )}
           </View>
         )}
@@ -213,7 +214,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
               />
             ) : (
               <Text style={[styles.bodyText, { fontFamily: 'monospace' }]}>
-                {song?.solfas || song?.notation || 'No solfa guide uploaded.'}
+                {stripHtml(song?.solfas || song?.notation) || 'No solfa guide uploaded.'}
               </Text>
             )}
           </View>

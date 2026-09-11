@@ -17,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Colors } from '../constants/Colors';
+import { stripHtml } from '../lib/stripHtml';
 
 export interface SongSubmissionMessage {
   id: string;
@@ -530,7 +531,7 @@ export default function SubmissionReviewModal({
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.lyricsText}>
-                  {song.lyrics ? song.lyrics.trim() : 'No lyrics submitted.'}
+                  {song.lyrics ? stripHtml(song.lyrics) : 'No lyrics submitted.'}
                 </Text>
               </View>
             </ScrollView>
@@ -542,7 +543,7 @@ export default function SubmissionReviewModal({
               <View style={styles.contentCard}>
                 <Text style={styles.cardHeaderTitle}>Tonic Solfa Notation</Text>
                 <Text style={styles.solfaText}>
-                  {song.solfas ? song.solfas.trim() : 'No solfa notation available.'}
+                  {song.solfas ? stripHtml(song.solfas) : 'No solfa notation available.'}
                 </Text>
               </View>
             </ScrollView>

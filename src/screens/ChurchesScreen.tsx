@@ -15,9 +15,8 @@ import { useChurches, Church } from '../hooks/useChurches';
 export default function ChurchesScreen({ navigation }: any) {
   const { activeZone, isChurchMode } = useZoneContext();
   const { adminUser } = useAuth();
-  const { churches, pendingRequests, loading, refreshing, refetch, createChurch, approveChurch, rejectChurch, assignCoordinator } = useChurches();
+  const { churches, loading, refreshing, refetch, createChurch, assignCoordinator } = useChurches();
 
-  const [activeTab, setActiveTab] = useState<'churches' | 'pending'>('churches');
   const [search, setSearch] = useState('');
 
   // Create church modal
@@ -179,158 +178,82 @@ export default function ChurchesScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <ZoneHeader title="Churches & Subgroups" />
 
-      {/* Tab Switcher */}
-      <View style={styles.tabRow}>
+      {/* Search & Add Bar */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchWrap}>
+          <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by church or code..."
+            placeholderTextColor={Colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+            autoCapitalize="none"
+          />
+        </View>
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'churches' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('churches')}
-          activeOpacity={0.75}
+          style={styles.addBtn}
+          onPress={() => setCreateModal(true)}
+          activeOpacity={0.8}
         >
-          <Ionicons name="business-outline" size={14} color={activeTab === 'churches' ? '#fff' : Colors.textMuted} style={{ marginRight: 6 }} />
-          <Text style={[styles.tabBtnText, activeTab === 'churches' && styles.tabBtnTextActive]}>
-            Active Churches ({churches.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'pending' && styles.tabBtnActive]}
-          onPress={() => setActiveTab('pending')}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="time-outline" size={14} color={activeTab === 'pending' ? '#fff' : Colors.textMuted} style={{ marginRight: 6 }} />
-          <Text style={[styles.tabBtnText, activeTab === 'pending' && styles.tabBtnTextActive]}>
-            Pending ({pendingRequests.length})
-          </Text>
+          <Ionicons name="add" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Search & Add Bar */}
-      {activeTab === 'churches' && (
-        <View style={styles.searchRow}>
-          <View style={styles.searchWrap}>
-            <Ionicons name="search-outline" size={16} color={Colors.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by church or code..."
-              placeholderTextColor={Colors.textMuted}
-              value={search}
-              onChangeText={setSearch}
-              autoCapitalize="none"
-            />
+      <FlatList
+        data={filteredChurches}
+        keyExtractor={i => i.id}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, gap: 10 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} />
+        }
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Ionicons name="business-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 8 }} />
+            <Text style={styles.emptyText}>No churches registered in this zone</Text>
           </View>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setCreateModal(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {activeTab === 'churches' ? (
-        <FlatList
-          data={filteredChurches}
-          keyExtractor={i => i.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, gap: 10 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} />
-          }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="business-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 8 }} />
-              <Text style={styles.emptyText}>No churches registered in this zone</Text>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.churchCard}>
+            <View style={styles.churchIconWrap}>
+              <Ionicons name="business" size={18} color={Colors.accentBright} />
             </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.churchCard}>
-              <View style={styles.churchIconWrap}>
-                <Ionicons name="business" size={18} color={Colors.accentBright} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.churchName} numberOfLines={1}>{item.name}</Text>
-                  <View style={styles.codeBadge}>
-                    <Text style={styles.codeBadgeText}>{item.code}</Text>
-                  </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.churchName} numberOfLines={1}>{item.name}</Text>
+                <View style={styles.codeBadge}>
+                  <Text style={styles.codeBadgeText}>{item.code}</Text>
                 </View>
-                <Text style={styles.churchMeta}>
-                  {item.coordinatorName ? `Coord: ${item.coordinatorName}` : 'No coordinator assigned'}
-                  {item.memberCount !== undefined ? ` · ${item.memberCount} singers` : ''}
-                </Text>
               </View>
-
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                <TouchableOpacity
-                  style={[styles.assignBtn, { backgroundColor: Colors.surface }]}
-                  onPress={() => handleOpenMembersModal(item)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name="people-outline" size={14} color={Colors.accentBright} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.assignBtn}
-                  onPress={() => {
-                    setSelectedChurch(item);
-                    setAssignModal(true);
-                  }}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name="person-add-outline" size={14} color={Colors.accentBright} />
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.churchMeta}>
+                {item.coordinatorName ? `Coord: ${item.coordinatorName}` : 'No coordinator assigned'}
+                {item.memberCount !== undefined ? ` · ${item.memberCount} singers` : ''}
+              </Text>
             </View>
-          )}
-        />
-      ) : (
-        /* Pending Requests Tab */
-        <FlatList
-          data={pendingRequests}
-          keyExtractor={i => i.id}
-          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} />
-          }
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="checkmark-done-circle-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 8 }} />
-              <Text style={styles.emptyText}>No pending church requests</Text>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.pendingCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pendingTitle}>{item.name}</Text>
-                <Text style={styles.pendingMeta}>Code: {item.code} · Zone: {item.zoneName || item.zoneId}</Text>
-                {item.coordinatorEmail && (
-                  <Text style={styles.pendingEmail}>Applicant: {item.coordinatorEmail}</Text>
-                )}
-              </View>
 
-              <View style={styles.pendingActions}>
-                <TouchableOpacity
-                  style={styles.approveBtn}
-                  onPress={() => approveChurch(item.id)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="checkmark" size={14} color={Colors.success} style={{ marginRight: 4 }} />
-                  <Text style={styles.approveText}>Approve</Text>
-                </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <TouchableOpacity
+                style={[styles.assignBtn, { backgroundColor: Colors.surface }]}
+                onPress={() => handleOpenMembersModal(item)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="people-outline" size={14} color={Colors.accentBright} />
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.rejectBtn}
-                  onPress={() => rejectChurch(item.id)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="close" size={14} color={Colors.danger} style={{ marginRight: 4 }} />
-                  <Text style={styles.rejectText}>Reject</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.assignBtn}
+                onPress={() => {
+                  setSelectedChurch(item);
+                  setAssignModal(true);
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="person-add-outline" size={14} color={Colors.accentBright} />
+              </TouchableOpacity>
             </View>
-          )}
-        />
-      )}
+          </View>
+        )}
+      />
 
       {/* Create Church Modal */}
       <Modal visible={createModal} transparent animationType="slide">

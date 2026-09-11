@@ -125,7 +125,7 @@ interface SongDetailsModalProps {
   onSave: (updated: PraiseSong) => void;
 }
 
-function SongDetailsModal({ visible, song, programId = '', onClose, onSave }: SongDetailsModalProps) {
+function SongDetailsModal({ visible, song, programId = '', onClose, onSave, onDelete }: SongDetailsModalProps & { onDelete?: (id: string) => void }) {
   return (
     <SongModal
       visible={visible}
@@ -133,6 +133,7 @@ function SongDetailsModal({ visible, song, programId = '', onClose, onSave }: So
       programId={programId}
       onClose={onClose}
       onSaved={(updated) => onSave(updated as PraiseSong)}
+      onDelete={onDelete}
     />
   );
 }
@@ -550,17 +551,50 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
 
   function handleSongUpdated(updated: PraiseSong) {
     setProgramSongs(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated } : s)));
+    if (updated.id) {
+      api.songs.update(updated.id, {
+        title: updated.title,
+        key: updated.key,
+        tempo: updated.tempo,
+        leadSinger: updated.leadSinger,
+        conductor: updated.conductor,
+        writer: updated.writer,
+        category: updated.category,
+        categories: updated.categories,
+        lyrics: updated.lyrics,
+        solfas: updated.solfas || updated.solfa,
+        solfa: updated.solfas || updated.solfa,
+        notation: updated.notation,
+        audioFile: updated.audioFile || updated.audioUrl,
+        audioUrls: updated.audioUrls,
+        leadKeyboardist: updated.leadKeyboardist,
+        leadGuitarist: updated.leadGuitarist,
+        drummer: updated.drummer,
+        isActive: updated.isActive,
+        isHQOnly: (updated as any).isHQOnly,
+        rehearsalCount: updated.rehearsalCount,
+        coordinatorComment: updated.coordinatorComment,
+      }).catch(e => console.warn('[ProgramSongs] update failed:', e));
+    }
   }
 
   function handleSongCreated(newSong?: PraiseSong) {
     if (newSong) {
-      setProgramSongs(prev => [newSong, ...prev]);
+      setProgramSongs(prev => {
+        const next = [newSong, ...prev];
+        api.programs.updateSongIds(currentProgram.id, next.map(s => s.id)).catch(() => {});
+        return next;
+      });
     }
   }
 
   function handleSongCloned(clonedSong?: PraiseSong) {
     if (clonedSong) {
-      setProgramSongs(prev => [clonedSong, ...prev]);
+      setProgramSongs(prev => {
+        const next = [clonedSong, ...prev];
+        api.programs.updateSongIds(currentProgram.id, next.map(s => s.id)).catch(() => {});
+        return next;
+      });
     }
   }
 
@@ -886,6 +920,11 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         programId={currentProgram.id}
         onClose={() => setDetailsModalVisible(false)}
         onSave={handleSongUpdated}
+        onDelete={(songId) => {
+          setProgramSongs(prev => prev.filter(s => s.id !== songId));
+          api.songs.delete(songId).catch(() => {});
+          setDetailsModalVisible(false);
+        }}
       />
 
       <CloneFromMasterModal
