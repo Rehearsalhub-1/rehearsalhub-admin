@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { apiClient } from '../lib/apiClient';
 import { useAdminStore } from '../stores/adminStore';
@@ -150,7 +150,7 @@ export function useMembers() {
 
   const saveMember = useCallback(async (updated: Member) => {
     try {
-      if (updated.role) await api.members.updateRole(updated.id, updated.role).catch(() => {});
+      if (updated.role) await api.members.updateRole(updated.id, updated.role);
       await api.members.updateProfile(updated.id, {
         role: updated.role,
         is_active: updated.is_active,
@@ -163,8 +163,10 @@ export function useMembers() {
         hiddenFeatures: updated.hiddenFeatures,
       }).catch(() => {});
       refetch();
-    } catch (err) {
-      console.warn('[useMembers] saveMember error:', err);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to save member';
+      console.error('[useMembers] saveMember:', msg);
+      Alert.alert('Save Failed', msg);
     }
   }, [refetch]);
 

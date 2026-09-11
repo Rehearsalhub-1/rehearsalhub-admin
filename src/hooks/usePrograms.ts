@@ -25,9 +25,11 @@ export function usePrograms() {
   const [allSongs, setAllSongs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!session) return;
+    setError(null);
 
     // ONE URL — scoped by mode, no client-side filtering
     const programsUrl =
@@ -39,14 +41,16 @@ export function usePrograms() {
 
     try {
       const [programsRes, songsRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: any[] }>(programsUrl).catch(() => null),
-        apiClient.get<{ success: boolean; data: any[] }>(songsUrl).catch(() => null),
+        apiClient.get<{ success: boolean; data: any[] }>(programsUrl),
+        apiClient.get<{ success: boolean; data: any[] }>(songsUrl).catch(() => ({ data: [] } as any)),
       ]);
 
       setPrograms(Array.isArray(programsRes?.data) ? programsRes.data : []);
       setAllSongs(Array.isArray(songsRes?.data) ? songsRes.data : []);
-    } catch (e) {
-      console.warn('[usePrograms] fetch error:', e);
+    } catch (e: any) {
+      const msg = e?.message || 'Failed to load programs';
+      console.error('[usePrograms]', msg);
+      setError(msg);
       setPrograms([]);
       setAllSongs([]);
     } finally {
@@ -80,5 +84,5 @@ export function usePrograms() {
     setPrograms(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  return { programs, allSongs, loading, refreshing, refetch, upsertProgram, removeProgram };
+  return { programs, allSongs, loading, refreshing, error, refetch, upsertProgram, removeProgram };
 }

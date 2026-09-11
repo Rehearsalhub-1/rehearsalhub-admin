@@ -1024,11 +1024,9 @@ export default function ProgramsScreen({ navigation }: any) {
                 searchQuery
                   ? 'Try a different search keyword.'
                   : isChurchMode
-                  ? `Create a rehearsal program for ${activeChurch?.name || 'your church choir'}.`
-                  : 'Create your first rehearsal program or setlist.'
+                  ? `No rehearsal programs scheduled for ${activeChurch?.name || 'this church choir'}.`
+                  : 'No rehearsal programs scheduled for this zone.'
               }
-              actionLabel="Create Program"
-              onAction={() => { setEditingProgram(null); setShowProgramModal(true); }}
             />
           )
         }

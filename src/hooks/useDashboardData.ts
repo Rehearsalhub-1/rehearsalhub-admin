@@ -24,9 +24,11 @@ export function useDashboardData() {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!session) return;
+    setError(null);
 
     // Scope by mode — ONE clear rule
     const statsQuery =
@@ -87,8 +89,10 @@ export function useDashboardData() {
             }))
           : []
       );
-    } catch (err) {
-      console.warn('[useDashboardData] fetch error:', err);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to load dashboard data';
+      console.error('[useDashboardData]', msg);
+      setError(msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -108,5 +112,5 @@ export function useDashboardData() {
     fetchData();
   }, [fetchData]);
 
-  return { stats, recentPrograms, members, loading, refreshing, refetch };
+  return { stats, recentPrograms, members, loading, refreshing, refetch, error };
 }

@@ -95,8 +95,13 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
       const zoneId =
         primaryMem?.organizationId ||
         primaryMem?.zoneId ||
-        raw.zoneId ||
-        'zone-001';
+        raw.zoneId;
+
+      if (!zoneId) {
+        console.error('[AdminStore] No zoneId resolved � cannot build session');
+        set({ session: null, isAuthenticated: false, loading: false });
+        return;
+      }
       const zoneName =
         primaryMem?.organization?.name ||
         primaryMem?.zoneName ||
@@ -154,8 +159,9 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         set({ session: null, isAuthenticated: false, loading: false });
         return;
       }
-      console.warn('[AdminStore] bootstrap error:', err);
-      set({ loading: false });
+      console.error('[AdminStore] bootstrap error � clearing session:', err);
+      await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
+      set({ session: null, isAuthenticated: false, loading: false });
     }
   },
 
