@@ -11,6 +11,7 @@ import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
 import { useChurches, Church } from '../hooks/useChurches';
+import { isHQGroup } from '../constants/zones';
 
 export default function ChurchesScreen({ navigation }: any) {
   const { activeZone, isChurchMode } = useZoneContext();
@@ -139,6 +140,25 @@ export default function ChurchesScreen({ navigation }: any) {
       c.code.toLowerCase().includes(q) ||
       (c.coordinatorName && c.coordinatorName.toLowerCase().includes(q));
   });
+
+  if (isHQGroup(activeZone?.id)) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Churches & Subgroups" />
+        <View style={styles.centerNotice}>
+          <View style={[styles.noticeIconWrap, { backgroundColor: '#f5f3ff' }]}>
+            <Ionicons name="globe" size={44} color="#7c3aed" />
+          </View>
+          <Text style={styles.noticeTitle}>HQ Central Choir</Text>
+          <Text style={styles.noticeSub}>
+            Loveworld Singers HQ is the central global choir and does not have zonal church chapters.
+            {'\n\n'}
+            Local church choirs belong under geographic zones (e.g. Lagos Zone 1, UK Zone 1). Switch to a geographic zone above to create churches, manage choir members, or appoint Church Coordinators.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (isChurchMode && !adminUser?.isHQAdmin) {
     return (
