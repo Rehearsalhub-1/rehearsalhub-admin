@@ -92,27 +92,36 @@ export default function LoginScreen({ navigation }: Props) {
         // Extract token from both query parameters and URL hash fragments
         let accessToken = '';
 
+        let kcUserId = '';
+        let kcEmail = '';
         const tokenMatch = result.url.match(/(?:access_token|accessToken|token)=([^&#]+)/);
         if (tokenMatch && tokenMatch[1]) {
           accessToken = decodeURIComponent(tokenMatch[1]);
-        } else {
-          try {
-            const cleanUrl = result.url.replace('#', '?');
-            const urlObj = new URL(cleanUrl);
+        }
+        try {
+          const cleanUrl = result.url.replace('#', '?');
+          const urlObj = new URL(cleanUrl);
+          if (!accessToken) {
             accessToken =
               urlObj.searchParams.get('access_token') ||
               urlObj.searchParams.get('accessToken') ||
               urlObj.searchParams.get('token') ||
               '';
-          } catch {}
-        }
+          }
+          kcUserId = urlObj.searchParams.get('user_id') || urlObj.searchParams.get('userId') || urlObj.searchParams.get('kingschat_id') || '';
+          kcEmail = urlObj.searchParams.get('email') || '';
+        } catch {}
 
         if (!accessToken) {
           customAlert('Authentication Failed', 'Failed to retrieve access token from KingsChat. Please try again.');
           return;
         }
 
-        const res = await api.auth.kingschatLogin({ accessToken });
+        const res = await api.auth.kingschatLogin({
+          accessToken,
+          kingschatUserId: kcUserId || undefined,
+          email: kcEmail || undefined,
+        });
 
         if (!res.success) {
           if (res.code === 'MULTIPLE_ACCOUNTS' && (res as any).accounts?.length > 1) {
