@@ -48,9 +48,13 @@ export const api = {
     getById: (songId: string) =>
       apiClient.get<{ success: boolean; data: any }>(`/songs/${songId}`),
     getProgramSongs: (programId: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/praise-night-songs?praiseNightId=${encodeURIComponent(programId)}`),
+      apiClient.get<{ success: boolean; data: any[] }>(`/songs?programId=${encodeURIComponent(programId)}`),
     getPraiseNightSongs: (praiseNightId: string) =>
-      apiClient.get<{ success: boolean; data: any[] }>(`/praise-night-songs?praiseNightId=${encodeURIComponent(praiseNightId)}`),
+      apiClient.get<{ success: boolean; data: any[] }>(`/songs?programId=${encodeURIComponent(praiseNightId)}`),
+    getSongHistory: (songId: string) =>
+      apiClient.get<{ success: boolean; data: any[] }>(`/songs/${encodeURIComponent(songId)}/history`),
+    createSongHistory: (data: { songId: string; type?: string; description?: string; old_value?: any; new_value?: any }) =>
+      apiClient.post<{ success: boolean; data?: any }>('/songs/history', data),
     setActiveSong: (songId: string) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isActive: true }),
     toggleActive: (songId: string, isActive: boolean) =>

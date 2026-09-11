@@ -44,7 +44,11 @@ export function useDashboardData() {
     const membersUrl =
       session.mode === 'church' && session.churchId
         ? `/subgroups/${session.churchId}/members`
-        : `/members/zone/${session.zoneId}`;
+        : session.role === 'hq_admin' && (!session.zoneId || session.zoneId === 'hq')
+        ? `/members/hq`
+        : session.zoneId
+        ? `/members/zone/${session.zoneId}`
+        : `/members/hq`;
 
     try {
       const [statsRes, programsRes, membersRes] = await Promise.all([
@@ -76,17 +80,60 @@ export function useDashboardData() {
 
       setMembers(
         Array.isArray(membersRes?.data)
-          ? membersRes.data.slice(0, 5).map((u: any) => ({
-              id: u.userId || u.id,
-              first_name:
-                u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer',
-              last_name:
-                u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '',
-              designation: u.voicePart || u.designation || '',
-              role: u.role || 'member',
-              church: u.church || u.churchName || '',
-              is_active: u.status !== 'INACTIVE' && u.is_active !== false,
-            }))
+          ? membersRes.data.slice(0, 5).map((u: any) => {
+              const userObj = u.user || u.profile || {};
+              const rawFirstName =
+                u.firstName ||
+                u.first_name ||
+                userObj.firstName ||
+                userObj.first_name ||
+                (u.displayName ? u.displayName.split(' ')[0] : '') ||
+                (u.userName ? u.userName.split(' ')[0] : '') ||
+                (u.name ? u.name.split(' ')[0] : '') ||
+                (userObj.name ? userObj.name.split(' ')[0] : '');
+
+              const rawLastName =
+                u.lastName ||
+                u.last_name ||
+                userObj.lastName ||
+                userObj.last_name ||
+                (u.displayName ? u.displayName.split(' ').slice(1).join(' ') : '') ||
+                (u.userName ? u.userName.split(' ').slice(1).join(' ') : '') ||
+                (u.name ? u.name.split(' ').slice(1).join(' ') : '') ||
+                (userObj.name ? userObj.name.split(' ').slice(1).join(' ') : '');
+
+              const email =
+                u.email ||
+                u.userEmail ||
+                userObj.email ||
+                userObj.userEmail ||
+                '';
+
+              const first_name = rawFirstName || (email ? email.split('@')[0] : 'Singer');
+              const last_name = rawLastName || '';
+
+              return {
+                id: u.userId || userObj.id || u.id,
+                first_name,
+                last_name,
+                email,
+                designation: u.voicePart || u.designation || userObj.voicePart || '',
+                role: u.role || 'member',
+                church:
+                  u.church ||
+                  u.churchName ||
+                  u.group?.name ||
+                  u.subgroup?.name ||
+                  u.subGroup?.name ||
+                  userObj.group?.name ||
+                  '',
+                is_active:
+                  u.status !== 'INACTIVE' &&
+                  u.status !== 'inactive' &&
+                  u.is_active !== false &&
+                  u.isActive !== false,
+              };
+            })
           : []
       );
     } catch (err: any) {
@@ -97,7 +144,7 @@ export function useDashboardData() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [session?.zoneId, session?.churchId, session?.mode]);
+  }, [session?.zoneId, session?.churchId, session?.mode, session?.role]);
 
   useEffect(() => {
     setStats(EMPTY_STATS);

@@ -172,6 +172,9 @@ export default function MembersScreen() {
                 </View>
                 <View style={styles.memberMeta}>
                   <Text style={styles.nameText}>{item.first_name} {item.last_name}</Text>
+                  {item.email ? (
+                    <Text style={styles.emailText} numberOfLines={1}>{item.email}</Text>
+                  ) : null}
                   <Text style={styles.subtitleText} numberOfLines={1}>{item.church || item.zoneName || 'Applicant'}</Text>
                 </View>
                 <View style={styles.pendingBtnRow}>
@@ -210,7 +213,12 @@ export default function MembersScreen() {
                 </View>
                 <View style={styles.memberMeta}>
                   <Text style={styles.nameText} numberOfLines={1}>{fullName}</Text>
-                  <Text style={styles.subtitleText} numberOfLines={1}>{item.church || item.zoneName || 'Choir Member'}</Text>
+                  {item.email ? (
+                    <Text style={styles.emailText} numberOfLines={1}>{item.email}</Text>
+                  ) : null}
+                  <Text style={styles.subtitleText} numberOfLines={1}>
+                    {[item.church || item.zoneName, item.designation].filter(Boolean).join(' • ') || 'Choir Member'}
+                  </Text>
                 </View>
                 {isZoneAdmin && (
                   <View style={styles.roleBadgeZone}>
@@ -275,6 +283,7 @@ const styles = StyleSheet.create({
   onlineDot: { position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderRadius: 5, backgroundColor: '#10b981', borderWidth: 2, borderColor: '#ffffff' },
   memberMeta: { flex: 1, marginRight: 8 },
   nameText: { fontSize: 14, fontWeight: '800', color: '#0f172a' },
+  emailText: { fontSize: 11, color: '#64748b', marginTop: 1 },
   subtitleText: { fontSize: 12, color: '#64748b', marginTop: 2 },
   roleBadgeZone: { backgroundColor: '#faf5ff', borderWidth: 1, borderColor: '#e9d5ff', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 6 },
   roleTextZone: { fontSize: 10, fontWeight: '800', color: '#7c3aed' },

@@ -387,8 +387,12 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   const initialProgram: Program = route.params?.program || {};
   const [currentProgram, setCurrentProgram] = useState<Program>(initialProgram);
 
-  const [programSongs, setProgramSongs] = useState<PraiseSong[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [programSongs, setProgramSongs] = useState<PraiseSong[]>(() =>
+    Array.isArray((initialProgram as any)?.songs) ? (initialProgram as any).songs : []
+  );
+  const [loading, setLoading] = useState(
+    !Array.isArray((initialProgram as any)?.songs) || (initialProgram as any).songs.length === 0
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'heard' | 'unheard'>('all');
@@ -407,17 +411,46 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   const [editProgramModalVisible, setEditProgramModalVisible] = useState(false);
 
   const fetchSongs = useCallback(async () => {
+    if (!currentProgram?.id) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       const res = await api.songs.getPraiseNightSongs(currentProgram.id);
-      setProgramSongs(Array.isArray(res?.data) ? res.data : []);
+      const songList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      if (songList.length > 0) {
+        setProgramSongs(songList);
+      } else {
+        // Fallback to program details if praise-night-songs returns empty
+        try {
+          const progRes = await api.programs.getById(currentProgram.id);
+          const progData = progRes?.data || progRes;
+          if (progData && Array.isArray(progData.songs) && progData.songs.length > 0) {
+            setProgramSongs(progData.songs);
+            setCurrentProgram(prev => ({ ...prev, ...progData }));
+          }
+        } catch {
+          // Keep existing songs
+        }
+      }
     } catch (e) {
       console.error('[ProgramSongs] fetch error:', e);
-      setProgramSongs([]);
+      try {
+        const progRes = await api.programs.getById(currentProgram.id);
+        const progData = progRes?.data || progRes;
+        if (progData && Array.isArray(progData.songs) && progData.songs.length > 0) {
+          setProgramSongs(progData.songs);
+          setCurrentProgram(prev => ({ ...prev, ...progData }));
+        }
+      } catch {
+        // Keep existing
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [currentProgram.id]);
+  }, [currentProgram?.id]);
 
   useEffect(() => {
     fetchSongs();

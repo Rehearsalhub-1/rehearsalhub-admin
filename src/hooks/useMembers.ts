@@ -40,17 +40,56 @@ function shapeRaw(u: any, churchName?: string): Member {
       : 'zone_admin'
     : 'member';
 
+  const userObj = u.user || u.profile || {};
+  const rawFirstName =
+    u.firstName ||
+    u.first_name ||
+    userObj.firstName ||
+    userObj.first_name ||
+    (u.displayName ? u.displayName.split(' ')[0] : '') ||
+    (u.userName ? u.userName.split(' ')[0] : '') ||
+    (u.name ? u.name.split(' ')[0] : '') ||
+    (userObj.name ? userObj.name.split(' ')[0] : '');
+
+  const rawLastName =
+    u.lastName ||
+    u.last_name ||
+    userObj.lastName ||
+    userObj.last_name ||
+    (u.displayName ? u.displayName.split(' ').slice(1).join(' ') : '') ||
+    (u.userName ? u.userName.split(' ').slice(1).join(' ') : '') ||
+    (u.name ? u.name.split(' ').slice(1).join(' ') : '') ||
+    (userObj.name ? userObj.name.split(' ').slice(1).join(' ') : '');
+
+  const email =
+    u.email ||
+    u.userEmail ||
+    userObj.email ||
+    userObj.userEmail ||
+    '';
+
+  const first_name = rawFirstName || (email ? email.split('@')[0] : 'Singer');
+  const last_name = rawLastName || '';
+
   return {
-    id: u.userId || u.id,
+    id: u.userId || userObj.id || u.id,
     membershipId: u.id || u.membershipId,
-    first_name: u.firstName || u.first_name || (u.name || '').split(' ')[0] || 'Singer',
-    last_name: u.lastName || u.last_name || (u.name || '').split(' ').slice(1).join(' ') || '',
-    email: u.email || u.userEmail || '',
-    username: u.username || '',
-    alias: u.alias || '',
-    phone: u.phone || '',
-    church: churchName || u.church || u.churchName || '',
-    designation: u.voicePart || u.designation || '',
+    first_name,
+    last_name,
+    email,
+    username: u.username || userObj.username || '',
+    alias: u.alias || userObj.alias || '',
+    phone: u.phone || userObj.phone || '',
+    church:
+      churchName ||
+      u.church ||
+      u.churchName ||
+      u.group?.name ||
+      u.subgroup?.name ||
+      u.subGroup?.name ||
+      userObj.group?.name ||
+      '',
+    designation: u.voicePart || u.designation || userObj.voicePart || userObj.designation || '',
     zoneId: u.organizationId || u.zoneId || '',
     zoneName: u.organization?.name || u.zoneName || '',
     role,
@@ -68,7 +107,12 @@ function shapeRaw(u: any, churchName?: string): Member {
     hiddenFeatures: u.hiddenFeatures,
     pending_hq_approval: false,
     created_at: u.joinedAt || u.createdAt || u.created_at,
-    profile_image_url: u.avatarUrl || u.profile_image_url || '',
+    profile_image_url:
+      u.avatarUrl ||
+      u.profile_image_url ||
+      userObj.avatarUrl ||
+      userObj.profile_image_url ||
+      '',
   };
 }
 
@@ -82,11 +126,15 @@ export function useMembers() {
   const fetchData = useCallback(async () => {
     if (!session) return;
 
-    // ONE URL — scoped by mode
+    // ONE URL — scoped by mode and role
     const url =
       session.mode === 'church' && session.churchId
         ? `/subgroups/${session.churchId}/members`
-        : `/members/zone/${session.zoneId}`;
+        : session.role === 'hq_admin' && (!session.zoneId || session.zoneId === 'hq')
+        ? `/members/hq`
+        : session.zoneId
+        ? `/members/zone/${session.zoneId}`
+        : `/members/hq`;
 
     try {
       const res = await apiClient.get<{ success: boolean; data: any[] }>(url).catch(() => null);
@@ -103,7 +151,7 @@ export function useMembers() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [session?.zoneId, session?.churchId, session?.mode]);
+  }, [session?.zoneId, session?.churchId, session?.mode, session?.role]);
 
   useEffect(() => {
     setMembers([]);

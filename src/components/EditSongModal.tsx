@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import MediaSelectionModal from './MediaSelectionModal';
 import { stripHtml } from '../lib/stripHtml';
+import { api } from '../services/api';
 
 export interface PraiseNightSong {
   id?: string;
@@ -231,6 +232,16 @@ export default function EditSongModal({
       setCoordinatorAudioUrl(commentAudio);
 
       setHistoryEntries(Array.isArray(song.history) ? song.history : []);
+      if (song.id) {
+        api.songs.getSongHistory(song.id)
+          .then((res: any) => {
+            const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            if (list.length > 0) {
+              setHistoryEntries(list);
+            }
+          })
+          .catch(() => {});
+      }
     } else {
       // Add mode defaults
       setSongTitle('');
