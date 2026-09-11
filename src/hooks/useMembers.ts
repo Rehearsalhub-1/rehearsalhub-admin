@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Alert } from 'react-native';
 import { apiClient } from '../lib/apiClient';
 import { useAdminStore } from '../stores/adminStore';
 import { api } from '../services/api';
+import { customAlert } from '../context/AlertContext';
 
 export interface Member {
   id: string;
@@ -32,15 +32,21 @@ export interface Member {
 }
 
 function shapeRaw(u: any, churchName?: string): Member {
-  const r = (u.role || 'member').toLowerCase();
-  const isAdmin = r.includes('admin') || r.includes('coord');
+  const userObj = u.user || u.profile || {};
+  const rawRoleStr = (u.rawRole || u.role || userObj.role || 'member').toLowerCase();
+  const isAdmin = Boolean(
+    u.isAdmin ||
+    rawRoleStr.includes('admin') ||
+    rawRoleStr.includes('coord') ||
+    rawRoleStr === 'org_admin' ||
+    rawRoleStr === 'group_admin'
+  );
   const role: Member['role'] = isAdmin
-    ? r.includes('church') ? 'church_admin'
-      : r.includes('hq') ? 'hq_admin'
-      : 'zone_admin'
+    ? (rawRoleStr.includes('church') || rawRoleStr === 'group_admin' ? 'church_admin'
+      : rawRoleStr.includes('hq') ? 'hq_admin'
+      : 'zone_admin')
     : 'member';
 
-  const userObj = u.user || u.profile || {};
   const rawFirstName =
     u.firstName ||
     u.first_name ||
@@ -99,11 +105,11 @@ function shapeRaw(u: any, churchName?: string): Member {
       u.status !== 'inactive' &&
       u.is_active !== false &&
       u.isActive !== false,
-    can_access_ongoing: u.can_access_ongoing !== false,
-    can_access_pre_rehearsal: u.can_access_pre_rehearsal !== false,
-    canAnnotate: u.canAnnotate !== false,
-    canSeeArchive: u.canSeeArchive === true || u.canAccessArchive === true,
-    can_access_archive: u.canSeeArchive === true || u.canAccessArchive === true,
+    can_access_ongoing: u.can_access_ongoing !== false && u.canAccessOngoing !== false,
+    can_access_pre_rehearsal: Boolean(u.can_access_pre_rehearsal || u.canAccessPreRehearsal),
+    canAnnotate: Boolean(u.canAnnotate || u.can_annotate),
+    canSeeArchive: Boolean(u.canSeeArchive || u.canAccessArchive || u.can_access_archive),
+    can_access_archive: Boolean(u.canSeeArchive || u.canAccessArchive || u.can_access_archive),
     hiddenFeatures: u.hiddenFeatures,
     pending_hq_approval: false,
     created_at: u.joinedAt || u.createdAt || u.created_at,
@@ -172,11 +178,11 @@ export function useMembers() {
       ]);
       refetch();
     } catch {}
-    Alert.alert('Approved', `${member.first_name} ${member.last_name} has been approved.`);
+    customAlert('Approved', `${member.first_name} ${member.last_name} has been approved.`);
   }, [refetch]);
 
   const reject = useCallback((member: Member) => {
-    Alert.alert(
+    customAlert(
       'Decline Request',
       `Decline join request from ${member.first_name} ${member.last_name}?`,
       [
@@ -186,7 +192,7 @@ export function useMembers() {
           style: 'destructive',
           onPress: async () => {
             await Promise.all([
-              api.members.reject(member.id).catch(() => {}),
+               api.members.reject(member.id).catch(() => {}),
               api.members.rejectAdminRequest(member.id).catch(() => {}),
             ]);
             refetch();
@@ -196,7 +202,7 @@ export function useMembers() {
     );
   }, [refetch]);
 
-  const saveMember = useCallback(async (updated: Member) => {
+  const saveMember = useCallback(async (updated: Member, newPassword?: string) => {
     try {
       if (updated.role) await api.members.updateRole(updated.id, updated.role);
       await api.members.updateProfile(updated.id, {
@@ -210,17 +216,20 @@ export function useMembers() {
         canAnnotate: updated.canAnnotate,
         hiddenFeatures: updated.hiddenFeatures,
       }).catch(() => {});
+      if (newPassword && newPassword.trim()) {
+        await apiClient.post(`/profiles/${encodeURIComponent(updated.id)}/password`, { password: newPassword.trim() }).catch(() => {});
+      }
       refetch();
     } catch (err: any) {
       const msg = err?.message || 'Failed to save member';
       console.error('[useMembers] saveMember:', msg);
-      Alert.alert('Save Failed', msg);
+      customAlert('Save Failed', msg);
     }
   }, [refetch]);
 
   const removeFromZone = useCallback((id: string) => {
     const target = members.find(m => m.id === id);
-    Alert.alert(
+    customAlert(
       'Remove Member',
       `Remove ${target?.first_name || 'this member'} from ${session?.mode === 'church' ? 'this church choir' : 'the zone directory'}?`,
       [

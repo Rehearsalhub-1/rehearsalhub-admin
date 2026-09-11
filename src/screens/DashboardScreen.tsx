@@ -18,6 +18,7 @@ import { useZoneContext } from '../context/ZoneContext';
 import ZoneHeader from '../components/ZoneHeader';
 import { StatTile, Badge } from '../components/ui';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { customAlert } from '../context/AlertContext';
 
 export default function DashboardScreen({ navigation }: any) {
   const { adminUser } = useAuth();
@@ -32,7 +33,7 @@ export default function DashboardScreen({ navigation }: any) {
 
   const copyInviteCode = () => {
     setCopiedCode(true);
-    Alert.alert(
+    customAlert(
       'Join Code Copied',
       `Zonal code: ${invitationCode}\nShare this with singers to join your directory.`
     );

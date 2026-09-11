@@ -21,6 +21,7 @@ import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import MediaSelectionModal from './MediaSelectionModal';
 import { stripHtml } from '../lib/stripHtml';
 import { api } from '../services/api';
+import { customAlert } from '../context/AlertContext';
 
 export interface PraiseNightSong {
   id?: string;
@@ -72,6 +73,7 @@ export interface EditSongModalProps {
   programs?: Array<{ id: string; name: string }>;
   praiseNights?: Array<{ id: string; name: string }>;
   categories?: string[];
+  isMaster?: boolean;
   onClose: () => void;
   onUpdate: (updatedSong: PraiseNightSong) => void;
   onDelete?: (songId: string) => void;
@@ -88,8 +90,6 @@ const DEFAULT_CATEGORIES = [
   'Choir Special',
 ];
 
-const DEFAULT_PROGRAMS: { id: string; name: string }[] = [];
-
 export default function EditSongModal({
   visible,
   song,
@@ -98,6 +98,7 @@ export default function EditSongModal({
   programs,
   praiseNights,
   categories = DEFAULT_CATEGORIES,
+  isMaster = false,
   onClose,
   onUpdate,
   onDelete,
@@ -106,7 +107,9 @@ export default function EditSongModal({
   const { width: windowWidth } = useWindowDimensions();
 
   // Resolution for available programs (backwards compatible with praiseNights)
-  const availablePrograms = programs || praiseNights || DEFAULT_PROGRAMS;
+  const passedPrograms = programs || praiseNights;
+  const [loadedPrograms, setLoadedPrograms] = useState<{ id: string; name: string }[]>([]);
+  const availablePrograms = passedPrograms || loadedPrograms;
 
   // ── Responsive Breakpoint Flags ──────────────────────────────────────────
   const isDesktop = windowWidth >= 1024;      // 2-column layout matching Web Admin
@@ -118,6 +121,37 @@ export default function EditSongModal({
   // ── Form State (Direct 1:1 Mirror of Web Admin EditSongModal.tsx) ──────────
   const [songTitle, setSongTitle] = useState('');
   const [availableCategories, setAvailableCategories] = useState<string[]>(categories);
+
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      setAvailableCategories(prev => Array.from(new Set([...categories, ...prev])));
+    }
+    if (visible) {
+      api.categories.getAll().then(res => {
+        const cats = Array.isArray(res?.data) ? res.data : [];
+        if (cats.length > 0) {
+          const names = cats.map((c: any) => c.name || c.title || String(c)).filter(Boolean);
+          setAvailableCategories(prev => Array.from(new Set([...names, ...prev])));
+        }
+      }).catch(() => {});
+    }
+  }, [categories, visible]);
+
+  useEffect(() => {
+    if (!visible || passedPrograms) return;
+    api.programs.getAll()
+      .then(res => {
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        setLoadedPrograms(rows
+          .map((program: any) => ({
+            id: String(program.id),
+            name: program.name || program.title || 'Program',
+          }))
+          .filter(program => program.id && program.name));
+      })
+      .catch(() => setLoadedPrograms([]));
+  }, [visible, passedPrograms]);
+
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [songCategories, setSongCategories] = useState<string[]>([]);
@@ -316,7 +350,7 @@ export default function EditSongModal({
       player.play();
       soundRef.current = player;
     } catch {
-      Alert.alert('Playback Error', 'Unable to play this audio track.');
+      customAlert('Playback Error', 'Unable to play this audio track.');
       setPlayingAudioUrl(null);
     } finally {
       setAudioLoading(false);
@@ -380,7 +414,7 @@ export default function EditSongModal({
     const normalized = trimmed.toLowerCase();
     const defaults = ['soprano', 'alto', 'tenor', 'bass'];
     if (defaults.includes(normalized) || customParts.map(p => p.toLowerCase()).includes(normalized)) {
-      Alert.alert('Duplicate Part', 'This audio part already exists.');
+      customAlert('Duplicate Part', 'This audio part already exists.');
       return;
     }
     setCustomParts(prev => [...prev, trimmed]);
@@ -493,7 +527,7 @@ export default function EditSongModal({
 
   const handleSaveHistoryEntry = () => {
     if (!historyFormTitle.trim()) {
-      Alert.alert('Required', 'Please enter a version title.');
+      customAlert('Required', 'Please enter a version title.');
       return;
     }
 
@@ -512,7 +546,7 @@ export default function EditSongModal({
         }
         return entry;
       }));
-      Alert.alert('History Updated', 'Revision entry has been updated.');
+      customAlert('History Updated', 'Revision entry has been updated.');
     } else {
       // Create new version
       const newEntry = {
@@ -538,7 +572,7 @@ export default function EditSongModal({
           new_value: originalHistoryValues.new_value,
         }).catch(() => {});
       }
-      Alert.alert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
+      customAlert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
     }
 
     setEditingHistoryEntryId(null);
@@ -546,7 +580,7 @@ export default function EditSongModal({
   };
 
   const handleDeleteHistoryEntry = (id: string) => {
-    Alert.alert(
+    customAlert(
       'Delete History Entry',
       'Are you sure you want to delete this revision history entry?',
       [
@@ -565,7 +599,7 @@ export default function EditSongModal({
   // Update / Add Song Submit Action
   const handleSubmit = () => {
     if (!songTitle.trim()) {
-      Alert.alert('Required Field', 'Please enter a song title.');
+      customAlert('Required Field', 'Please enter a song title.');
       return;
     }
 
@@ -595,9 +629,9 @@ export default function EditSongModal({
       scope: isHQOnly ? 'hq' : 'global',
       category: primaryCategory,
       categories: songCategories.length > 0 ? songCategories : [primaryCategory],
-      praiseNightId: programId || 'prog-25',
+      praiseNightId: programId || undefined,
       praiseNightName: songProgram || programName,
-      programId: programId || 'prog-25',
+      programId: programId || undefined,
       programName: songProgram || programName,
       lyrics: songLyrics,
       leadSinger: songLeadSinger.trim(),
@@ -630,7 +664,7 @@ export default function EditSongModal({
 
   const handleDelete = () => {
     if (!song || !song.id) return;
-    Alert.alert(
+    customAlert(
       'Delete Song',
       `Are you sure you want to delete "${songTitle || song.title}"?`,
       [
@@ -763,43 +797,60 @@ export default function EditSongModal({
           </Text>
         </View>
 
-        {/* Status Dropdown */}
-        <View style={{ flex: isMedium ? 1 : undefined, marginTop: isMedium ? 0 : 12 }}>
-          <Text style={styles.fieldLabel}>Status</Text>
-          <TouchableOpacity
-            style={styles.pickerTrigger}
-            onPress={() => setShowStatusPicker(true)}
-          >
-            <Text style={styles.pickerTriggerText}>
-              {songStatus === 'heard' ? 'Heard' : 'Unheard'}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color="#64748b" />
-          </TouchableOpacity>
-        </View>
+        {/* Status Dropdown (Program Songs) vs Master Program (Master Songs) */}
+        {isMaster ? (
+          <View style={{ flex: isMedium ? 1 : undefined, marginTop: isMedium ? 0 : 12 }}>
+            <Text style={styles.fieldLabel}>Master Collection</Text>
+            <TouchableOpacity
+              style={styles.pickerTrigger}
+              onPress={() => setShowProgramPicker(true)}
+            >
+              <Text style={styles.pickerTriggerText}>
+                {songProgram || 'Select Program'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ flex: isMedium ? 1 : undefined, marginTop: isMedium ? 0 : 12 }}>
+            <Text style={styles.fieldLabel}>Rehearsal Status</Text>
+            <TouchableOpacity
+              style={styles.pickerTrigger}
+              onPress={() => setShowStatusPicker(true)}
+            >
+              <Text style={styles.pickerTriggerText}>
+                {songStatus === 'heard' ? 'Heard' : 'Unheard'}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* LIVE Broadcast Toggle Row (Card 1) */}
-      <View style={styles.broadcastRow}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={styles.fieldLabel}>Broadcast Status</Text>
-          <Text style={styles.broadcastSubtext}>
-            {isSongActive ? 'Song is broadcasting LIVE in real-time to choir' : 'Song is offline / rehearsal standby'}
-          </Text>
+      {/* LIVE Broadcast Toggle Row (Card 1) — Only for Program Rehearsal Songs, NOT Master Catalog */}
+      {!isMaster && (
+        <View style={styles.broadcastRow}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.fieldLabel}>Broadcast Status</Text>
+            <Text style={styles.broadcastSubtext}>
+              {isSongActive ? 'Song is broadcasting LIVE in real-time to choir' : 'Song is offline / rehearsal standby'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.liveToggleBtn,
+              isSongActive ? styles.liveToggleBtnActive : styles.liveToggleBtnInactive,
+            ]}
+            onPress={() => setIsSongActive(!isSongActive)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.liveDot, isSongActive && styles.liveDotActive]} />
+            <Text style={[styles.liveToggleBtnText, isSongActive && styles.liveToggleBtnTextActive]}>
+              {isSongActive ? '● LIVE' : 'GO LIVE'}
+            </Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[
-            styles.liveToggleBtn,
-            isSongActive ? styles.liveToggleBtnActive : styles.liveToggleBtnInactive,
-          ]}
-          onPress={() => setIsSongActive(!isSongActive)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.liveDot, isSongActive && styles.liveDotActive]} />
-          <Text style={[styles.liveToggleBtnText, isSongActive && styles.liveToggleBtnTextActive]}>
-            {isSongActive ? '● LIVE' : 'GO LIVE'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       {/* HQ Only / Regional Visibility Toggle */}
       <View style={styles.hqOnlyRow}>
@@ -827,19 +878,20 @@ export default function EditSongModal({
         />
       </View>
 
-      {/* Program Dropdown (Full Width) */}
-      <View style={[styles.fieldGroup, { marginTop: 12 }]}>
-        <Text style={styles.fieldLabel}>Program</Text>
-        <TouchableOpacity
-          style={styles.pickerTrigger}
-          onPress={() => setShowProgramPicker(true)}
-        >
-          <Text style={styles.pickerTriggerText} numberOfLines={1}>
-            {songProgram || 'Select Program'}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color="#64748b" />
-        </TouchableOpacity>
-      </View>
+      {!isMaster && (
+        <View style={[styles.fieldGroup, { marginTop: 12 }]}>
+          <Text style={styles.fieldLabel}>Program</Text>
+          <TouchableOpacity
+            style={styles.pickerTrigger}
+            onPress={() => setShowProgramPicker(true)}
+          >
+            <Text style={styles.pickerTriggerText} numberOfLines={1}>
+              {songProgram || 'Select Program'}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color="#64748b" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Song Artwork Section */}
       <View style={[styles.fieldGroup, { marginTop: 14 }]}>
@@ -1499,20 +1551,22 @@ export default function EditSongModal({
           </View>
 
           <View style={styles.webHeaderActions}>
-            {/* Quick 1-Tap LIVE Broadcast Pill Toggle */}
-            <TouchableOpacity
-              onPress={() => setIsSongActive(!isSongActive)}
-              style={[
-                styles.headerLivePill,
-                isSongActive ? styles.headerLivePillActive : styles.headerLivePillInactive,
-              ]}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.headerLiveDot, isSongActive && styles.headerLiveDotActive]} />
-              <Text style={[styles.headerLiveText, isSongActive && styles.headerLiveTextActive]}>
-                {isSongActive ? '● LIVE' : 'OFF'}
-              </Text>
-            </TouchableOpacity>
+            {/* Quick 1-Tap LIVE Broadcast Pill Toggle — Only for Program Songs */}
+            {!isMaster && (
+              <TouchableOpacity
+                onPress={() => setIsSongActive(!isSongActive)}
+                style={[
+                  styles.headerLivePill,
+                  isSongActive ? styles.headerLivePillActive : styles.headerLivePillInactive,
+                ]}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.headerLiveDot, isSongActive && styles.headerLiveDotActive]} />
+                <Text style={[styles.headerLiveText, isSongActive && styles.headerLiveTextActive]}>
+                  {isSongActive ? '● LIVE' : 'OFF'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {isEditing && (
               <TouchableOpacity
@@ -1675,7 +1729,7 @@ export default function EditSongModal({
             onPress={() => setShowProgramPicker(false)}
           >
             <View style={[styles.pickerModalContent, isTablet && styles.pickerModalContentCentered]}>
-              <Text style={styles.pickerModalTitle}>Select Program</Text>
+              <Text style={styles.pickerModalTitle}>{isMaster ? 'Select Master Collection' : 'Select Program'}</Text>
               <ScrollView style={{ maxHeight: 280 }}>
                 {availablePrograms.map(pn => (
                   <TouchableOpacity

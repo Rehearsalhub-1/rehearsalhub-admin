@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAdminStore } from '../stores/adminStore';
 import ZoneHeader from '../components/ZoneHeader';
+import { useAlert } from '../context/AlertContext';
 
 interface MenuItemProps {
   iconName: keyof typeof Ionicons.glyphMap;
@@ -60,11 +61,12 @@ export default function MoreScreen({ navigation }: any) {
   } = useZoneContext();
 
   const session = useAdminStore(s => s.session);
+  const { showAlert } = useAlert();
   const hasDualRole = Boolean(session?.isDualRole);
   const isPureChurchAdmin = Boolean(adminUser?.isChurchAdmin) && !adminUser?.isHQAdmin && !hasDualRole;
 
   async function handleLogout() {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out of RehearsalHub Admin Console?', [
+    showAlert('Sign Out', 'Are you sure you want to sign out of RehearsalHub Admin Console?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -137,7 +139,7 @@ export default function MoreScreen({ navigation }: any) {
         {/* ── Dual-Role Scope Switcher Card (only for dual-role admins) ── */}
         {hasDualRole && (
           <TouchableOpacity style={styles.scopeCard} onPress={() => {
-            Alert.alert(
+            showAlert(
               'Switch Admin Mode',
               'To switch between Zone Admin and Church Admin mode, sign out and choose your mode on the next login.',
               [
@@ -178,23 +180,6 @@ export default function MoreScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
-        {/* ── Executive Oversight (HQ Admins Only) ────────────────────── */}
-        {adminUser?.isHQAdmin && (
-          <>
-            <Text style={styles.sectionLabel}>Executive Oversight</Text>
-            <View style={styles.menuGroup}>
-              <MenuItem
-                iconName="earth-outline"
-                iconColor="#4f46e5"
-                iconBg="#eef2ff"
-                label="Global Executive Overview"
-                sub="Ministry-wide statistics, zone breakdown & global directory"
-                onPress={() => navigation.navigate('Analytics')}
-              />
-            </View>
-          </>
-        )}
-
         {/* ── Repertoire & Sets ──────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Repertoire & Sets</Text>
         <View style={styles.menuGroup}>
@@ -227,7 +212,6 @@ export default function MoreScreen({ navigation }: any) {
               onPress={() => navigation.navigate('MasterLibrary')}
             />
           )}
-          {/* Hide Categories in pure Church Mode */}
           {!isPureChurchAdmin && !isChurchMode && (
             <MenuItem
               iconName="pricetags-outline"
@@ -279,22 +263,6 @@ export default function MoreScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Geofence')}
           />
           <MenuItem
-            iconName="list-outline"
-            iconColor="#7c3aed"
-            iconBg="#f5f3ff"
-            label="Schedule Manager"
-            sub="Weekly choir schedule & setlist plans"
-            onPress={() => navigation.navigate('Schedule')}
-          />
-          <MenuItem
-            iconName="folder-open-outline"
-            iconColor="#2563eb"
-            iconBg="#eff6ff"
-            label="Media Assets"
-            sub="Videos, audio stems, photos & sheet music"
-            onPress={() => navigation.navigate('MediaLibrary')}
-          />
-          <MenuItem
             iconName="notifications-outline"
             iconColor="#d97706"
             iconBg="#fffbeb"
@@ -304,36 +272,14 @@ export default function MoreScreen({ navigation }: any) {
           />
         </View>
 
-        {/* ── Support & Calendar (All Roles) ────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Support & Calendar</Text>
-        <View style={styles.menuGroup}>
-          <MenuItem
-            iconName="calendar-outline"
-            iconColor="#2563eb"
-            iconBg="#eff6ff"
-            label="Rehearsal Calendar"
-            sub="Interactive calendar of rehearsals and key dates"
-            onPress={() => navigation.navigate('Calendar')}
-          />
-          <MenuItem
-            iconName="chatbubbles-outline"
-            iconColor="#db2777"
-            iconBg="#fdf2f8"
-            label="Support Desk"
-            sub="Direct singer inquiries and feedback"
-            onPress={() => navigation.navigate('SupportChat')}
-          />
-        </View>
-
-        {/* ── System & Analytics (Zonal & HQ Only) ────────────────────── */}
-        {!isPureChurchAdmin && !isChurchMode && (
+        {adminUser?.isHQAdmin && !isChurchMode && (
           <>
-            <Text style={styles.sectionLabel}>System & Analytics</Text>
+            <Text style={styles.sectionLabel}>Executive Oversight</Text>
             <View style={styles.menuGroup}>
               <MenuItem
-                iconName="bar-chart-outline"
-                iconColor="#059669"
-                iconBg="#ecfdf5"
+                iconName="earth-outline"
+                iconColor="#4f46e5"
+                iconBg="#eef2ff"
                 label="Analytics & Insights"
                 sub="Attendance turnout rates and rehearsal trends"
                 onPress={() => navigation.navigate('Analytics')}

@@ -3,6 +3,7 @@ import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
 import { MasterSong } from '../components/MasterSongDetailModal';
 import { ZoneSong } from '../components/ZoneSongFormModal';
+import { useWebSocket } from './useWebSocket';
 
 export type { MasterSong };
 
@@ -57,6 +58,11 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
     setRefreshing(true);
     fetchMasterSongs();
   }, [fetchMasterSongs]);
+
+  useWebSocket('songs', 'all', () => {
+    fetchMasterSongs();
+    if (activeDomainTab === 'zone') fetchZoneSongs();
+  }, true);
 
   // ── Optimistic mutators (used by screen action handlers) ──────────────────
   const upsertMasterSong = useCallback((song: MasterSong) => {

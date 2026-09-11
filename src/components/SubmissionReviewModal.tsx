@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Colors } from '../constants/Colors';
 import { stripHtml } from '../lib/stripHtml';
+import { customAlert } from '../context/AlertContext';
 
 export interface SongSubmissionMessage {
   id: string;
@@ -185,7 +186,7 @@ export default function SubmissionReviewModal({
   // Toggle audio
   async function handleTogglePlay() {
     if (!audioUrl) {
-      Alert.alert('No Audio', 'No reference audio track provided with this submission.');
+      customAlert('No Audio', 'No reference audio track provided with this submission.');
       return;
     }
 
@@ -217,7 +218,7 @@ export default function SubmissionReviewModal({
       setPlayer(newPlayer);
       setIsPlaying(true);
     } catch (e: any) {
-      Alert.alert('Playback Error', 'Unable to play reference audio: ' + (e.message || 'Stream error'));
+      customAlert('Playback Error', 'Unable to play reference audio: ' + (e.message || 'Stream error'));
       setIsPlaying(false);
     } finally {
       setAudioLoading(false);
@@ -238,7 +239,7 @@ export default function SubmissionReviewModal({
         chatScrollRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (e: any) {
-      Alert.alert('Send Error', e.message || 'Failed to send comment.');
+      customAlert('Send Error', e.message || 'Failed to send comment.');
     } finally {
       setSending(false);
     }
@@ -246,7 +247,7 @@ export default function SubmissionReviewModal({
 
   function handleConfirmReject() {
     if (!rejectReason.trim()) {
-      Alert.alert('Feedback Required', 'Please provide notes or feedback for the submitter.');
+      customAlert('Feedback Required', 'Please provide notes or feedback for the submitter.');
       return;
     }
     onReject(song!, rejectReason.trim());

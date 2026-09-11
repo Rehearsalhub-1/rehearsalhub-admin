@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert, Modal, TextInput
+  ActivityIndicator, RefreshControl, Alert, Modal, TextInput,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
 import ZoneHeader from '../components/ZoneHeader';
+import { customAlert } from '../context/AlertContext';
 
 interface Category {
   id: string;
@@ -79,7 +81,7 @@ export default function CategoriesScreen({ navigation }: any) {
   }
 
   async function handleSave() {
-    if (!name.trim()) { Alert.alert('Error', 'Name is required'); return; }
+    if (!name.trim()) { customAlert('Error', 'Name is required'); return; }
     try {
       if (editing) {
         await api.categories.update(editing.id, { name: name.trim(), color });
@@ -93,12 +95,12 @@ export default function CategoriesScreen({ navigation }: any) {
       }
       setModalVisible(false);
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      customAlert('Error', e.message);
     }
   }
 
   async function handleDelete(id: string) {
-    Alert.alert('Delete', 'Delete this category?', [
+    customAlert('Delete', 'Delete this category?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
@@ -238,6 +240,10 @@ export default function CategoriesScreen({ navigation }: any) {
 
       {/* Add / Edit Modal */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{editing ? 'Edit Category' : 'New Category'}</Text>
@@ -272,6 +278,7 @@ export default function CategoriesScreen({ navigation }: any) {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

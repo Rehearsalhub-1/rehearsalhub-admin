@@ -5,12 +5,14 @@ import {
   Text,
   StyleSheet,
   TextInput,
+  KeyboardAvoidingView,
   TouchableOpacity,
   ScrollView,
   Alert,
   ActivityIndicator,
   RefreshControl,
   FlatList,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +21,7 @@ import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
+import { useAlert } from '../context/AlertContext';
 
 interface CategoryOption {
   value: 'rehearsal' | 'announcement' | 'admin' | 'reminder';
@@ -83,6 +86,7 @@ const QUICK_TEMPLATES = [
 export default function NotificationsScreen() {
   const { adminUser } = useAuth();
   const { activeZone, isChurchMode, activeChurch, userChurches } = useZoneContext();
+  const { showAlert } = useAlert();
 
   const isHQ = adminUser?.isHQAdmin === true;
   const [activeTab, setActiveTab] = useState<'compose' | 'history'>('compose');
@@ -122,12 +126,12 @@ export default function NotificationsScreen() {
 
   async function sendNotification() {
     if (!title.trim() || !message.trim()) {
-      Alert.alert('Missing fields', 'Title and message body are required.');
+      showAlert('Missing fields', 'Title and message body are required.');
       return;
     }
 
     if (audienceType === 'individual' && !targetEmail.trim()) {
-      Alert.alert('Missing field', 'Please enter the target singer email.');
+      showAlert('Missing field', 'Please enter the target singer email.');
       return;
     }
 
@@ -146,7 +150,7 @@ export default function NotificationsScreen() {
         const res = await api.members.getGlobalMembers(targetEmail.trim().toLowerCase());
         const matched = Array.isArray(res?.data) ? res.data[0] : null;
         if (!matched?.userId && !matched?.id) {
-          Alert.alert('Not Found', `No singer found with email "${targetEmail.trim()}".`);
+          showAlert('Not Found', `No singer found with email "${targetEmail.trim()}".`);
           setSending(false);
           return;
         }
@@ -154,7 +158,7 @@ export default function NotificationsScreen() {
       } else if (audienceType === 'church') {
         const churchId = selectedChurchId || activeChurch?.id;
         if (!churchId) {
-          Alert.alert('Missing Church', 'Please select a church choir.');
+          showAlert('Missing Church', 'Please select a church choir.');
           setSending(false);
           return;
         }
@@ -167,7 +171,7 @@ export default function NotificationsScreen() {
       const res = await api.notifications.send(payload as any);
 
       const count = res?.recipientCount ?? 0;
-      Alert.alert(
+      showAlert(
         'Notification Dispatched!',
         `Your notification has been broadcast to ${count > 0 ? `${count} singer(s)` : 'target recipients'} and sent via push notifications.`
       );
@@ -176,7 +180,7 @@ export default function NotificationsScreen() {
       setMessage('');
       setTargetEmail('');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to dispatch notification.');
+      showAlert('Error', e.message || 'Failed to dispatch notification.');
     } finally {
       setSending(false);
     }
@@ -223,11 +227,15 @@ export default function NotificationsScreen() {
 
       {/* ── TAB 1: COMPOSE ─────────────────────────────────────────────── */}
       {activeTab === 'compose' ? (
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {/* Quick Templates */}
           <Text style={styles.label}>1-Tap Quick Templates</Text>
           <View style={styles.templateRow}>
@@ -411,7 +419,8 @@ export default function NotificationsScreen() {
               </>
             )}
           </TouchableOpacity>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       ) : (
         /* ── TAB 2: SENT HISTORY ────────────────────────────────────────── */
         <ScrollView

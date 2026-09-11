@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
   Linking,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { Colors } from '../constants/Colors';
 import { api } from '../services/api';
 import { EmptyState } from './ui';
 import { useZoneContext } from '../context/ZoneContext';
+import { customAlert } from '../context/AlertContext';
 
 export interface MediaFile {
   id: string;
@@ -122,7 +124,7 @@ export default function MediaSelectionModal({
       soundRef.current = player;
       setPlayingUrl(url);
     } catch (err: any) {
-      Alert.alert('Playback Error', 'Could not play audio preview: ' + (err?.message || 'Unsupported format'));
+      customAlert('Playback Error', 'Could not play audio preview: ' + (err?.message || 'Unsupported format'));
       setPlayingUrl(null);
     } finally {
       setAudioLoadingUrl(null);
@@ -130,7 +132,7 @@ export default function MediaSelectionModal({
   };
 
   const handleOpenVideo = (url: string) => {
-    Linking.openURL(url).catch(() => Alert.alert('Error', 'Unable to open video preview: ' + url));
+    Linking.openURL(url).catch(() => customAlert('Error', 'Unable to open video preview: ' + url));
   };
 
   const fetchMedia = useCallback(async () => {
@@ -206,7 +208,7 @@ export default function MediaSelectionModal({
       onSelect(fileUrl, newMedia);
       onClose();
     } catch (e: any) {
-      Alert.alert('Upload Failed', e.message || 'Could not upload file.');
+      customAlert('Upload Failed', e.message || 'Could not upload file.');
     } finally {
       setUploading(false);
     }
@@ -229,6 +231,10 @@ export default function MediaSelectionModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <KeyboardAvoidingView
+        behavior='padding'
+        style={{ flex: 1 }}
+      >
       <View style={pickerStyles.overlay}>
         <View
           style={[
@@ -439,6 +445,7 @@ export default function MediaSelectionModal({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
 
       {/* Full-Screen Image Preview Lightbox */}
       <Modal

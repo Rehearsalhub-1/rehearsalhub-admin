@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, TextInput, Modal,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer } from 'expo-audio';
@@ -11,11 +13,13 @@ import SubmissionReviewModal, {
   SongSubmission, SongSubmissionMessage, getCleanSubmitterName,
 } from '../components/SubmissionReviewModal';
 import { useSubmissions } from '../hooks/useSubmissions';
+import { useAlert } from '../context/AlertContext';
 
 export const INITIAL_SUBMISSIONS: SongSubmission[] = [];
 
 export default function SubmittedSongsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const { songs, loading, refreshing, soundRef, refetch, approveSong, rejectSong, deleteSong, addMessage } = useSubmissions();
 
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -29,7 +33,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
 
   function handleApproveSong(song: SongSubmission) {
-    Alert.alert('Approve Song', `Approve "${song.title}" for choir rehearsals?`, [
+    showAlert('Approve Song', `Approve "${song.title}" for choir rehearsals?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Approve', onPress: () => {
@@ -46,7 +50,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
 
   function handleConfirmReject() {
     if (!rejectingSong) return;
-    if (!rejectReason.trim()) { Alert.alert('Feedback Required', 'Please provide a reason.'); return; }
+    if (!rejectReason.trim()) { showAlert('Feedback Required', 'Please provide a reason.'); return; }
     const songId = rejectingSong.id;
     const notes = rejectReason.trim();
     rejectSong(songId, notes);
@@ -55,7 +59,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
   }
 
   function handleDeleteSong(song: SongSubmission) {
-    Alert.alert('Delete Submission', `Delete "${song.title}"?`, [
+    showAlert('Delete Submission', `Delete "${song.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: () => {
@@ -78,7 +82,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
 
   async function handleToggleQuickAudio(song: SongSubmission) {
     const url = song.audioUrl || (song as any).rawData?.audioUrl;
-    if (!url) { Alert.alert('No Audio', 'No audio track uploaded.'); return; }
+    if (!url) { showAlert('No Audio', 'No audio track uploaded.'); return; }
     try {
       if (playingSongId === song.id && soundRef.current) {
         soundRef.current.pause();
@@ -173,7 +177,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
         </View>
       </View>
 
-      <FlatList
+      <FlashList
         data={filteredSongs}
         keyExtractor={i => i.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 24) + 30 }]}
@@ -288,6 +292,10 @@ export default function SubmittedSongsScreen({ navigation }: any) {
       />
 
       <Modal visible={rejectModalVisible} transparent animationType="fade">
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalBackdrop}>
           <View style={styles.rejectCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -306,6 +314,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

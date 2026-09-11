@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { useAdminStore } from '../stores/adminStore';
+import { useWebSocket } from './useWebSocket';
 
 export interface Program {
   id: string;
@@ -8,6 +9,9 @@ export interface Program {
   date: string;
   category: string;
   status?: string;
+  stage?: string;
+  isActive?: boolean;
+  isArchived?: boolean;
   location?: string;
   organizationId?: string;
   groupId?: string;
@@ -40,13 +44,15 @@ export function usePrograms() {
     const songsUrl = `/songs/zone?zoneId=${session.zoneId}`;
 
     try {
-      const [programsRes, songsRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: any[] }>(programsUrl),
-        apiClient.get<{ success: boolean; data: any[] }>(songsUrl).catch(() => ({ data: [] } as any)),
-      ]);
-
+      const programsRes = await apiClient.get<{ success: boolean; data: any[] }>(programsUrl);
       setPrograms(Array.isArray(programsRes?.data) ? programsRes.data : []);
-      setAllSongs(Array.isArray(songsRes?.data) ? songsRes.data : []);
+
+      // Non-blocking background fetch for zone song statistics
+      apiClient.get<{ success: boolean; data: any[] }>(songsUrl)
+        .then(songsRes => {
+          if (Array.isArray(songsRes?.data)) setAllSongs(songsRes.data);
+        })
+        .catch(() => {});
     } catch (e: any) {
       const msg = e?.message || 'Failed to load programs';
       console.error('[usePrograms]', msg);
@@ -70,6 +76,10 @@ export function usePrograms() {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  useWebSocket('programs', 'all', () => {
+    fetchData();
+  }, Boolean(session));
 
   const upsertProgram = useCallback((saved: Program) => {
     setPrograms(prev => {

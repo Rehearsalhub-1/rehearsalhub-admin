@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ZoneHeader from '../components/ZoneHeader';
 import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
+import { customAlert } from '../context/AlertContext';
 
 interface AppUpdateConfig {
   latestVersion: string;
@@ -71,11 +72,11 @@ export default function AppUpdatesScreen() {
 
   async function handleSave() {
     if (!latestVersion.trim()) {
-      Alert.alert('Missing Field', 'Please enter a valid Latest Version (e.g. 2.4.0)');
+      customAlert('Missing Field', 'Please enter a valid Latest Version (e.g. 2.4.0)');
       return;
     }
     if (!downloadUrl.trim()) {
-      Alert.alert('Missing Field', 'Please enter a download URL for singers');
+      customAlert('Missing Field', 'Please enter a download URL for singers');
       return;
     }
 
@@ -90,12 +91,12 @@ export default function AppUpdatesScreen() {
       };
 
       await api.settings.update('version-control', payload);
-      Alert.alert(
+      customAlert(
         'App Updates Published! 🚀',
         `Version ${latestVersion.trim()} is now published. Singers on earlier builds will receive the update prompt on mobile launch.`
       );
     } catch (err: any) {
-      Alert.alert('Save Failed', err?.message || 'Could not update version settings.');
+      customAlert('Save Failed', err?.message || 'Could not update version settings.');
     } finally {
       setSaving(false);
     }

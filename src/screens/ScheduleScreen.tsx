@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,7 @@ import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
 import { useSchedule } from '../hooks/useSchedule';
+import { customAlert } from '../context/AlertContext';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,14 +222,14 @@ export default function ScheduleScreen() {
       await api.schedule.update(activeProgramId, payload);
     } catch (e: any) {
       console.error('[ScheduleScreen] update error:', e);
-      Alert.alert('Error', e?.message || 'Failed to update schedule');
+      customAlert('Error', e?.message || 'Failed to update schedule');
     }
   };
 
   const handleCreateProgram = async () => {
     const trimmed = newProgramName.trim();
     if (!trimmed) {
-      Alert.alert('Missing Name', 'Please enter a schedule name.');
+      customAlert('Missing Name', 'Please enter a schedule name.');
       return;
     }
     try {
@@ -247,7 +249,7 @@ export default function ScheduleScreen() {
         refetch();
       }
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to create schedule');
+      customAlert('Error', e?.message || 'Failed to create schedule');
     }
   };
 
@@ -268,9 +270,9 @@ export default function ScheduleScreen() {
         currentWeekId: p.id === activeProgramId ? selectedWeekId : p.currentWeekId,
         currentDayId: p.id === activeProgramId ? selectedDayId : p.currentDayId,
       }));
-      Alert.alert('Active Schedule Set', `"${activeProgram?.name}" is now the current rehearsal schedule.`);
+      customAlert('Active Schedule Set', `"${activeProgram?.name}" is now the current rehearsal schedule.`);
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to set current program');
+      customAlert('Error', e?.message || 'Failed to set current program');
     }
   };
 
@@ -278,12 +280,12 @@ export default function ScheduleScreen() {
     if (!activeProgram) return;
     const nextArchived = !activeProgram.isArchived;
     await updateProgramData({ isArchived: nextArchived, isCurrent: nextArchived ? false : activeProgram.isCurrent });
-    Alert.alert(nextArchived ? 'Program Archived' : 'Program Restored', `"${activeProgram.name}" moved to ${nextArchived ? 'Archive' : 'Active Schedules'}.`);
+    customAlert(nextArchived ? 'Program Archived' : 'Program Restored', `"${activeProgram.name}" moved to ${nextArchived ? 'Archive' : 'Active Schedules'}.`);
   };
 
   const handleDeleteProgram = () => {
     if (!activeProgramId) return;
-    Alert.alert(
+    customAlert(
       'Delete Schedule',
       `Permanently delete "${activeProgram?.name}" and all its timetables?`,
       [
@@ -296,7 +298,7 @@ export default function ScheduleScreen() {
               await api.schedule.delete(activeProgramId);
               removeProgram(activeProgramId);
             } catch (e: any) {
-              Alert.alert('Error', e?.message || 'Failed to delete schedule');
+              customAlert('Error', e?.message || 'Failed to delete schedule');
             }
           },
         },
@@ -321,10 +323,10 @@ export default function ScheduleScreen() {
 
   const handleDeleteWeek = (wId: string) => {
     if (weeks.length <= 1) {
-      Alert.alert('Cannot Delete', 'A schedule must have at least one week.');
+      customAlert('Cannot Delete', 'A schedule must have at least one week.');
       return;
     }
-    Alert.alert('Delete Week', 'Delete this week and all associated days and slots?', [
+    customAlert('Delete Week', 'Delete this week and all associated days and slots?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -354,10 +356,10 @@ export default function ScheduleScreen() {
 
   const handleDeleteDay = (dId: string) => {
     if (activeWeekDays.length <= 1) {
-      Alert.alert('Cannot Delete', 'A week must have at least one day.');
+      customAlert('Cannot Delete', 'A week must have at least one day.');
       return;
     }
-    Alert.alert('Delete Day', 'Delete this day and all its schedule slots?', [
+    customAlert('Delete Day', 'Delete this day and all its schedule slots?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -428,7 +430,7 @@ export default function ScheduleScreen() {
 
   const handleSaveSlot = async () => {
     if (!slotTitle.trim()) {
-      Alert.alert('Missing Title', 'Please enter a song or session title.');
+      customAlert('Missing Title', 'Please enter a song or session title.');
       return;
     }
     const allSlots = activeProgram?.dailySchedules || [];
@@ -466,7 +468,7 @@ export default function ScheduleScreen() {
   };
 
   const handleDeleteSlot = (slotId: string) => {
-    Alert.alert('Delete Slot', 'Remove this schedule slot?', [
+    customAlert('Delete Slot', 'Remove this schedule slot?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -495,7 +497,7 @@ export default function ScheduleScreen() {
     if (!activeProgram) return;
 
     if (activeTab === 'new') {
-      if (!genericField1.trim()) return Alert.alert('Required', 'Please enter a song title.');
+      if (!genericField1.trim()) return customAlert('Required', 'Please enter a song title.');
       const list = activeProgram.newSongs || [];
       const item: NewSongItem = {
         id: editingGenericId || `new_${Date.now()}`,
@@ -508,7 +510,7 @@ export default function ScheduleScreen() {
       const updated = editingGenericId ? list.map(i => i.id === editingGenericId ? item : i) : [item, ...list];
       await updateProgramData({ newSongs: updated });
     } else if (activeTab === 'carried') {
-      if (!genericField1.trim()) return Alert.alert('Required', 'Please enter song title.');
+      if (!genericField1.trim()) return customAlert('Required', 'Please enter song title.');
       const list = activeProgram.carriedOver || [];
       const item: CarriedSongItem = {
         id: editingGenericId || `co_${Date.now()}`,
@@ -521,7 +523,7 @@ export default function ScheduleScreen() {
       const updated = editingGenericId ? list.map(i => i.id === editingGenericId ? item : i) : [item, ...list];
       await updateProgramData({ carriedOver: updated });
     } else if (activeTab === 'swapped') {
-      if (!genericField1.trim() || !genericField2.trim()) return Alert.alert('Required', 'Enter original and replacement songs.');
+      if (!genericField1.trim() || !genericField2.trim()) return customAlert('Required', 'Enter original and replacement songs.');
       const list = activeProgram.swapped || [];
       const item: SwappedSongItem = {
         id: editingGenericId || `sw_${Date.now()}`,
@@ -534,7 +536,7 @@ export default function ScheduleScreen() {
       const updated = editingGenericId ? list.map(i => i.id === editingGenericId ? item : i) : [item, ...list];
       await updateProgramData({ swapped: updated });
     } else if (activeTab === 'renamed') {
-      if (!genericField1.trim() || !genericField2.trim()) return Alert.alert('Required', 'Enter previous and new title.');
+      if (!genericField1.trim() || !genericField2.trim()) return customAlert('Required', 'Enter previous and new title.');
       const list = activeProgram.nameChanges || [];
       const item: NameChangeItem = {
         id: editingGenericId || `nc_${Date.now()}`,
@@ -547,7 +549,7 @@ export default function ScheduleScreen() {
       const updated = editingGenericId ? list.map(i => i.id === editingGenericId ? item : i) : [item, ...list];
       await updateProgramData({ nameChanges: updated });
     } else if (activeTab === 'invalid') {
-      if (!genericField1.trim()) return Alert.alert('Required', 'Enter invalid song title.');
+      if (!genericField1.trim()) return customAlert('Required', 'Enter invalid song title.');
       const list = activeProgram.invalidSongs || [];
       const item: InvalidSongItem = {
         id: editingGenericId || `inv_${Date.now()}`,
@@ -560,7 +562,7 @@ export default function ScheduleScreen() {
       const updated = editingGenericId ? list.map(i => i.id === editingGenericId ? item : i) : [item, ...list];
       await updateProgramData({ invalidSongs: updated });
     } else if (activeTab === 'eligibility') {
-      if (!genericField1.trim()) return Alert.alert('Required', 'Enter submitter name.');
+      if (!genericField1.trim()) return customAlert('Required', 'Enter submitter name.');
       const list = activeProgram.submitters || [];
       const item: SubmitterItem = {
         id: editingGenericId || `sub_${Date.now()}`,
@@ -581,7 +583,7 @@ export default function ScheduleScreen() {
 
   const handleDeleteGenericItem = (id: string) => {
     if (!activeProgram) return;
-    Alert.alert('Delete Item', 'Remove this entry?', [
+    customAlert('Delete Item', 'Remove this entry?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -1241,6 +1243,10 @@ export default function ScheduleScreen() {
 
       {/* ── MODAL: CREATE PROGRAM ──────────────────────────────────────────── */}
       <Modal visible={showCreateProgramModal} transparent animationType="fade" onRequestClose={() => setShowCreateProgramModal(false)}>
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Schedule Program</Text>
@@ -1263,10 +1269,15 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── MODAL: RENAME PROGRAM ──────────────────────────────────────────── */}
       <Modal visible={showRenameModal} transparent animationType="fade" onRequestClose={() => setShowRenameModal(false)}>
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Rename Schedule</Text>
@@ -1288,10 +1299,15 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── MODAL: ADD / EDIT DAILY SLOT ───────────────────────────────────── */}
       <Modal visible={showSlotModal} transparent animationType="slide" onRequestClose={() => setShowSlotModal(false)}>
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheetContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.sheetHandle} />
@@ -1354,10 +1370,15 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── MODAL: GENERIC ITEM ADD (FOR TABS 2-7) ────────────────────────── */}
       <Modal visible={showGenericModal} transparent animationType="slide" onRequestClose={() => setShowGenericModal(false)}>
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.sheetOverlay}>
           <View style={[styles.sheetContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.sheetHandle} />
@@ -1474,6 +1495,7 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

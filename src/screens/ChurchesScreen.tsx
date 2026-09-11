@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert, TextInput, Modal
+  ActivityIndicator, RefreshControl, Alert, TextInput, Modal,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ import { useZoneContext } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
 import { useChurches, Church } from '../hooks/useChurches';
 import { isHQGroup } from '../constants/zones';
+import { customAlert } from '../context/AlertContext';
 
 export default function ChurchesScreen({ navigation }: any) {
   const { activeZone, isChurchMode } = useZoneContext();
@@ -43,7 +45,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
   async function handleCreateChurch() {
     if (!churchName.trim() || !churchCode.trim()) {
-      Alert.alert('Missing Fields', 'Please provide a church name and unique code.');
+      customAlert('Missing Fields', 'Please provide a church name and unique code.');
       return;
     }
     setCreating(true);
@@ -58,7 +60,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
   async function handleAssignCoordinator() {
     if (!coordinatorEmail.trim() || !selectedChurch) {
-      Alert.alert('Missing Email', 'Enter the member email to appoint as coordinator.');
+      customAlert('Missing Email', 'Enter the member email to appoint as coordinator.');
       return;
     }
     setAssigning(true);
@@ -104,7 +106,7 @@ export default function ChurchesScreen({ navigation }: any) {
       setChurchMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
       refetch();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to add member');
+      customAlert('Error', e.message || 'Failed to add member');
     } finally {
       setActionUserId(null);
     }
@@ -112,7 +114,7 @@ export default function ChurchesScreen({ navigation }: any) {
 
   async function handleRemoveChurchMember(userId: string) {
     if (!selectedChurch) return;
-    Alert.alert('Remove Singer', 'Remove this singer from church choir?', [
+    customAlert('Remove Singer', 'Remove this singer from church choir?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -124,7 +126,7 @@ export default function ChurchesScreen({ navigation }: any) {
             setChurchMembers(prev => prev.filter(m => m.userId !== userId && m.id !== userId));
             refetch();
           } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to remove member');
+            customAlert('Error', e.message || 'Failed to remove member');
           } finally {
             setActionUserId(null);
           }
@@ -277,6 +279,10 @@ export default function ChurchesScreen({ navigation }: any) {
 
       {/* Create Church Modal */}
       <Modal visible={createModal} transparent animationType="slide">
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -315,10 +321,15 @@ export default function ChurchesScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Assign Coordinator Modal */}
       <Modal visible={assignModal} transparent animationType="slide">
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -352,10 +363,15 @@ export default function ChurchesScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Manage Church Members Modal */}
       <Modal visible={membersModal} transparent animationType="slide">
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
@@ -480,6 +496,7 @@ export default function ChurchesScreen({ navigation }: any) {
             )}
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

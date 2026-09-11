@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Member } from '../components/MemberManagementModal';
+import { customAlert } from '../context/AlertContext';
 
 interface OverviewStats {
   totalSingers: number;
@@ -100,9 +101,9 @@ export function useAnalytics() {
       setSearchResults(prev =>
         prev.map(m => ((m.id || m.userId) === updated.id ? { ...m, role: updated.role, churchName: updated.church } : m))
       );
-      Alert.alert('Updated', `${updated.first_name}'s role and access passes were updated successfully.`);
+      customAlert('Updated', `${updated.first_name}'s role and access passes were updated successfully.`);
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to update member role.');
+      customAlert('Error', e?.message || 'Failed to update member role.');
     }
   }, []);
 
@@ -110,9 +111,9 @@ export function useAnalytics() {
     try {
       await api.members.removeFromZone(id);
       setSearchResults(prev => prev.filter(m => (m.id || m.userId) !== id));
-      Alert.alert('Removed', 'Member was removed from their zone successfully.');
+      customAlert('Removed', 'Member was removed from their zone successfully.');
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to remove member from zone.');
+      customAlert('Error', e?.message || 'Failed to remove member from zone.');
     }
   }, []);
 

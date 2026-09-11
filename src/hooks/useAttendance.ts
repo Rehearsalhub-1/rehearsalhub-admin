@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert } from 'react-native';
 import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
 import { AttendanceRecord } from '../screens/AttendanceScreen';
+import { customAlert } from '../context/AlertContext';
 
 export function useAttendance() {
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
@@ -88,14 +88,14 @@ export function useAttendance() {
     try {
       await api.attendance.toggleSession(scopeId, nextState);
       setIsSessionOpen(nextState);
-      Alert.alert(
+      customAlert(
         nextState ? 'Clock-in Opened' : 'Clock-in Closed',
         nextState
           ? 'Rehearsal clock-in is now OPEN. Singers can scan QR or use geofence to check in.'
           : 'Rehearsal clock-in is now CLOSED. Late arrivals cannot check in.'
       );
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to toggle clock-in session.');
+      customAlert('Error', e.message || 'Failed to toggle clock-in session.');
     } finally {
       setTogglingSession(false);
     }

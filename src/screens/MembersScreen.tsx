@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
   RefreshControl,
@@ -12,14 +11,17 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useZoneContext } from '../context/ZoneContext';
 import MemberManagementModal from '../components/MemberManagementModal';
 import { useMembers, Member } from '../hooks/useMembers';
+import { useAlert } from '../context/AlertContext';
 
 export default function MembersScreen() {
   const insets = useSafeAreaInsets();
+  const { showAlert } = useAlert();
   const { isChurchMode, activeChurch } = useZoneContext();
   const { members, loading, refreshing, refetch, approve, reject, saveMember, removeFromZone } = useMembers();
 
@@ -29,20 +31,21 @@ export default function MembersScreen() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
 
+  const pendingMembers = useMemo(() => members.filter(m => m.pending_hq_approval), [members]);
   const approvedMembers = useMemo(() => members.filter(m => !m.pending_hq_approval), [members]);
-  const pendingMembers = useMemo(() => members.filter(m => !!m.pending_hq_approval), [members]);
 
   const filteredMembers = useMemo(() => {
     let list = approvedMembers;
-    if (roleFilter === 'singers') list = list.filter(m => m.role === 'member' && !m.isAdmin);
-    else if (roleFilter === 'admins') list = list.filter(m => m.role === 'zone_admin' || m.role === 'church_admin' || m.role === 'hq_admin' || m.isAdmin);
+    if (roleFilter === 'singers') list = list.filter(m => !m.isAdmin && m.role !== 'church_admin');
+    if (roleFilter === 'admins') list = list.filter(m => m.isAdmin || m.role === 'church_admin' || m.role === 'zone_admin' || m.role === 'hq_admin');
     if (search.trim()) {
-      const q = search.toLowerCase().trim().replace(/^@/, '');
-      list = list.filter(m =>
-        `${m.first_name} ${m.last_name}`.toLowerCase().includes(q) ||
-        (m.alias || '').toLowerCase().includes(q) ||
-        (m.church || '').toLowerCase().includes(q) ||
-        (m.zoneName || '').toLowerCase().includes(q)
+      const q = search.toLowerCase();
+      list = list.filter(
+        m =>
+          `${m.first_name} ${m.last_name}`.toLowerCase().includes(q) ||
+          m.email.toLowerCase().includes(q) ||
+          (m.church && m.church.toLowerCase().includes(q)) ||
+          (m.designation && m.designation.toLowerCase().includes(q))
       );
     }
     return list;
@@ -61,7 +64,7 @@ export default function MembersScreen() {
     try {
       await Share.share({ title: 'Loveworld Singers Directory', message: csvContent });
     } catch {
-      Alert.alert('Export Ready', `${filteredMembers.length} records.`);
+      showAlert('Export Ready', `${filteredMembers.length} records.`);
     }
   };
 
@@ -143,8 +146,8 @@ export default function MembersScreen() {
         </View>
       )}
 
-      {/* List */}
-      <FlatList
+      {/* FlashList */}
+      <FlashList
         data={activeTab === 'pending' ? pendingMembers : filteredMembers}
         keyExtractor={item => item.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}

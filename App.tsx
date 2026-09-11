@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ZoneProvider } from './src/context/ZoneContext';
+import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AppUpdateChecker } from './src/components/AppUpdateChecker';
 import { Colors } from './src/constants/Colors';
@@ -31,7 +32,8 @@ const NavTheme = {
 };
 
 function AuthGate() {
-  const { loading, isAdmin } = useAuth();
+  const { loading, isAdmin, session } = useAuth();
+  const needsScopeSelection = Boolean(session?.isDualRole || (session?.churches?.length || 0) > 1);
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ function AuthGate() {
     <SafeAreaProvider style={{ flex: 1, backgroundColor: Colors.background }}>
       <StatusBar style="dark" />
       <NavigationContainer theme={NavTheme}>
-        <AppNavigator initialRoute={isAdmin ? 'MainTabs' : 'Login'} />
+        <AppNavigator initialRoute={isAdmin ? (needsScopeSelection ? 'ModePicker' : 'MainTabs') : 'Login'} />
       </NavigationContainer>
       <AppUpdateChecker />
     </SafeAreaProvider>
@@ -68,11 +70,13 @@ function AuthGate() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ZoneProvider>
-        <AuthGate />
-      </ZoneProvider>
-    </AuthProvider>
+    <AlertProvider>
+      <AuthProvider>
+        <ZoneProvider>
+          <AuthGate />
+        </ZoneProvider>
+      </AuthProvider>
+    </AlertProvider>
   );
 }
 

@@ -10,6 +10,7 @@ import { stripHtml } from '../lib/stripHtml';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
+import { useAlert } from '../context/AlertContext';
 
 const TABS = ['lyrics', 'solfas', 'audio', 'personnel', 'comments'] as const;
 
@@ -17,6 +18,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
   const { song: initialSong, songId } = route.params || {};
   const { adminUser } = useAuth();
   const { activeZone } = useZoneContext();
+  const { showAlert } = useAlert();
 
   const [song, setSong] = useState<any>(initialSong || null);
   const [loading, setLoading] = useState(!initialSong && Boolean(songId));
@@ -96,9 +98,9 @@ export default function SongDetailScreen({ route, navigation }: any) {
       }
       setSong((prev: any) => ({ ...prev, ...editForm }));
       setIsEditing(false);
-      Alert.alert('Saved', 'Song details updated.');
+      showAlert('Saved', 'Song details updated.');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to update song');
+      showAlert('Error', e.message || 'Failed to update song');
     } finally {
       setSaving(false);
     }

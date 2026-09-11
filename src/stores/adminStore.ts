@@ -12,6 +12,7 @@ export interface AdminSession {
   zoneName: string;
   churchId: string | null;
   churchName: string | null;
+  churches: Array<{ id: string; name: string }>;
   isHQ: boolean;
   isDualRole: boolean;
 }
@@ -22,6 +23,7 @@ interface AdminStore {
   loading: boolean;
   bootstrap: () => Promise<void>;
   setMode: (mode: 'zone' | 'church') => void;
+  setChurch: (churchId: string) => void;
   signOut: () => Promise<void>;
 }
 
@@ -46,7 +48,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         const cached = await SecureStore.getItemAsync(SESSION_KEY);
         if (cached) {
           const s: AdminSession = JSON.parse(cached);
-          set({ session: s, isAuthenticated: true, loading: false });
+          set({ session: { ...s, churches: s.churches || (s.churchId ? [{ id: s.churchId, name: s.churchName || 'Church' }] : []) }, isAuthenticated: true, loading: false });
         }
       } catch {}
 
@@ -108,21 +110,32 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         raw.zoneName ||
         'Your Zone';
 
-      // Church membership if any
-      const churchMem = memberships.find(m => m.groupId || m.group?.id);
+      // Only memberships with church-management roles can become admin workspaces.
+      const churchAdminRoles = new Set([
+        'church_admin', 'church_coordinator', 'subgroup_admin', 'subgroup_coordinator',
+        'group_admin', 'group_coordinator', 'coordinator',
+      ]);
+      const adminChurchMemberships = memberships.filter(m =>
+        churchAdminRoles.has(String(m.role || '').toLowerCase())
+      );
+      const churches = adminChurchMemberships
+        .map(m => ({
+          id: String(m.groupId || m.group?.id || ''),
+          name: m.group?.name || m.groupName || 'Church',
+        }))
+        .filter((church, index, list) => church.id && list.findIndex(item => item.id === church.id) === index);
+      const churchMem = churches.find(church => church.id === get().session?.churchId) || churches[0];
       const churchId =
-        churchMem?.groupId ||
-        churchMem?.group?.id ||
+        churchMem?.id ||
         raw.churchId ||
         null;
       const churchName =
-        churchMem?.group?.name ||
-        churchMem?.groupName ||
+        churchMem?.name ||
         raw.churchName ||
         null;
 
       const hasZoneRole = role === 'hq_admin' || role === 'zone_admin';
-      const hasChurchRole = role === 'church_admin' || Boolean(churchId);
+      const hasChurchRole = role === 'church_admin' || churches.length > 0;
       const isDualRole = hasZoneRole && hasChurchRole;
 
       // Preserve previously picked mode for dual-role accounts
@@ -146,6 +159,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         zoneName,
         churchId,
         churchName,
+        churches,
         isHQ,
         isDualRole,
       };
@@ -169,6 +183,16 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     const { session } = get();
     if (!session) return;
     const updated: AdminSession = { ...session, mode };
+    SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+    set({ session: updated });
+  },
+
+  setChurch: (churchId: string) => {
+    const { session } = get();
+    if (!session) return;
+    const church = session.churches.find(item => item.id === churchId);
+    if (!church) return;
+    const updated: AdminSession = { ...session, mode: 'church', churchId: church.id, churchName: church.name };
     SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
     set({ session: updated });
   },

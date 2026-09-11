@@ -146,6 +146,8 @@ export const api = {
       apiClient.patch<{ success: boolean; data?: any }>(`/submitted-songs/${id}`, { status: 'rejected', rejectNotes: reason }),
     reply: (id: string, message: string, senderName?: string, replyTo?: any) =>
       apiClient.post<{ success: boolean; data?: any }>(`/submitted-songs/${id}/reply`, { message, senderName, replyTo }),
+    delete: (id: string) =>
+      apiClient.delete<{ success: boolean }>(`/submitted-songs/${id}`),
   },
 
   // ── Members & Profiles ───────────────────────────────────────────────────
@@ -320,6 +322,8 @@ export const api = {
   categories: {
     getAll: (zoneId?: string) =>
       apiClient.get<{ success: boolean; data: any[] }>(`/categories${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
+    getPage: () =>
+      apiClient.get<{ success: boolean; data: any[] }>('/categories/page'),
     create: (data: { name: string; color?: string; description?: string; isActive?: boolean }) =>
       apiClient.post<{ success: boolean; data?: any }>('/categories', data),
     update: (id: string, data: { name?: string; color?: string }) =>

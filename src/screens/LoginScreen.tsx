@@ -21,6 +21,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api, SessionExpiredError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useAdminStore } from '../stores/adminStore';
+import { customAlert } from '../context/AlertContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -69,10 +70,10 @@ export default function LoginScreen({ navigation }: Props) {
         const currentSession = useAdminStore.getState().session;
         navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
       } else {
-        Alert.alert('Login Failed', retryRes.error || 'Failed to authenticate');
+        customAlert('Login Failed', retryRes.error || 'Failed to authenticate');
       }
     } catch (err: any) {
-      Alert.alert('Login Failed', err?.message || 'Failed to sign into account');
+      customAlert('Login Failed', err?.message || 'Failed to sign into account');
     } finally {
       setAccountSelectLoading(false);
     }
@@ -85,7 +86,7 @@ export default function LoginScreen({ navigation }: Props) {
         process.env.EXPO_PUBLIC_KINGSCHAT_CLIENT_ID || 'a1f444fa-ea50-47cf-ba2b-232d0b46d1f5';
       const authUrl = `https://accounts.kingschat.online/log-in?clientId=${KINGSCHAT_CLIENT_ID}&origin=studio&state=studio`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'rehearsalhubadmin://kingschat-callback');
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'rehearsalhub-admin://kingschat-callback');
 
       if (result.type === 'success' && result.url) {
         // Extract token from both query parameters and URL hash fragments
@@ -107,7 +108,7 @@ export default function LoginScreen({ navigation }: Props) {
         }
 
         if (!accessToken) {
-          Alert.alert('Authentication Failed', 'Failed to retrieve access token from KingsChat. Please try again.');
+          customAlert('Authentication Failed', 'Failed to retrieve access token from KingsChat. Please try again.');
           return;
         }
 
@@ -121,18 +122,18 @@ export default function LoginScreen({ navigation }: Props) {
           }
 
           if (res.code === 'NO_ACCOUNT' || res.code === 'NEW_USER') {
-            Alert.alert(
+            customAlert(
               'No Coordinator Account Found',
               'Your KingsChat profile is not linked to an existing Coordinator account. Please sign in with your email & password first or contact your Zonal Coordinator.'
             );
             return;
           }
-          Alert.alert('Login Failed', res.error || 'Failed to authenticate with KingsChat');
+          customAlert('Login Failed', res.error || 'Failed to authenticate with KingsChat');
           return;
         }
 
         if (!res.data) {
-          Alert.alert('Login Failed', 'Invalid response received from server.');
+          customAlert('Login Failed', 'Invalid response received from server.');
           return;
         }
 
@@ -144,7 +145,7 @@ export default function LoginScreen({ navigation }: Props) {
       }
     } catch (err: any) {
       if (!err?.message?.includes('cancel') && !err?.message?.includes('dismissed')) {
-        Alert.alert('KingsChat Login Error', err?.message || 'Failed to authenticate with KingsChat');
+        customAlert('KingsChat Login Error', err?.message || 'Failed to authenticate with KingsChat');
       }
     } finally {
       setKingsChatLoading(false);
@@ -154,7 +155,7 @@ export default function LoginScreen({ navigation }: Props) {
   async function handleLogin() {
     const rawIdentifier = identifier.trim();
     if (!rawIdentifier || !password.trim()) {
-      Alert.alert('Sign In Required', 'Please enter your email or username and password.');
+      customAlert('Sign In Required', 'Please enter your email or username and password.');
       return;
     }
 
@@ -163,7 +164,7 @@ export default function LoginScreen({ navigation }: Props) {
       const result = await api.auth.login(rawIdentifier, password);
 
       if (!result.success || !result.data) {
-        Alert.alert('Login Failed', result.error || 'Invalid credentials');
+        customAlert('Login Failed', result.error || 'Invalid credentials');
         return;
       }
 
@@ -174,9 +175,9 @@ export default function LoginScreen({ navigation }: Props) {
       navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
     } catch (error: any) {
       if (error instanceof SessionExpiredError) {
-        Alert.alert('Login Failed', 'Session expired. Please try again.');
+        customAlert('Login Failed', 'Session expired. Please try again.');
       } else {
-        Alert.alert('Login Failed', error?.message || 'Invalid credentials');
+        customAlert('Login Failed', error?.message || 'Invalid credentials');
       }
     } finally {
       setLoading(false);

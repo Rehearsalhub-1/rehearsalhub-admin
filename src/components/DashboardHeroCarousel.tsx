@@ -227,7 +227,7 @@ export default function DashboardHeroCarousel() {
         return s;
       });
     }
-    return SLIDES;
+    return SLIDES.filter(s => s.id !== 'slide-media');
   }, [isChurchMode, activeChurch?.name]);
 
   useEffect(() => {

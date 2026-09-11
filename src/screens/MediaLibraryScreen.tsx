@@ -15,6 +15,7 @@ import {
   Platform,
   Share,
   Image,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,8 @@ import * as WebBrowser from 'expo-web-browser';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
+import { customAlert } from '../context/AlertContext';
+import { useAuth } from '../context/AuthContext';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,10 +114,25 @@ function InAppVideoViewer({ item }: { item: MediaItem }) {
 
 export default function MediaLibraryScreen() {
   const { activeZone } = useZoneContext();
+  const { adminUser } = useAuth();
+
+  if (!adminUser?.isHQAdmin) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ZoneHeader title="Media Assets" showBack={false} />
+        <View style={styles.accessNotice}>
+          <Ionicons name="lock-closed-outline" size={42} color="#94a3b8" />
+          <Text style={styles.emptyTitle}>HQ-managed media</Text>
+          <Text style={styles.accessNoticeText}>Media Assets are managed by Headquarters and delivered to the mobile app.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Media list & loading
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Filters
@@ -206,6 +224,7 @@ export default function MediaLibraryScreen() {
   // ── Load Media ─────────────────────────────────────────────────────────────
 
   const loadMedia = useCallback(async () => {
+    setLoadError(null);
     try {
       const res = await api.media.getAll(activeZone?.id);
       const items = Array.isArray(res?.data) ? res.data : [];
@@ -235,8 +254,9 @@ export default function MediaLibraryScreen() {
       } else {
         setMediaList([]);
       }
-    } catch {
+    } catch (error: any) {
       setMediaList([]);
+      setLoadError(error?.message || 'Unable to load media assets.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -310,7 +330,7 @@ export default function MediaLibraryScreen() {
       : filteredItems;
 
     if (targetItems.length === 0) {
-      Alert.alert('No Files', 'No media files available to download.');
+      customAlert('No Files', 'No media files available to download.');
       return;
     }
 
@@ -352,7 +372,7 @@ export default function MediaLibraryScreen() {
         }
         showToast(`Downloaded ${targetItems.length} files successfully!`);
       } catch (err: any) {
-        Alert.alert('Download Error', err?.message || 'Could not complete bulk download.');
+        customAlert('Download Error', err?.message || 'Could not complete bulk download.');
       } finally {
         setBulkDownloading(false);
         setIsSelectMode(false);
@@ -378,7 +398,7 @@ export default function MediaLibraryScreen() {
       });
       showToast(`Exported ${targetItems.length} download links!`);
     } catch (e: any) {
-      Alert.alert('Export Notice', e?.message || 'Unable to export download pack.');
+      customAlert('Export Notice', e?.message || 'Unable to export download pack.');
     } finally {
       setBulkDownloading(false);
       setIsSelectMode(false);
@@ -451,7 +471,7 @@ export default function MediaLibraryScreen() {
 
     await stopCurrentAudio();
     if (!item.url) {
-      Alert.alert('No Audio Stream', 'This media track does not have an audio stream URL.');
+      customAlert('No Audio Stream', 'This media track does not have an audio stream URL.');
       return;
     }
 
@@ -478,7 +498,7 @@ export default function MediaLibraryScreen() {
       soundRef.current = player;
       setIsPlaying(true);
     } catch (err: any) {
-      Alert.alert('Playback Notice', 'Could not stream audio: ' + (err?.message || 'Unsupported format'));
+      customAlert('Playback Notice', 'Could not stream audio: ' + (err?.message || 'Unsupported format'));
       setActiveAudioItem(null);
     } finally {
       setIsBuffering(false);
@@ -562,7 +582,7 @@ export default function MediaLibraryScreen() {
   const handleSaveRename = async () => {
     if (!renamingItem) return;
     if (!renameTitle.trim()) {
-      Alert.alert('Name Required', 'Please enter a valid name for this media file.');
+      customAlert('Name Required', 'Please enter a valid name for this media file.');
       return;
     }
 
@@ -587,7 +607,7 @@ export default function MediaLibraryScreen() {
       setRenamingItem(null);
       showToast('File renamed successfully!');
     } catch (err: any) {
-      Alert.alert('Rename Error', err?.message || 'Could not rename file.');
+      customAlert('Rename Error', err?.message || 'Could not rename file.');
     } finally {
       setRenaming(false);
     }
@@ -619,7 +639,7 @@ export default function MediaLibraryScreen() {
   // ── Delete ─────────────────────────────────────────────────────────────────
 
   const handleDelete = (item: MediaItem) => {
-    Alert.alert(
+    customAlert(
       'Remove Media Asset',
       `Are you sure you want to remove "${item.name}" from the library?`,
       [
@@ -672,7 +692,7 @@ export default function MediaLibraryScreen() {
         setFormCategory(inferMediaType(file.mimeType));
       }
     } catch (e: any) {
-      Alert.alert('Notice', e?.message || 'Could not pick file from device.');
+      customAlert('Notice', e?.message || 'Could not pick file from device.');
     }
   };
 
@@ -680,17 +700,17 @@ export default function MediaLibraryScreen() {
 
   const handleSaveAsset = async () => {
     if (!formTitle.trim()) {
-      Alert.alert('Title Required', 'Please enter a name for this media item.');
+      customAlert('Title Required', 'Please enter a name for this media item.');
       return;
     }
 
     if (inputSource === 'device' && !selectedFile) {
-      Alert.alert('Select a File', 'Please choose a file from your device to upload.');
+      customAlert('Select a File', 'Please choose a file from your device to upload.');
       return;
     }
 
     if (inputSource === 'url' && !formUrl.trim()) {
-      Alert.alert('Link Required', 'Please enter a valid web or video link.');
+      customAlert('Link Required', 'Please enter a valid web or video link.');
       return;
     }
 
@@ -711,8 +731,11 @@ export default function MediaLibraryScreen() {
             'rehearsals'
           );
           finalUrl = uploadRes.data?.url || (uploadRes as any).url || selectedFile.uri;
-        } catch {
-          finalUrl = selectedFile.uri;
+          if (!finalUrl || finalUrl === selectedFile.uri) {
+            throw new Error('Cloudflare R2 did not return a media URL.');
+          }
+        } catch (error: any) {
+          throw new Error(error?.message || 'Media upload failed. Please try again.');
         }
       }
 
@@ -751,7 +774,7 @@ export default function MediaLibraryScreen() {
       resetForm();
       showToast('Media added to library!');
     } catch (e: any) {
-      Alert.alert('Save Notice', e?.message || 'Could not add media item.');
+      customAlert('Save Notice', e?.message || 'Could not add media item.');
     } finally {
       setSaving(false);
     }
@@ -836,6 +859,18 @@ export default function MediaLibraryScreen() {
             >
               <Image source={{ uri: item.thumbnail || item.url }} style={styles.mediaThumb} />
             </TouchableOpacity>
+          ) : loadError ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconBox}>
+                <Ionicons name="cloud-offline-outline" size={32} color="#dc2626" />
+              </View>
+              <Text style={styles.emptyTitle}>Media could not be loaded</Text>
+              <Text style={styles.emptySubText}>{loadError}</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={loadMedia} activeOpacity={0.8}>
+                <Ionicons name="refresh" size={18} color="#ffffff" style={{ marginRight: 4 }} />
+                <Text style={styles.emptyBtnText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <TouchableOpacity
               style={[
@@ -1560,6 +1595,10 @@ export default function MediaLibraryScreen() {
           if (!renaming) setRenamingItem(null);
         }}
       >
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
             <View style={styles.sheetHandle} />
@@ -1675,6 +1714,7 @@ export default function MediaLibraryScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── 9. Add Media Modal ───────────────────────────────────────────── */}
@@ -1686,6 +1726,10 @@ export default function MediaLibraryScreen() {
           if (!saving) setModalVisible(false);
         }}
       >
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
             <View style={styles.sheetHandle} />
@@ -1898,6 +1942,7 @@ export default function MediaLibraryScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -1909,6 +1954,19 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  accessNotice: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  accessNoticeText: {
+    color: '#64748b',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginTop: 10,
   },
   headerToolBtn: {
     flexDirection: 'row',

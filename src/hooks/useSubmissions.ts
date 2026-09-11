@@ -50,6 +50,9 @@ export function useSubmissions() {
 
   const deleteSong = useCallback((id: string) => {
     setSongs(prev => prev.filter(s => s.id !== id));
+    api.submittedSongs.delete(id).catch(err => {
+      console.warn('[useSubmissions:delete]', err);
+    });
   }, []);
 
   const addMessage = useCallback((songId: string, message: SongSubmissionMessage) => {

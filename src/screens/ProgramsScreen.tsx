@@ -25,6 +25,7 @@ import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
 import { GradientCard, Badge, SearchFilterBar, EmptyState } from '../components/ui';
 import MediaSelectionModal from '../components/MediaSelectionModal';
+import { customAlert } from '../context/AlertContext';
 
 // Program type is imported from usePrograms hook
 
@@ -97,14 +98,47 @@ const LOCAL_BANNERS: { key: string; src: any }[] = [
   { key: 'banner9', src: require('../../assets/banners/banner9.jpg') },
 ];
 
-export const STAGE_OPTIONS: { value: 'ongoing' | 'pre-rehearsal' | 'archive' | 'draft'; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
+export type ProgramStage = 'ongoing' | 'pre-rehearsal' | 'archive' | 'draft';
+
+export const STAGE_OPTIONS: { value: ProgramStage; label: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
   { value: 'ongoing', label: 'Ongoing', icon: 'radio', color: '#047857' },
   { value: 'pre-rehearsal', label: 'Pre-Reh', icon: 'time-outline', color: '#b45309' },
   { value: 'archive', label: 'Archive', icon: 'archive-outline', color: '#475569' },
   { value: 'draft', label: 'Draft', icon: 'document-text-outline', color: '#2563eb' },
 ];
 
-export const MOCK_PROGRAMS: Program[] = [];
+export function normalizeProgramStage(p?: Partial<Program> | null): ProgramStage {
+  if (!p) return 'pre-rehearsal';
+  const rawStatus = String(p.status || '').toLowerCase().trim();
+  const rawCategory = String(p.category || '').toLowerCase().trim();
+  const rawStage = String(p.stage || '').toLowerCase().trim();
+
+  if (
+    p.isActive ||
+    rawStage === 'ongoing' ||
+    rawStatus === 'ongoing' ||
+    rawStatus === 'active' ||
+    rawCategory === 'ongoing' ||
+    rawCategory === 'active'
+  ) {
+    return 'ongoing';
+  }
+  if (
+    p.isArchived ||
+    rawStage === 'archive' ||
+    rawStatus === 'archive' ||
+    rawStatus === 'archived' ||
+    rawStatus === 'completed' ||
+    rawCategory === 'archive' ||
+    rawCategory === 'archived'
+  ) {
+    return 'archive';
+  }
+  if (rawStage === 'draft' || rawStatus === 'draft' || rawCategory === 'draft') {
+    return 'draft';
+  }
+  return 'pre-rehearsal';
+}
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Create / Edit Program Modal
@@ -150,7 +184,7 @@ export function ProgramModal({
     name: '',
     date: new Date().toLocaleDateString('en-CA'),
     location: '',
-    category: 'pre-rehearsal' as 'ongoing' | 'pre-rehearsal' | 'archive' | 'draft',
+    category: 'pre-rehearsal' as ProgramStage,
     pageCategory: 'Praise Night',
     description: '',
     bannerKey: '' as string,
@@ -166,11 +200,12 @@ export function ProgramModal({
     if (visible) {
       if (editingProgram) {
         const existingCat = editingProgram.pageCategory || 'Praise Night';
+        const initialStage = normalizeProgramStage(editingProgram);
         setForm({
           name: editingProgram.name || '',
           date: editingProgram.date || '',
           location: editingProgram.location || '',
-          category: (editingProgram.status || editingProgram.category || 'pre-rehearsal') as any,
+          category: initialStage,
           pageCategory: existingCat,
           description: editingProgram.description || '',
           bannerKey: (editingProgram as any).bannerKey || '',
@@ -194,6 +229,22 @@ export function ProgramModal({
       setShowCustomBanner(false);
       setShowNewCategoryInput(false);
       setNewCategoryName('');
+
+      api.categories.getPage().then(res => {
+        const pageCategories = (Array.isArray(res?.data) ? res.data : [])
+          .map((item: any) => ({ id: String(item.id || ''), name: item.name || item.title || '' }))
+          .filter((item: any) => item.name);
+        if (pageCategories.length > 0) {
+          const currentValue = editingProgram?.pageCategory || '';
+          const currentName = pageCategories.find(item => item.id === currentValue)?.name || currentValue;
+          setAvailablePageCategories(Array.from(new Set([
+            ...pageCategories.map(item => item.name),
+            ...DEFAULT_PROGRAM_CATEGORIES,
+            ...(currentName ? [currentName] : []),
+          ])));
+          if (currentName) setForm(prev => ({ ...prev, pageCategory: currentName }));
+        }
+      }).catch(() => {});
     }
   }, [visible, editingProgram]);
 
@@ -227,6 +278,9 @@ export function ProgramModal({
         location: form.location.trim(),
         category: form.category,
         status: form.category,
+        stage: form.category,
+        isActive: form.category === 'ongoing',
+        isArchived: form.category === 'archive',
         pageCategory: form.pageCategory,
         description: form.description.trim(),
       };
@@ -637,26 +691,29 @@ const ProgramCardItem = React.memo(function ProgramCardItem({
   onMenu,
 }: ProgramCardItemProps) {
   const { songCount, percent } = stats;
+  const stage = normalizeProgramStage(item);
+  const isCardOngoing = isOngoing || stage === 'ongoing';
+  const isCardPreReh = !isCardOngoing && (isPreRehearsal || stage === 'pre-rehearsal');
 
   return (
     <TouchableOpacity
       activeOpacity={0.75}
       onPress={onPress}
-      style={[styles.programCard, isOngoing && styles.programCardOngoing]}
+      style={[styles.programCard, isCardOngoing && styles.programCardOngoing]}
     >
       {/* Top Bar: Status Badge + Overflow Menu Button */}
       <View style={styles.cardTopRow}>
         <View style={styles.statusBadgeWrap}>
-          {isOngoing ? (
+          {isCardOngoing ? (
             <View style={styles.liveBadge}>
               <View style={styles.liveDot} />
               <Text style={styles.liveBadgeText}>ONGOING</Text>
             </View>
-          ) : isPreRehearsal ? (
+          ) : isCardPreReh ? (
             <View style={styles.prepBadge}>
               <Text style={styles.prepBadgeText}>PRE-REH</Text>
             </View>
-          ) : (item.status || item.category) === 'draft' ? (
+          ) : stage === 'draft' ? (
             <View style={styles.draftBadge}>
               <Text style={styles.draftBadgeText}>DRAFT</Text>
             </View>
@@ -768,7 +825,7 @@ export default function ProgramsScreen({ navigation }: any) {
   }, []);
 
   const handleDuplicate = useCallback((program: Program) => {
-    Alert.alert('Duplicate Program', `Create a copy of "${program.name}"?`, [
+    customAlert('Duplicate Program', `Create a copy of "${program.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Duplicate',
@@ -793,14 +850,14 @@ export default function ProgramsScreen({ navigation }: any) {
             id: `prog-${Date.now()}`,
           };
           upsertProgram(copy);
-          Alert.alert('Duplicated', 'Program duplicated successfully.');
+          customAlert('Duplicated', 'Program duplicated successfully.');
         },
       },
     ]);
   }, []);
 
   const handleDelete = useCallback((program: Program) => {
-    Alert.alert('Delete Program', `Delete "${program.name}" permanently?`, [
+    customAlert('Delete Program', `Delete "${program.name}" permanently?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -815,7 +872,7 @@ export default function ProgramsScreen({ navigation }: any) {
 
   const handleOpenMenu = useCallback(
     (program: Program) => {
-      Alert.alert(
+      customAlert(
         program.name,
         'Manage this rehearsal program',
         [
@@ -851,14 +908,9 @@ export default function ProgramsScreen({ navigation }: any) {
     // Here we only apply UI-level filters: tab, search, and sort.
     let list = [...programs];
 
-    // Status / Tab filter — check both status and category since DB values
-    // may be inconsistent from migration (status and category can differ)
+    // Status / Tab filter
     if (selectedTab !== 'all') {
-      list = list.filter(p => {
-        const s = (p.status || '').toLowerCase().trim();
-        const c = (p.category || '').toLowerCase().trim();
-        return s === selectedTab || c === selectedTab;
-      });
+      list = list.filter(p => normalizeProgramStage(p) === selectedTab);
     }
 
     // Search filter
@@ -874,8 +926,8 @@ export default function ProgramsScreen({ navigation }: any) {
 
     // Sort: ongoing first, then chronological descending
     list.sort((a, b) => {
-      const aOngoing = a.status === 'ongoing' || a.category === 'ongoing';
-      const bOngoing = b.status === 'ongoing' || b.category === 'ongoing';
+      const aOngoing = normalizeProgramStage(a) === 'ongoing';
+      const bOngoing = normalizeProgramStage(b) === 'ongoing';
       if (aOngoing && !bOngoing) return -1;
       if (!aOngoing && bOngoing) return 1;
       const dateA = new Date(a.date || 0).getTime();
@@ -927,8 +979,9 @@ export default function ProgramsScreen({ navigation }: any) {
 
   const renderItem = useCallback(
     ({ item }: { item: Program }) => {
-      const isOngoing = item.status === 'ongoing' || item.category === 'ongoing';
-      const isPreRehearsal = item.status === 'pre-rehearsal' || item.category === 'pre-rehearsal';
+      const stage = normalizeProgramStage(item);
+      const isOngoing = stage === 'ongoing';
+      const isPreRehearsal = stage === 'pre-rehearsal';
 
       let stats = songStatsMap[String(item.id)];
       if (!stats) {

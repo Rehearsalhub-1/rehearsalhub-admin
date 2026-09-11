@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Updates from 'expo-updates';
 import { Colors } from '../constants/Colors';
+import { customAlert } from '../context/AlertContext';
 
 export function AppUpdateChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -30,7 +31,7 @@ export function AppUpdateChecker() {
       await Updates.reloadAsync();
     } catch (e) {
       setUpdating(false);
-      Alert.alert('Update failed', 'Please restart the app manually.');
+      customAlert('Update failed', 'Please restart the app manually.');
     }
   }
 

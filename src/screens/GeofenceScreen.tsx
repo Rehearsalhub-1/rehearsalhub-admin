@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
+import { customAlert } from '../context/AlertContext';
 
 interface VenuePreset {
   name: string;
@@ -148,7 +149,7 @@ export default function GeofenceScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
+        customAlert(
           'Location Permission Required',
           'Please allow location access in your device settings so RehearsalHub Admin can detect your current rehearsal hall coordinates.'
         );
@@ -165,12 +166,12 @@ export default function GeofenceScreen() {
       setLat(detectedLat);
       setLon(detectedLon);
 
-      Alert.alert(
+      customAlert(
         'GPS Location Acquired',
         `Venue coordinates set to your current device position:\n\nLatitude: ${detectedLat}°N\nLongitude: ${detectedLon}°E`
       );
     } catch (e: any) {
-      Alert.alert('GPS Location Error', e.message || 'Unable to retrieve device GPS fix.');
+      customAlert('GPS Location Error', e.message || 'Unable to retrieve device GPS fix.');
     } finally {
       setLocating(false);
     }
@@ -182,12 +183,12 @@ export default function GeofenceScreen() {
     const radNum = parseInt(radius, 10);
 
     if (isNaN(latNum) || isNaN(lonNum)) {
-      Alert.alert('Invalid Coordinates', 'Please enter valid numerical latitude and longitude.');
+      customAlert('Invalid Coordinates', 'Please enter valid numerical latitude and longitude.');
       return;
     }
 
     if (isNaN(radNum) || radNum < 20) {
-      Alert.alert('Invalid Radius', 'Please enter a radius of at least 20 meters.');
+      customAlert('Invalid Radius', 'Please enter a radius of at least 20 meters.');
       return;
     }
 
@@ -206,13 +207,13 @@ export default function GeofenceScreen() {
       };
 
       await api.settings.update(docId, payload);
-      Alert.alert(
+      customAlert(
         'Geofence Saved',
         `Geofenced clock-in for "${currentScopeTitle}" is now active with a ${radNum}m radius.`
       );
     } catch (e: any) {
       console.warn('[Geofence] Save error:', e);
-      Alert.alert(
+      customAlert(
         'Geofence Saved',
         `Geofenced clock-in configuration for "${currentScopeTitle}" has been updated.`
       );
@@ -226,7 +227,7 @@ export default function GeofenceScreen() {
     setLat(preset.lat);
     setLon(preset.lon);
     setRadius(preset.radius);
-    Alert.alert('Preset Applied', `Loaded coordinates for ${preset.name}.`);
+    customAlert('Preset Applied', `Loaded coordinates for ${preset.name}.`);
   }
 
   return (

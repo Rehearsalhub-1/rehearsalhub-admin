@@ -20,6 +20,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
 import { useAttendance } from '../hooks/useAttendance';
+import { customAlert } from '../context/AlertContext';
 
 export interface AttendanceRecord {
   id: string;
@@ -191,7 +192,7 @@ export default function AttendanceScreen({ navigation }: any) {
     if (!cameraPermission?.granted) {
       const res = await requestCameraPermission();
       if (!res.granted) {
-        Alert.alert(
+        customAlert(
           'Camera Access Required',
           'Please grant camera permission in device settings to scan singers at rehearsals.'
         );
@@ -323,7 +324,7 @@ export default function AttendanceScreen({ navigation }: any) {
   // Manual Clock-In
   const handleManualSubmit = async () => {
     if (!manualName.trim()) {
-      Alert.alert('Missing Name', 'Please enter singer full name.');
+      customAlert('Missing Name', 'Please enter singer full name.');
       return;
     }
 
@@ -335,7 +336,7 @@ export default function AttendanceScreen({ navigation }: any) {
     );
 
     if (existing) {
-      Alert.alert('Already Clocked In', `${normalizedName} is already recorded for ${selectedDate}.`);
+      customAlert('Already Clocked In', `${normalizedName} is already recorded for ${selectedDate}.`);
       setManualModalVisible(false);
       setManualName('');
       return;
@@ -369,7 +370,7 @@ export default function AttendanceScreen({ navigation }: any) {
         method: 'manual',
       });
     } catch {}
-    Alert.alert('Clocked In', `${newRecord.userName} has been logged as present.`);
+    customAlert('Clocked In', `${newRecord.userName} has been logged as present.`);
   };
 
   // Export CSV without freezing modal or UI thread
@@ -380,7 +381,7 @@ export default function AttendanceScreen({ navigation }: any) {
 
       if (viewMode === 'daily') {
         if (dailyRecords.length === 0) {
-          Alert.alert('No Records', `There are no attendance records to export for ${formattedDateLabel}.`);
+          customAlert('No Records', `There are no attendance records to export for ${formattedDateLabel}.`);
           return;
         }
         fileName = `Attendance_${selectedDate}.csv`;
@@ -396,7 +397,7 @@ export default function AttendanceScreen({ navigation }: any) {
         csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
       } else {
         if (cumulativeData.length === 0) {
-          Alert.alert('No Records', 'There are no cumulative records to export.');
+          customAlert('No Records', 'There are no cumulative records to export.');
           return;
         }
         fileName = `Attendance_Cumulative_${TODAY_STR}.csv`;
@@ -437,7 +438,7 @@ export default function AttendanceScreen({ navigation }: any) {
       );
     } catch (err: any) {
       console.warn('[Attendance Export error]:', err?.message);
-      Alert.alert('Export Notice', 'Attendance CSV prepared.');
+      customAlert('Export Notice', 'Attendance CSV prepared.');
     }
   };
 
@@ -508,7 +509,7 @@ export default function AttendanceScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* ── 2. Segmented View Mode Tabs: Daily Logs vs Cumulative ────── */}
+      {/* ── 2. Daily attendance view ────────────────────────────────── */}
       <View style={styles.viewModeTabsContainer}>
         <TouchableOpacity
           style={[styles.viewModeTab, viewMode === 'daily' && styles.viewModeTabActive]}
@@ -526,21 +527,6 @@ export default function AttendanceScreen({ navigation }: any) {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.viewModeTab, viewMode === 'cumulative' && styles.viewModeTabActive]}
-          onPress={() => setViewMode('cumulative')}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name="trending-up-outline"
-            size={14}
-            color={viewMode === 'cumulative' ? '#7c3aed' : '#64748b'}
-            style={{ marginRight: 6 }}
-          />
-          <Text style={[styles.viewModeTabText, viewMode === 'cumulative' && styles.viewModeTabTextActive]}>
-            Cumulative
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {/* ── 3. Date Navigation Strip (Daily Mode Only) ────────────────── */}
@@ -595,7 +581,7 @@ export default function AttendanceScreen({ navigation }: any) {
       </View>
 
       {/* ── 5. Main Content: Daily Cards or Cumulative Aggregates ────── */}
-      {viewMode === 'daily' ? (
+      {(
         <FlatList
           data={dailyRecords}
           keyExtractor={item => item.id}
@@ -656,58 +642,6 @@ export default function AttendanceScreen({ navigation }: any) {
 
                 <View style={styles.statusBadge}>
                   <Text style={styles.statusBadgeText}>Present</Text>
-                </View>
-              </View>
-            );
-          }}
-        />
-      ) : (
-        /* Cumulative Aggregated View */
-        <FlatList
-          data={cumulativeData}
-          keyExtractor={(item, index) => `cum-${item.userName}-${index}`}
-          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} colors={['#7c3aed']} />}
-          ListEmptyComponent={
-            loading ? (
-              <View style={styles.emptyContainer}>
-                <ActivityIndicator size="large" color="#7c3aed" />
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="stats-chart-outline" size={32} color="#cbd5e1" />
-                <Text style={styles.emptyTitle}>No Cumulative Telemetry</Text>
-                <Text style={styles.emptySubtitle}>Rehearsal attendance history will accumulate here.</Text>
-              </View>
-            )
-          }
-          renderItem={({ item }) => {
-            const initial = item.userName.charAt(0).toUpperCase();
-            const rateColor = item.rate >= 80 ? '#10b981' : item.rate >= 50 ? '#f59e0b' : '#ef4444';
-            const rateBg = item.rate >= 80 ? '#ecfdf5' : item.rate >= 50 ? '#fffbeb' : '#fef2f2';
-
-            return (
-              <View style={styles.cumulativeCard}>
-                <View style={styles.avatarWrap}>
-                  <View style={[styles.avatarInitialWrap, { backgroundColor: '#f5f3ff' }]}>
-                    <Text style={[styles.avatarInitialText, { color: '#7c3aed' }]}>{initial}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.recordMeta}>
-                  <Text style={styles.singerName} numberOfLines={1}>
-                    {item.userName}
-                  </Text>
-                  <Text style={styles.recordSub} numberOfLines={1}>
-                    {item.eventName} • {item.attended} of {item.total} sessions
-                  </Text>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressBar, { width: `${item.rate}%`, backgroundColor: rateColor }]} />
-                  </View>
-                </View>
-
-                <View style={[styles.rateBadge, { backgroundColor: rateBg }]}>
-                  <Text style={[styles.rateBadgeText, { color: rateColor }]}>{item.rate}%</Text>
                 </View>
               </View>
             );

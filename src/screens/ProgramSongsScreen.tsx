@@ -23,8 +23,9 @@ import { Colors } from '../constants/Colors';
 import { api } from '../services/api';
 import { EmptyState, Badge } from '../components/ui';
 import MediaSelectionModal from '../components/MediaSelectionModal';
-import { ProgramModal } from './ProgramsScreen';
+import { ProgramModal, normalizeProgramStage } from './ProgramsScreen';
 import SongModal from '../components/SongModal';
+import { customAlert } from '../context/AlertContext';
 
 export function addSong(songIds: string[], newId: string): string[] {
   if (songIds.includes(newId)) return songIds;
@@ -138,10 +139,6 @@ function SongDetailsModal({ visible, song, programId = '', onClose, onSave, onDe
   );
 }
 
-export const MOCK_PROGRAM_SONGS: PraiseSong[] = [];
-
-export const MOCK_MASTER_REPERTOIRE: MasterSong[] = [];
-
 // ────────────────────────────────────────────────────────────────────────────────
 // 2. CLONE FROM ALL MINISTERED MODAL (High-End Safe Sheet)
 // ────────────────────────────────────────────────────────────────────────────────
@@ -216,16 +213,19 @@ function CloneFromMasterModal({ visible, programId, existingIds, onClose, onClon
         isActive: false,
       };
 
-      api.songs.create({
+      const result = await api.songs.create({
         ...clonedSong,
         programId,
         praiseNightId: programId,
-      }).catch(() => {});
+      });
+      if (!result?.success) {
+        throw new Error('Failed to save cloned song.');
+      }
 
-      onCloned(clonedSong);
+      onCloned(result.data || clonedSong);
       onClose();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to clone song.');
+      customAlert('Error', e.message || 'Failed to clone song.');
     } finally {
       setCloningId(null);
     }
@@ -513,9 +513,9 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
       await api.programs.updateCategoryOrder(currentProgram.id, reorderCategoriesList);
       setCurrentProgram(prev => ({ ...prev, categoryOrder: reorderCategoriesList }));
       setReorderModalVisible(false);
-      Alert.alert('Categories Reordered', 'Category order updated successfully.');
+      customAlert('Categories Reordered', 'Category order updated successfully.');
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to save category order');
+      customAlert('Error', e?.message || 'Failed to save category order');
     } finally {
       setIsSavingCategoryOrder(false);
     }
@@ -536,7 +536,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         }
       );
     } else {
-      Alert.alert(
+      customAlert(
         currentProgram.name || 'Setlist Options',
         'Select an action',
         [
@@ -551,7 +551,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   }
 
   function handleRemoveSong(songId: string, title: string) {
-    Alert.alert('Remove Song', `Remove "${title}" from this setlist?`, [
+    customAlert('Remove Song', `Remove "${title}" from this setlist?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -668,7 +668,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   }, [programSongs, statusFilter, selectedCategory, searchQuery]);
 
   const existingIds = useMemo(() => programSongs.map(s => s.id), [programSongs]);
-  const currentCat = currentProgram.category || currentProgram.status || 'pre-rehearsal';
+  const currentCat = normalizeProgramStage(currentProgram);
   const currentStatusOpt = STATUS_OPTIONS.find(o => o.value === currentCat) || STATUS_OPTIONS[1];
 
   return (

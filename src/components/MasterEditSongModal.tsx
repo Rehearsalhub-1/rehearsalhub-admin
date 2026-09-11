@@ -20,6 +20,7 @@ import { Colors } from '../constants/Colors';
 import MediaSelectionModal from './MediaSelectionModal';
 import { MasterSong } from './MasterSongDetailModal';
 import { api } from '../services/api';
+import { customAlert } from '../context/AlertContext';
 
 export interface MasterEditSongModalProps {
   visible: boolean;
@@ -228,7 +229,7 @@ export default function MasterEditSongModal({
     if (!trimmed) return;
     const lower = trimmed.toLowerCase();
     if (['full', 'soprano', 'alto', 'tenor', 'bass', ...customParts.map(p => p.toLowerCase())].includes(lower)) {
-      Alert.alert('Exists', 'This stem part name is already in use.');
+      customAlert('Exists', 'This stem part name is already in use.');
       return;
     }
     setCustomParts(prev => [...prev, trimmed]);
@@ -282,7 +283,7 @@ export default function MasterEditSongModal({
   // Save Song
   async function handleSave() {
     if (!title.trim()) {
-      Alert.alert('Required Field', 'Please enter a song title.');
+      customAlert('Required Field', 'Please enter a song title.');
       setActiveTab('details');
       return;
     }
@@ -314,18 +315,21 @@ export default function MasterEditSongModal({
         imageUrl: imageUrl.trim(),
         isHQOnly: isHQOnly,
         isHqOnly: isHQOnly,
+        isMaster: true,
       };
 
+      let response: any;
       if (isCreate) {
-        await api.songs.create(payload).catch(() => {});
+        response = await api.songs.create({ ...payload, status: isHQOnly ? 'hq_only' : 'active' });
       } else if (song?.id) {
-        await api.songs.update(song.id, payload).catch(() => {});
+        response = await api.songs.update(song.id, { ...payload, status: isHQOnly ? 'hq_only' : 'active' });
       }
+      if (response && response.success === false) throw new Error('Failed to save master song.');
 
       onSaved(payload, isCreate);
       onClose();
     } catch (e: any) {
-      Alert.alert('Save Error', e.message || 'Failed to save master song.');
+      customAlert('Save Error', e.message || 'Failed to save master song.');
     } finally {
       setSaving(false);
     }

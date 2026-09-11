@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { customAlert } from '../context/AlertContext';
 
 export interface Church {
   id: string;
@@ -59,11 +60,11 @@ export function useChurches() {
         code: code.trim().toUpperCase(),
         zoneId: activeZone?.id || adminUser?.zoneId,
       });
-      Alert.alert('Success', 'New church added to directory.');
+      customAlert('Success', 'New church added to directory.');
       fetch();
       return true;
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to create church');
+      customAlert('Error', e.message || 'Failed to create church');
       return false;
     }
   }, [activeZone?.id, adminUser?.zoneId, fetch]);
@@ -71,15 +72,15 @@ export function useChurches() {
   const approveChurch = useCallback(async (churchId: string) => {
     try {
       await api.churches.approve(churchId);
-      Alert.alert('Approved', 'Church approved and activated.');
+      customAlert('Approved', 'Church approved and activated.');
       fetch();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to approve church');
+      customAlert('Error', e.message || 'Failed to approve church');
     }
   }, [fetch]);
 
   const rejectChurch = useCallback((churchId: string) => {
-    Alert.alert('Reject Request', 'Reject this church creation request?', [
+    customAlert('Reject Request', 'Reject this church creation request?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Reject',
@@ -89,7 +90,7 @@ export function useChurches() {
             await api.churches.reject(churchId, 'Declined by coordinator');
             fetch();
           } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to reject');
+            customAlert('Error', e.message || 'Failed to reject');
           }
         },
       },
@@ -99,11 +100,11 @@ export function useChurches() {
   const assignCoordinator = useCallback(async (churchId: string, identifier: string): Promise<boolean> => {
     try {
       await api.churches.addCoordinator(churchId, { identifier });
-      Alert.alert('Assigned', 'Church Coordinator appointed successfully.');
+      customAlert('Assigned', 'Church Coordinator appointed successfully.');
       fetch();
       return true;
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to appoint coordinator');
+      customAlert('Error', e.message || 'Failed to appoint coordinator');
       return false;
     }
   }, [fetch]);

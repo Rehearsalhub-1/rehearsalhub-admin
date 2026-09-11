@@ -14,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Colors } from '../constants/Colors';
+import { customAlert } from '../context/AlertContext';
 
 export interface MasterSong {
   id: string;
@@ -44,6 +45,7 @@ export interface MasterSong {
   comments?: any[];
   rehearsalCount?: number;
   imageUrl?: string;
+  isMaster?: boolean;
   isHQOnly?: boolean;
   isHqOnly?: boolean;
   isHidden?: boolean;
@@ -129,7 +131,7 @@ export default function MasterSongDetailModal({
     const targetUrl = audioPartsMap[targetKey] || audioPartsMap.full;
 
     if (!targetUrl) {
-      Alert.alert('No Audio', 'No audio track uploaded for this stem.');
+      customAlert('No Audio', 'No audio track uploaded for this stem.');
       return;
     }
 
@@ -170,7 +172,7 @@ export default function MasterSongDetailModal({
       setIsPlaying(true);
     } catch (e: any) {
       console.log('Audio playback error:', e);
-      Alert.alert('Playback Failed', 'Unable to stream audio track: ' + (e.message || 'Network error'));
+      customAlert('Playback Failed', 'Unable to stream audio track: ' + (e.message || 'Network error'));
       setIsPlaying(false);
     } finally {
       setAudioLoading(false);
@@ -180,7 +182,7 @@ export default function MasterSongDetailModal({
   function handleOpenExternalLink(url?: string) {
     if (!url) return;
     Linking.openURL(url).catch(() => {
-      Alert.alert('Link Error', 'Unable to open audio URL in browser.');
+      customAlert('Link Error', 'Unable to open audio URL in browser.');
     });
   }
 
@@ -456,22 +458,6 @@ export default function MasterSongDetailModal({
                 Conductor Guide
               </Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.segmentBtn, activeTab === 'history' && styles.segmentBtnActive]}
-              onPress={() => setActiveTab('history')}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="time-outline"
-                size={13}
-                color={activeTab === 'history' ? '#ffffff' : '#64748b'}
-                style={{ marginRight: 4 }}
-              />
-              <Text style={[styles.segmentBtnText, activeTab === 'history' && styles.segmentBtnTextActive]}>
-                History
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Tab Content Cards */}
@@ -499,20 +485,6 @@ export default function MasterSongDetailModal({
                 <Text style={styles.solfaBodyText}>{cleanConductorGuide}</Text>
               ) : (
                 <Text style={styles.emptyContentText}>No conductor notes or tonic solfa provided.</Text>
-              )}
-            </View>
-          )}
-
-          {activeTab === 'history' && (
-            <View style={styles.contentCard}>
-              <View style={styles.contentCardHeader}>
-                <Text style={styles.contentCardTitle}>Song Background & History</Text>
-                <Text style={styles.contentCardMeta}>Ministered Context</Text>
-              </View>
-              {cleanHistory ? (
-                <Text style={styles.historyBodyText}>{cleanHistory}</Text>
-              ) : (
-                <Text style={styles.emptyContentText}>No historical background documented yet.</Text>
               )}
             </View>
           )}

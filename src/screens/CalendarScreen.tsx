@@ -11,6 +11,8 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +20,7 @@ import { api } from '../services/api';
 import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useZoneContext } from '../context/ZoneContext';
+import { customAlert } from '../context/AlertContext';
 
 export interface CalendarEvent {
   id: string;
@@ -100,7 +103,7 @@ export default function CalendarScreen() {
 
   const handleSaveEvent = async () => {
     if (!title.trim()) {
-      Alert.alert('Missing Title', 'Please enter an event title.');
+      customAlert('Missing Title', 'Please enter an event title.');
       return;
     }
 
@@ -129,16 +132,16 @@ export default function CalendarScreen() {
       }
 
       setModalVisible(false);
-      Alert.alert('Saved', editingEventId ? 'Event updated.' : 'Event scheduled.');
+      customAlert('Saved', editingEventId ? 'Event updated.' : 'Event scheduled.');
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to save event');
+      customAlert('Error', e?.message || 'Failed to save event');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteEvent = (id: string, eventTitle: string) => {
-    Alert.alert('Delete Event', `Delete "${eventTitle}" from the calendar?`, [
+    customAlert('Delete Event', `Delete "${eventTitle}" from the calendar?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -148,7 +151,7 @@ export default function CalendarScreen() {
             await api.calendar.delete(id).catch(() => {});
             setEvents(prev => prev.filter(e => e.id !== id));
           } catch (e: any) {
-            Alert.alert('Error', e?.message || 'Failed to delete event');
+            customAlert('Error', e?.message || 'Failed to delete event');
           }
         },
       },
@@ -397,6 +400,10 @@ export default function CalendarScreen() {
 
       {/* ── MODAL: SCHEDULE / EDIT EVENT ───────────────────────────────────── */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+        <KeyboardAvoidingView
+          behavior='padding'
+          style={{ flex: 1 }}
+        >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
             <View style={styles.sheetHandle} />
@@ -496,6 +503,7 @@ export default function CalendarScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

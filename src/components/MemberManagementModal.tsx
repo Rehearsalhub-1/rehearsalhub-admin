@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { customAlert } from '../context/AlertContext';
 
 export interface Member {
   id: string;
@@ -179,17 +180,17 @@ export default function MemberManagementModal({
       };
 
       await onSave(updated, newPassword.trim() || undefined);
-      Alert.alert('Saved', `${fullName}'s role status and access passes have been updated.`);
+      customAlert('Saved', `${fullName}'s role status and access passes have been updated.`);
       onClose();
     } catch (err: any) {
-      Alert.alert('Save Failed', err?.message || 'Could not update member.');
+      customAlert('Save Failed', err?.message || 'Could not update member.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleRemove = () => {
-    Alert.alert(
+    customAlert(
       'Remove Member',
       `Remove ${fullName} from the roster?`,
       [

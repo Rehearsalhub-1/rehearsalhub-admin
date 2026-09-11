@@ -67,7 +67,7 @@ async function connect() {
       eventCursors.set(`${msg.resource}:${msg.id}`, Number(msg.sequence));
     }
     subscriptions.forEach(({ resource, id, handler }) => {
-      if (matchesResource(resource, msg.resource) && id === msg.id) handler(msg.data);
+      if (matchesResource(resource, msg.resource) && (id === msg.id || id === 'all' || msg.id === 'all')) handler(msg.data);
     });
   };
 
