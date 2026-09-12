@@ -33,16 +33,19 @@ export interface MasterEditSongModalProps {
 
 const SONG_KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
-const DEFAULT_CATEGORIES = [
-  'Worship',
-  'Praise',
-  'Thanksgiving',
-  'Anthem',
-  'Hymn',
-  'Special',
-  'Classical',
-  'Evangelism',
-  'Communion',
+const DEFAULT_COLLECTIONS = [
+  'Praise Night 28',
+  'Praise Night 27',
+  'Praise Night 26',
+  'Praise Night 25',
+  'Praise Night 24',
+  'HSLHS October 2024',
+  'HSLHS July 2024',
+  'HSLHS March 2024',
+  'Praise Night 23',
+  'Praise Night 22',
+  'Global Communion Service',
+  'Christmas Eve Service',
 ];
 
 export default function MasterEditSongModal({

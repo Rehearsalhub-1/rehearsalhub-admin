@@ -23,6 +23,10 @@ export interface MasterSong {
   publishedByName?: string;
   leadSinger?: string;
   category?: string;
+  program?: string;
+  programName?: string;
+  programId?: string;
+  praiseNightId?: string;
   key?: string;
   tempo?: string;
   conductor?: string;
@@ -278,9 +282,12 @@ export default function MasterSongDetailModal({
                 </View>
               ) : null}
 
-              {song.category ? (
+              {(song.program || song.programName || song.category) ? (
                 <View style={[styles.heroChip, { backgroundColor: '#f1f5f9' }]}>
-                  <Text style={[styles.heroChipText, { color: '#475569' }]}>{song.category}</Text>
+                  <Ionicons name="albums-outline" size={11} color="#475569" style={{ marginRight: 3 }} />
+                  <Text style={[styles.heroChipText, { color: '#475569' }]}>
+                    {song.program || song.programName || song.category}
+                  </Text>
                 </View>
               ) : null}
 
