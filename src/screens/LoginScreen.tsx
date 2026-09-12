@@ -12,6 +12,7 @@ import {
   ScrollView,
   StatusBar,
   Modal,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
@@ -208,11 +209,13 @@ export default function LoginScreen({ navigation }: Props) {
         >
           {/* Header & Branding */}
           <View style={styles.header}>
-            <View style={styles.logoBadge}>
-              <Ionicons name="musical-notes" size={30} color={Colors.accent} />
-            </View>
+            <Image
+              source={require('../../assets/logo/logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
 
-            <Text style={styles.title}> Rehearsal Hub Portal</Text>
+            <Text style={styles.title}>Rehearsal Hub Portal</Text>
             <Text style={styles.subtitle}>Admin Console</Text>
           </View>
 
@@ -417,21 +420,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: '#f3e8ff',
-    borderWidth: 1,
-    borderColor: '#e9d5ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
+  brandLogo: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
   },
   title: {
     color: Colors.textPrimary,
