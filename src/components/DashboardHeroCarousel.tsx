@@ -72,7 +72,7 @@ const SLIDES: SlideItem[] = [
   },
   {
     id: 'slide-attendance',
-    image: require('../../assets/banners/banner5.png'),
+    image: require('../../assets/banners/banner5.jpg'),
     tag: 'ATTENDANCE CLOCK-IN',
     tagBg: 'rgba(5, 150, 105, 0.9)',
     tagColor: '#ffffff',
@@ -85,7 +85,7 @@ const SLIDES: SlideItem[] = [
   },
   {
     id: 'slide-churches',
-    image: require('../../assets/banners/banner6.png'),
+    image: require('../../assets/banners/banner6.jpg'),
     tag: 'CHURCHES & CHAPTERS',
     tagBg: 'rgba(2, 132, 199, 0.9)',
     tagColor: '#ffffff',

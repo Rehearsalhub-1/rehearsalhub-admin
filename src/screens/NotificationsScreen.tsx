@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNotifications } from '../hooks/useNotifications';
 import {
   View,
   Text,
@@ -8,71 +7,38 @@ import {
   KeyboardAvoidingView,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   FlatList,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNotifications } from '../hooks/useNotifications';
 import { api } from '../services/api';
-import { Colors } from '../constants/Colors';
 import ZoneHeader from '../components/ZoneHeader';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAlert } from '../context/AlertContext';
 
-interface CategoryOption {
-  value: 'rehearsal' | 'announcement' | 'admin' | 'reminder';
-  label: string;
-  sub: string;
-  color: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-}
-
-const CATEGORY_OPTIONS: CategoryOption[] = [
-  {
-    value: 'rehearsal',
-    label: 'Rehearsal',
-    sub: 'Appears in singer Rehearsals tab',
-    color: '#7c3aed',
-    iconName: 'musical-notes-outline',
-  },
-  {
-    value: 'announcement',
-    label: 'Announcement',
-    sub: 'Appears in singer Announcements tab',
-    color: '#0284c7',
-    iconName: 'megaphone-outline',
-  },
-  {
-    value: 'admin',
-    label: 'Urgent',
-    sub: 'High priority alert to Announcements tab',
-    color: '#e11d48',
-    iconName: 'alert-circle-outline',
-  },
-  {
-    value: 'reminder',
-    label: 'Reminder',
-    sub: 'Call time alert in singer Notifications tab',
-    color: '#d97706',
-    iconName: 'time-outline',
-  },
-];
+const CATEGORIES = [
+  { id: 'rehearsal', label: 'Rehearsal', icon: 'musical-notes-outline', color: '#7c3aed' },
+  { id: 'announcement', label: 'Announcement', icon: 'megaphone-outline', color: '#0284c7' },
+  { id: 'reminder', label: 'Call Time', icon: 'time-outline', color: '#d97706' },
+  { id: 'admin', label: 'Urgent', icon: 'alert-circle-outline', color: '#e11d48' },
+] as const;
 
 const QUICK_TEMPLATES = [
   {
     label: 'Call Time Reminder',
-    category: 'rehearsal' as const,
-    title: 'Rehearsal Call Time Reminder',
+    category: 'reminder' as const,
+    title: 'Rehearsal Call Time Prompt',
     message: 'Kindly be reminded that call time for today’s rehearsal is prompt. Please arrive warmed up and ready.',
   },
   {
     label: 'Uniform Guidelines',
     category: 'announcement' as const,
-    title: 'Official Uniform Guidelines',
+    title: 'Choir Uniform Guidelines',
     message: 'Please ensure you adhere strictly to the scheduled choir dress code for the upcoming ministry service.',
   },
   {
@@ -84,54 +50,43 @@ const QUICK_TEMPLATES = [
 ];
 
 export default function NotificationsScreen() {
+  const insets = useSafeAreaInsets();
   const { adminUser } = useAuth();
-  const { activeZone, isChurchMode, activeChurch, userChurches } = useZoneContext();
+  const { activeZone, isChurchMode, activeChurch } = useZoneContext();
   const { showAlert } = useAlert();
 
   const isHQ = adminUser?.isHQAdmin === true;
   const [activeTab, setActiveTab] = useState<'compose' | 'history'>('compose');
   const { sentHistory, loadingHistory, refreshingHistory, loadHistory, refreshHistory } = useNotifications();
 
-  // Form state
+  // Form State
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [category, setCategory] = useState<CategoryOption['value']>('rehearsal');
-  const [audienceType, setAudienceType] = useState<'zone' | 'church' | 'individual'>(isChurchMode ? 'church' : 'zone');
-  const [selectedChurchId, setSelectedChurchId] = useState(activeChurch?.id || '');
+  const [category, setCategory] = useState<typeof CATEGORIES[number]['id']>('rehearsal');
+  const [audienceType, setAudienceType] = useState<'all' | 'individual'>('all');
   const [targetEmail, setTargetEmail] = useState('');
   const [sending, setSending] = useState(false);
 
-  // Sync selected church with active church & mode
-  useEffect(() => {
-    if (activeChurch?.id) {
-      setSelectedChurchId(activeChurch.id);
-    }
-    if (isChurchMode) {
-      setAudienceType('church');
-    }
-  }, [activeChurch?.id, isChurchMode]);
-
-  // Load sent history lazily when the tab becomes active
   useEffect(() => {
     if (activeTab === 'history') {
       loadHistory();
     }
   }, [activeTab, loadHistory]);
 
-  function applyTemplate(tpl: typeof QUICK_TEMPLATES[0]) {
+  const applyTemplate = (tpl: typeof QUICK_TEMPLATES[0]) => {
     setTitle(tpl.title);
     setMessage(tpl.message);
     setCategory(tpl.category);
-  }
+  };
 
-  async function sendNotification() {
+  const handleSend = async () => {
     if (!title.trim() || !message.trim()) {
-      showAlert('Missing fields', 'Title and message body are required.');
+      showAlert('Missing Fields', 'Please enter both a title and message body.');
       return;
     }
 
     if (audienceType === 'individual' && !targetEmail.trim()) {
-      showAlert('Missing field', 'Please enter the target singer email.');
+      showAlert('Missing Email', 'Please enter the recipient singer email.');
       return;
     }
 
@@ -140,634 +95,524 @@ export default function NotificationsScreen() {
       const payload: Record<string, any> = {
         title: title.trim(),
         body: message.trim(),
+        message: message.trim(),
         category,
         type: category === 'admin' ? 'warning' : category === 'rehearsal' ? 'rehearsal' : 'info',
         priority: category === 'admin' ? 'high' : 'normal',
       };
 
       if (audienceType === 'individual') {
-        // Resolve target email to singer userId
         const res = await api.members.getGlobalMembers(targetEmail.trim().toLowerCase());
         const matched = Array.isArray(res?.data) ? res.data[0] : null;
         if (!matched?.userId && !matched?.id) {
-          showAlert('Not Found', `No singer found with email "${targetEmail.trim()}".`);
+          showAlert('Singer Not Found', `No singer found with email "${targetEmail.trim()}".`);
           setSending(false);
           return;
         }
         payload.targetUserId = matched.userId || matched.id;
-      } else if (audienceType === 'church') {
-        const churchId = selectedChurchId || activeChurch?.id;
-        if (!churchId) {
-          showAlert('Missing Church', 'Please select a church choir.');
-          setSending(false);
-          return;
-        }
-        payload.targetChurchId = churchId;
       } else {
-        // Scoped to active zone / HQ
-        payload.targetOrgId = activeZone?.id;
+        const resolvedOrg = activeZone?.id || 'zone-001';
+        payload.targetOrgId = resolvedOrg;
       }
 
-      const res = await api.notifications.send(payload as any);
-
+      const res = await api.notifications.send(payload);
       const count = res?.recipientCount ?? 0;
+
       showAlert(
-        'Notification Dispatched!',
-        `Your notification has been broadcast to ${count > 0 ? `${count} singer(s)` : 'target recipients'} and sent via push notifications.`
+        'Notification Sent!',
+        `Your announcement has been broadcast successfully${count > 0 ? ` to ${count} singer(s)` : ''}.`
       );
 
       setTitle('');
       setMessage('');
       setTargetEmail('');
     } catch (e: any) {
-      showAlert('Error', e.message || 'Failed to dispatch notification.');
+      showAlert('Dispatch Error', e?.message || 'Failed to send notification. Please verify connection.');
     } finally {
       setSending(false);
     }
-  }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
       <ZoneHeader title={isChurchMode ? 'Church Choir Broadcast' : isHQ ? 'HQ Announcements' : 'Zonal Broadcast'} />
 
-      {/* ── Tabs (Compose vs Sent History) ──────────────────────────────── */}
-      <View style={styles.tabBar}>
+      {/* Segment Switcher */}
+      <View style={styles.segmentWrap}>
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'compose' && styles.tabBtnActive]}
+          style={[styles.segmentBtn, activeTab === 'compose' && styles.segmentBtnActive]}
           onPress={() => setActiveTab('compose')}
           activeOpacity={0.8}
         >
           <Ionicons
             name="paper-plane-outline"
             size={16}
-            color={activeTab === 'compose' ? '#4f46e5' : '#64748b'}
+            color={activeTab === 'compose' ? '#7c3aed' : '#64748b'}
             style={{ marginRight: 6 }}
           />
-          <Text style={[styles.tabBtnText, activeTab === 'compose' && styles.tabBtnTextActive]}>
-            Compose
+          <Text style={[styles.segmentBtnText, activeTab === 'compose' && styles.segmentBtnTextActive]}>
+            Compose Announcement
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabBtn, activeTab === 'history' && styles.tabBtnActive]}
+          style={[styles.segmentBtn, activeTab === 'history' && styles.segmentBtnActive]}
           onPress={() => setActiveTab('history')}
           activeOpacity={0.8}
         >
           <Ionicons
             name="time-outline"
             size={16}
-            color={activeTab === 'history' ? '#4f46e5' : '#64748b'}
+            color={activeTab === 'history' ? '#7c3aed' : '#64748b'}
             style={{ marginRight: 6 }}
           />
-          <Text style={[styles.tabBtnText, activeTab === 'history' && styles.tabBtnTextActive]}>
+          <Text style={[styles.segmentBtnText, activeTab === 'history' && styles.segmentBtnTextActive]}>
             Sent History
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── TAB 1: COMPOSE ─────────────────────────────────────────────── */}
-      {activeTab === 'compose' ? (
+      {/* ─── TAB 1: COMPOSE ──────────────────────────────────────────────── */}
+      {activeTab === 'compose' && (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView
-            contentContainerStyle={styles.container}
+            contentContainerStyle={[styles.container, { paddingBottom: Math.max(insets.bottom, 20) + 40 }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          {/* Quick Templates */}
-          <Text style={styles.label}>1-Tap Quick Templates</Text>
-          <View style={styles.templateRow}>
-            {QUICK_TEMPLATES.map((tpl, i) => (
-              <TouchableOpacity
-                key={i}
-                style={styles.templateChip}
-                onPress={() => applyTemplate(tpl)}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="flash-outline" size={12} color="#4f46e5" style={{ marginRight: 4 }} />
-                <Text style={styles.templateChipText}>{tpl.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Category Selector */}
-          <Text style={styles.label}>Notification Category (Where singers see this)</Text>
-          <View style={styles.categoryGrid}>
-            {CATEGORY_OPTIONS.map((opt) => {
-              const isSelected = category === opt.value;
-              return (
+            {/* Quick Templates */}
+            <Text style={styles.sectionLabel}>Quick Templates</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateScroll}>
+              {QUICK_TEMPLATES.map((tpl, i) => (
                 <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.categoryCard,
-                    isSelected && { borderColor: opt.color, backgroundColor: opt.color + '12' },
-                  ]}
-                  onPress={() => setCategory(opt.value)}
-                  activeOpacity={0.8}
+                  key={i}
+                  style={styles.templateChip}
+                  onPress={() => applyTemplate(tpl)}
+                  activeOpacity={0.75}
                 >
-                  <View style={[styles.categoryIconWrap, { backgroundColor: opt.color + '20' }]}>
-                    <Ionicons name={opt.iconName} size={18} color={opt.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.categoryTitle, isSelected && { color: opt.color }]}>
-                      {opt.label}
-                    </Text>
-                    <Text style={styles.categorySub} numberOfLines={2}>
-                      {opt.sub}
-                    </Text>
-                  </View>
+                  <Ionicons name="flash-outline" size={13} color="#7c3aed" style={{ marginRight: 4 }} />
+                  <Text style={styles.templateChipText}>{tpl.label}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+              ))}
+            </ScrollView>
 
-          {/* Audience Selector */}
-          <Text style={styles.label}>Target Audience</Text>
-          <View style={styles.audienceRow}>
-            {/* Zone / Hub Option */}
-            {!isChurchMode && (
+            {/* Category Selector */}
+            <Text style={styles.sectionLabel}>Category</Text>
+            <View style={styles.categoryRow}>
+              {CATEGORIES.map(c => {
+                const isSelected = category === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.categoryChip,
+                      isSelected && { backgroundColor: c.color, borderColor: c.color },
+                    ]}
+                    onPress={() => setCategory(c.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={c.icon}
+                      size={14}
+                      color={isSelected ? '#ffffff' : c.color}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}>
+                      {c.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Audience Selector */}
+            <Text style={styles.sectionLabel}>Target Audience</Text>
+            <View style={styles.audienceRow}>
               <TouchableOpacity
-                style={[styles.audienceBtn, audienceType === 'zone' && styles.audienceBtnActive]}
-                onPress={() => setAudienceType('zone')}
-                activeOpacity={0.75}
+                style={[styles.audienceBtn, audienceType === 'all' && styles.audienceBtnActive]}
+                onPress={() => setAudienceType('all')}
+                activeOpacity={0.8}
               >
                 <Ionicons
-                  name={isHQ ? 'home-outline' : 'location-outline'}
-                  size={14}
-                  color={audienceType === 'zone' ? '#4f46e5' : '#64748b'}
+                  name="people-outline"
+                  size={15}
+                  color={audienceType === 'all' ? '#7c3aed' : '#64748b'}
                   style={{ marginRight: 6 }}
                 />
-                <Text style={[styles.audienceBtnText, audienceType === 'zone' && styles.audienceBtnTextActive]}>
-                  {isHQ ? '🏛️ Loveworld Singers HQ' : `📍 ${activeZone?.name || 'This Zone'}`}
+                <Text style={[styles.audienceBtnText, audienceType === 'all' && styles.audienceBtnTextActive]}>
+                  {isHQ ? 'All HQ Singers' : `All ${activeZone?.name || 'Zone'} Singers`}
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.audienceBtn, audienceType === 'individual' && styles.audienceBtnActive]}
+                onPress={() => setAudienceType('individual')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={15}
+                  color={audienceType === 'individual' ? '#7c3aed' : '#64748b'}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[styles.audienceBtnText, audienceType === 'individual' && styles.audienceBtnTextActive]}>
+                  Specific Singer
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Individual Email Input */}
+            {audienceType === 'individual' && (
+              <View style={styles.fieldBox}>
+                <Text style={styles.fieldLabel}>Recipient Email</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="singer@loveworldsingers.org"
+                  placeholderTextColor="#94a3b8"
+                  value={targetEmail}
+                  onChangeText={setTargetEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
             )}
 
-            {/* Church Option */}
-            <TouchableOpacity
-              style={[styles.audienceBtn, audienceType === 'church' && styles.audienceBtnActive]}
-              onPress={() => setAudienceType('church')}
-              activeOpacity={0.75}
-            >
-              <Ionicons
-                name="business-outline"
-                size={14}
-                color={audienceType === 'church' ? '#ea580c' : '#64748b'}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.audienceBtnText, audienceType === 'church' && styles.audienceBtnTextActive]}>
-                ⛪ Church Choir
-              </Text>
-            </TouchableOpacity>
-
-            {/* Specific Person Option */}
-            <TouchableOpacity
-              style={[styles.audienceBtn, audienceType === 'individual' && styles.audienceBtnActive]}
-              onPress={() => setAudienceType('individual')}
-              activeOpacity={0.75}
-            >
-              <Ionicons
-                name="person-outline"
-                size={14}
-                color={audienceType === 'individual' ? '#7c3aed' : '#64748b'}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.audienceBtnText, audienceType === 'individual' && styles.audienceBtnTextActive]}>
-                👤 Specific Singer
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Individual Email Target Input */}
-          {audienceType === 'individual' && (
-            <View style={styles.targetCard}>
-              <Text style={styles.targetLabel}>Singer Email Address</Text>
+            {/* Title Input */}
+            <View style={styles.fieldBox}>
+              <Text style={styles.fieldLabel}>Announcement Title</Text>
               <TextInput
-                style={styles.input}
-                value={targetEmail}
-                onChangeText={setTargetEmail}
-                placeholder="singer@loveworldsingers.org"
+                style={styles.textInput}
+                placeholder="e.g. Rehearsal Call Time Update"
                 placeholderTextColor="#94a3b8"
-                keyboardType="email-address"
-                autoCapitalize="none"
+                value={title}
+                onChangeText={setTitle}
               />
             </View>
-          )}
 
-          {/* Church Chooser (if multiple churches exist) */}
-          {audienceType === 'church' && userChurches.length > 1 && (
-            <View style={styles.targetCard}>
-              <Text style={styles.targetLabel}>Select Assembly Choir</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-                {userChurches.map((c) => {
-                  const isSel = selectedChurchId === c.id;
-                  return (
-                    <TouchableOpacity
-                      key={c.id}
-                      style={[styles.churchChip, isSel && styles.churchChipActive]}
-                      onPress={() => setSelectedChurchId(c.id)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.churchChipText, isSel && styles.churchChipTextActive]}>
-                        {c.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+            {/* Message Body */}
+            <View style={styles.fieldBox}>
+              <Text style={styles.fieldLabel}>Message Body</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                placeholder="Type your message here for all choir members..."
+                placeholderTextColor="#94a3b8"
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
             </View>
-          )}
 
-          {/* Title */}
-          <Text style={styles.label}>Announcement Title</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="e.g. Wednesday Rehearsal Call Time"
-            placeholderTextColor="#94a3b8"
-          />
-
-          {/* Message */}
-          <Text style={styles.label}>Message Body</Text>
-          <TextInput
-            style={[styles.input, styles.textarea]}
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Write your broadcast announcement..."
-            placeholderTextColor="#94a3b8"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-
-          {/* Send Button */}
-          <TouchableOpacity
-            style={[styles.sendBtn, sending && { opacity: 0.6 }]}
-            onPress={sendNotification}
-            disabled={sending}
-            activeOpacity={0.85}
-          >
-            {sending ? (
-              <ActivityIndicator color="#ffffff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="paper-plane" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                <Text style={styles.sendBtnText}>Dispatch Broadcast & Push Alert</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            {/* Dispatch Button */}
+            <TouchableOpacity
+              style={[styles.sendBtn, sending && styles.btnDisabled]}
+              onPress={handleSend}
+              disabled={sending}
+              activeOpacity={0.85}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={16} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.sendBtnText}>Dispatch Announcement</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </ScrollView>
         </KeyboardAvoidingView>
-      ) : (
-        /* ── TAB 2: SENT HISTORY ────────────────────────────────────────── */
-        <ScrollView
-          contentContainerStyle={styles.historyContainer}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshingHistory}
-              onRefresh={refreshHistory}
-              tintColor="#4f46e5"
-            />
+      )}
+
+      {/* ─── TAB 2: SENT HISTORY ─────────────────────────────────────────── */}
+      {activeTab === 'history' && (
+        <FlatList
+          data={sentHistory}
+          keyExtractor={item => item.id}
+          contentContainerStyle={[styles.historyList, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
+          refreshControl={<RefreshControl refreshing={refreshingHistory} onRefresh={refreshHistory} colors={['#7c3aed']} />}
+          ListEmptyComponent={
+            loadingHistory ? (
+              <View style={styles.emptyContainer}>
+                <ActivityIndicator size="large" color="#7c3aed" />
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="notifications-off-outline" size={36} color="#cbd5e1" />
+                <Text style={styles.emptyTitle}>No Sent Notifications</Text>
+                <Text style={styles.emptySub}>Announcements sent from this console will appear here.</Text>
+              </View>
+            )
           }
-        >
-          {loadingHistory ? (
-            <View style={styles.center}>
-              <ActivityIndicator color="#4f46e5" size="large" />
-              <Text style={{ marginTop: 10, color: '#64748b', fontSize: 13 }}>Loading sent history...</Text>
-            </View>
-          ) : sentHistory.length === 0 ? (
-            <View style={styles.emptyNotice}>
-              <Ionicons name="mail-unread-outline" size={44} color="#cbd5e1" />
-              <Text style={styles.emptyTitle}>No Broadcasts Yet</Text>
-              <Text style={styles.emptySub}>
-                Notifications and announcements you send will appear here with delivery tracking.
-              </Text>
-            </View>
-          ) : (
-            sentHistory.map((item) => {
-              const d = new Date(item.createdAt);
-              const formattedDate = !isNaN(d.getTime())
-                ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                : 'Recently';
-
-              const catColor =
-                item.category === 'rehearsal'
-                  ? '#7c3aed'
-                  : item.category === 'admin'
-                  ? '#e11d48'
-                  : item.category === 'announcement'
-                  ? '#0284c7'
-                  : '#d97706';
-
-              return (
-                <View key={item.id} style={styles.historyCard}>
-                  <View style={styles.historyTop}>
-                    <View style={[styles.catBadge, { backgroundColor: catColor + '18' }]}>
-                      <Text style={[styles.catBadgeText, { color: catColor }]}>
-                        {item.category?.toUpperCase() || 'GENERAL'}
-                      </Text>
-                    </View>
-                    <Text style={styles.historyDate}>{formattedDate}</Text>
-                  </View>
-
-                  <Text style={styles.historyTitle}>{item.title}</Text>
-                  <Text style={styles.historyBody}>{item.body || item.message}</Text>
-
-                  <View style={styles.historyFooter}>
-                    <View style={styles.historyStat}>
-                      <Ionicons name="paper-plane-outline" size={13} color="#64748b" />
-                      <Text style={styles.historyStatText}>
-                        {item.recipientCount ?? 1} Delivered
-                      </Text>
-                    </View>
-                    <View style={styles.historyStat}>
-                      <Ionicons name="eye-outline" size={13} color="#059669" />
-                      <Text style={[styles.historyStatText, { color: '#059669' }]}>
-                        {item.readCount ?? 0} Read
-                      </Text>
-                    </View>
-                  </View>
+          renderItem={({ item }) => (
+            <View style={styles.historyCard}>
+              <View style={styles.historyCardHeader}>
+                <Text style={styles.historyTitle}>{item.title}</Text>
+                <Text style={styles.historyTime}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ''}</Text>
+              </View>
+              <Text style={styles.historyBody}>{item.body || item.message}</Text>
+              <View style={styles.historyMetaRow}>
+                <View style={styles.historyTag}>
+                  <Text style={styles.historyTagText}>{(item.category || 'General').toUpperCase()}</Text>
                 </View>
-              );
-            })
+                {item.recipientCount !== undefined && (
+                  <Text style={styles.historyRecipients}>
+                    {item.recipientCount} recipient(s)
+                  </Text>
+                )}
+              </View>
+            </View>
           )}
-        </ScrollView>
+        />
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
-  container: { padding: 16, gap: 12, paddingBottom: 40 },
-  historyContainer: { padding: 16, gap: 12, paddingBottom: 40 },
-
-  tabBar: {
+  safe: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  segmentWrap: {
     flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
     marginHorizontal: 16,
     marginTop: 10,
+    marginBottom: 8,
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
-    padding: 4,
-    gap: 4,
+    padding: 3,
   },
-  tabBtn: {
+  segmentBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 9,
+    borderRadius: 10,
   },
-  tabBtnActive: {
+  segmentBtnActive: {
     backgroundColor: '#ffffff',
-    shadowColor: '#000000',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 2,
     elevation: 2,
   },
-  tabBtnText: {
+  segmentBtnText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#64748b',
   },
-  tabBtnTextActive: {
-    color: '#0f172a',
-  },
-
-  label: {
-    fontSize: 13,
+  segmentBtnTextActive: {
+    color: '#7c3aed',
     fontWeight: '700',
-    color: '#334155',
-    marginTop: 4,
   },
-
-  templateRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  container: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  templateScroll: {
     gap: 8,
+    paddingBottom: 4,
   },
   templateChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eef2ff',
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  templateChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#4338ca',
-  },
-
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryCard: {
-    width: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    gap: 8,
-  },
-  categoryIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  categorySub: {
-    fontSize: 10,
-    color: '#64748b',
-    marginTop: 2,
-  },
-
-  audienceRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  audienceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#ede9fe',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+  },
+  templateChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  audienceBtnActive: {
-    backgroundColor: '#eef2ff',
-    borderColor: '#6366f1',
-  },
-  audienceBtnText: {
+  categoryChipText: {
     fontSize: 12,
     fontWeight: '600',
     color: '#475569',
   },
-  audienceBtnTextActive: {
-    color: '#4338ca',
+  categoryChipTextActive: {
+    color: '#ffffff',
     fontWeight: '700',
   },
-
-  targetCard: {
+  audienceRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  audienceBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 10,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  targetLabel: {
+  audienceBtnActive: {
+    borderColor: '#7c3aed',
+    backgroundColor: '#f5f3ff',
+  },
+  audienceBtnText: {
     fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  audienceBtnTextActive: {
+    color: '#7c3aed',
+    fontWeight: '700',
+  },
+  fieldBox: {
+    marginTop: 14,
+  },
+  fieldLabel: {
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#334155',
     marginBottom: 6,
   },
-  churchChip: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginRight: 6,
-  },
-  churchChipActive: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#ea580c',
-  },
-  churchChipText: {
-    fontSize: 11,
-    color: '#475569',
-  },
-  churchChipTextActive: {
-    color: '#c2410c',
-    fontWeight: '700',
-  },
-
-  input: {
+  textInput: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
+    paddingHorizontal: 12,
+    height: 44,
+    fontSize: 13.5,
     color: '#0f172a',
   },
-  textarea: {
-    minHeight: 100,
+  textArea: {
+    height: 96,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
-
   sendBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4f46e5',
-    borderRadius: 14,
+    backgroundColor: '#7c3aed',
+    borderRadius: 12,
     paddingVertical: 14,
-    marginTop: 8,
+    marginTop: 20,
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sendBtnText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#ffffff',
   },
-
+  btnDisabled: {
+    opacity: 0.6,
+  },
+  // History tab styles
+  historyList: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 10,
+  },
   historyCard: {
     backgroundColor: '#ffffff',
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    gap: 8,
+    gap: 6,
   },
-  historyTop: {
+  historyCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  catBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  catBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  historyDate: {
-    fontSize: 11,
-    color: '#94a3b8',
-  },
   historyTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#0f172a',
+    flex: 1,
+  },
+  historyTime: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginLeft: 8,
   },
   historyBody: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: '#475569',
     lineHeight: 18,
   },
-  historyFooter: {
+  historyMetaRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 16,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    marginTop: 4,
   },
-  historyStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  historyTag: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
-  historyStatText: {
-    fontSize: 11,
-    fontWeight: '600',
+  historyTagText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#64748b',
   },
-
-  emptyNotice: {
+  historyRecipients: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    paddingHorizontal: 30,
+    paddingHorizontal: 24,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginTop: 12,
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 10,
   },
   emptySub: {
-    fontSize: 13,
-    color: '#64748b',
+    fontSize: 12,
+    color: '#94a3b8',
     textAlign: 'center',
-    lineHeight: 20,
+    marginTop: 4,
   },
 });

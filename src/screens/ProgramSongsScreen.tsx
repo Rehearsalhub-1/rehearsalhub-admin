@@ -62,6 +62,7 @@ interface PraiseSong {
   coordinatorComment?: string;
   coordinatorAudioUrl?: string;
   isActive?: boolean;
+  isLive?: boolean;
   isHeard?: boolean;
   heard?: boolean;
   status?: string;
@@ -566,11 +567,12 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   }
 
   function handleToggleSongActive(song: PraiseSong) {
-    const nextActive = !song.isActive;
+    const isCurrentlyLive = song.status === 'live' || Boolean(song.isLive);
+    const nextLive = !isCurrentlyLive;
     setProgramSongs(prev =>
-      prev.map(s => (s.id === song.id ? { ...s, isActive: nextActive } : s))
+      prev.map(s => (s.id === song.id ? { ...s, isLive: nextLive, status: nextLive ? 'live' : (s.isHeard ? 'heard' : 'unheard') } : s))
     );
-    api.songs.toggleActive(song.id, nextActive).catch(() => {});
+    api.songs.toggleActive(song.id, nextLive).catch(() => {});
   }
 
   function handleToggleHeard(song: PraiseSong) {
@@ -845,7 +847,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         }
         renderItem={({ item, index }) => {
           const isHeard = Boolean(item.isHeard ?? item.heard ?? item.status === 'heard');
-          const isActive = Boolean(item.isActive);
+          const isLive = item.status === 'live' || Boolean(item.isLive);
 
           return (
             <TouchableOpacity
@@ -854,7 +856,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
                 setSelectedSong(item);
                 setDetailsModalVisible(true);
               }}
-              style={[styles.trackCard, isActive && styles.trackCardActive]}
+              style={[styles.trackCard, isLive && styles.trackCardActive]}
             >
               {/* Left Column: Track Number */}
               <View style={styles.trackIndexBox}>
@@ -898,7 +900,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
                 <TouchableOpacity
                   style={[
                     styles.liveToggleBtn,
-                    isActive ? styles.liveToggleBtnActive : styles.liveToggleBtnInactive,
+                    isLive ? styles.liveToggleBtnActive : styles.liveToggleBtnInactive,
                   ]}
                   onPress={() => handleToggleSongActive(item)}
                   activeOpacity={0.75}
@@ -907,10 +909,10 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
                   <Text
                     style={[
                       styles.liveToggleBtnText,
-                      isActive ? styles.liveToggleBtnTextActive : styles.liveToggleBtnTextInactive,
+                      isLive ? styles.liveToggleBtnTextActive : styles.liveToggleBtnTextInactive,
                     ]}
                   >
-                    {isActive ? '● LIVE' : 'OFF'}
+                    {isLive ? '● LIVE' : 'OFF'}
                   </Text>
                 </TouchableOpacity>
 
