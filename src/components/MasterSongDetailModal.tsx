@@ -54,6 +54,7 @@ export interface MasterSong {
   isHqOnly?: boolean;
   isHidden?: boolean;
   isHistory?: boolean;
+  isMinistered?: boolean;
 }
 
 interface MasterSongDetailModalProps {

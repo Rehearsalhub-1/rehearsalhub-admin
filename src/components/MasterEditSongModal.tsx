@@ -74,8 +74,9 @@ export default function MasterEditSongModal({
   const [imageUrl, setImageUrl] = useState('');
   const [isHQOnly, setIsHQOnly] = useState(false);
 
-  // Categories & Inline Creation
-  const [categoriesList, setCategoriesList] = useState<string[]>(DEFAULT_CATEGORIES);
+  // Master Programs / Collections & Inline Creation
+  const [collectionsList, setCollectionsList] = useState<string[]>(DEFAULT_COLLECTIONS);
+  const [collectionToIdMap, setCollectionToIdMap] = useState<Record<string, string>>({});
   const [showNewCatInput, setShowNewCatInput] = useState(false);
   const [newCatName, setNewCatName] = useState('');
 
@@ -133,12 +134,23 @@ export default function MasterEditSongModal({
       setShowAddPart(false);
       setNewPartName('');
 
-      api.categories.getAll().then(res => {
-        const cats = (Array.isArray(res?.data) ? res.data : [])
-          .map((c: any) => c.name || c.title || String(c))
-          .filter(Boolean);
-        if (cats.length > 0) {
-          setCategoriesList(prev => Array.from(new Set([...cats, ...DEFAULT_CATEGORIES, ...prev])));
+      // Fetch the 46 canonical Master Programs / Collections
+      api.programs.getMasterPrograms().then(res => {
+        const progs = (Array.isArray(res?.data) ? res.data : [])
+          .map((p: any) => ({
+            id: p.id,
+            name: (p.name || p.title || '').trim(),
+          }))
+          .filter((p: any) => Boolean(p.name));
+        if (progs.length > 0) {
+          const map: Record<string, string> = {};
+          const names: string[] = [];
+          progs.forEach((p: any) => {
+            map[p.name] = p.id;
+            names.push(p.name);
+          });
+          setCollectionToIdMap(map);
+          setCollectionsList(prev => Array.from(new Set([...names, ...DEFAULT_COLLECTIONS, ...prev])));
         }
       }).catch(() => {});
 
@@ -152,16 +164,17 @@ export default function MasterEditSongModal({
         setLeadKeyboardist(song.leadKeyboardist || '');
         setBassGuitarist(song.bassGuitarist || '');
         setDrummer(song.drummer || '');
-        setCategory(song.category || '');
+        const existingColl = (song as any).program || (song as any).programName || song.category || 'Praise Night 28';
+        setCategory(existingColl);
         setImageUrl(song.imageUrl || '');
         setIsHQOnly(Boolean(song.isHQOnly || song.isHqOnly));
         setLyrics(stripHtml(song.lyrics || ''));
         setSolfa(stripHtml(song.solfas || song.solfa || song.conductorGuide || ''));
         setHistory(stripHtml(song.history || song.coordinatorComment || song.coordinatorNotes || ''));
 
-        // Ensure category is in categoriesList
-        if (song.category && !categoriesList.includes(song.category)) {
-          setCategoriesList(prev => [song.category!, ...prev]);
+        // Ensure collection is in collectionsList
+        if (existingColl && !collectionsList.includes(existingColl)) {
+          setCollectionsList(prev => [existingColl, ...prev]);
         }
 
         const urls: Record<string, string> = {
@@ -199,7 +212,7 @@ export default function MasterEditSongModal({
         setLeadKeyboardist('');
         setBassGuitarist('');
         setDrummer('');
-        setCategory('Worship');
+        setCategory('Praise Night 28');
         setImageUrl('');
         setIsHQOnly(false);
         setLyrics('');
@@ -224,18 +237,31 @@ export default function MasterEditSongModal({
     }
   }, [visible, song, isCreate]);
 
-  // Handle inline category creation
-  function handleAddNewCategory() {
+  // Handle inline collection creation
+  async function handleAddNewCategory() {
     const trimmed = newCatName.trim();
     if (!trimmed) return;
-    if (!categoriesList.includes(trimmed)) {
-      setCategoriesList(prev => [trimmed, ...prev]);
+    if (!collectionsList.includes(trimmed)) {
+      setCollectionsList(prev => [trimmed, ...prev]);
     }
     setCategory(trimmed);
     setNewCatName('');
     setShowNewCatInput(false);
 
-    api.categories.create({ name: trimmed, type: 'SONG' }).catch(() => {});
+    // Persist as a Master Program / Collection (category: 'ministered')
+    try {
+      const res = await api.programs.create({
+        name: trimmed,
+        category: 'ministered',
+        status: 'completed',
+        isArchived: true,
+      });
+      if (res?.data?.id) {
+        setCollectionToIdMap(prev => ({ ...prev, [trimmed]: res.data.id }));
+      }
+    } catch (e) {
+      console.warn('Failed to persist master collection:', e);
+    }
   }
 
   // Handle add custom stem
@@ -305,6 +331,12 @@ export default function MasterEditSongModal({
 
     setSaving(true);
     try {
+      const resolvedProgramId =
+        collectionToIdMap[category.trim()] ||
+        (song as any)?.programId ||
+        (song as any)?.praiseNightId ||
+        undefined;
+
       const payload: MasterSong = {
         id: song?.id || `master-${Date.now()}`,
         title: title.trim(),
@@ -312,6 +344,10 @@ export default function MasterEditSongModal({
         publishedByName: writer.trim(),
         leadSinger: leadSinger.trim(),
         category: category.trim(),
+        program: category.trim(),
+        programName: category.trim(),
+        programId: resolvedProgramId,
+        praiseNightId: resolvedProgramId,
         key: key.trim(),
         tempo: tempo.trim(),
         conductor: conductor.trim(),
@@ -331,6 +367,7 @@ export default function MasterEditSongModal({
         isHQOnly: isHQOnly,
         isHqOnly: isHQOnly,
         isMaster: true,
+        isMinistered: true,
       };
 
       let response: any;
@@ -466,10 +503,10 @@ export default function MasterEditSongModal({
                     </View>
                   </View>
 
-                  {/* Category Selection with INLINE creation */}
+                  {/* Master Program / Collection Selection with INLINE creation */}
                   <View style={styles.inputGroup}>
                     <View style={styles.labelWithAction}>
-                      <Text style={styles.label}>CATEGORY</Text>
+                      <Text style={styles.label}>MASTER PROGRAM / COLLECTION</Text>
                       {!showNewCatInput && (
                         <TouchableOpacity
                           style={styles.addCategoryPill}
@@ -477,7 +514,7 @@ export default function MasterEditSongModal({
                           activeOpacity={0.8}
                         >
                           <Ionicons name="add" size={12} color="#7c3aed" style={{ marginRight: 2 }} />
-                          <Text style={styles.addCategoryPillText}>+ New Category</Text>
+                          <Text style={styles.addCategoryPillText}>+ New Collection</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -486,7 +523,7 @@ export default function MasterEditSongModal({
                       <View style={styles.inlineNewCatRow}>
                         <TextInput
                           style={styles.inlineNewCatInput}
-                          placeholder="Category name (e.g. Anthems, Youth)..."
+                          placeholder="Collection name (e.g. Praise Night 29, HSLHS)..."
                           placeholderTextColor="#94a3b8"
                           value={newCatName}
                           onChangeText={setNewCatName}
@@ -512,7 +549,7 @@ export default function MasterEditSongModal({
                     )}
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-                      {categoriesList.map(cat => {
+                      {collectionsList.map(cat => {
                         const isSelected = category === cat;
                         return (
                           <TouchableOpacity
@@ -522,7 +559,7 @@ export default function MasterEditSongModal({
                             activeOpacity={0.8}
                           >
                             <Ionicons
-                              name="folder-outline"
+                              name="albums-outline"
                               size={12}
                               color={isSelected ? '#7c3aed' : '#64748b'}
                               style={{ marginRight: 4 }}

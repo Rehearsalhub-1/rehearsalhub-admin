@@ -45,6 +45,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
 
   // Search & Filter State
   const [search, setSearch] = useState('');
+  const [selectedCollection, setSelectedCollection] = useState<string>('all');
   const [selectedLeadSinger, setSelectedLeadSinger] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -62,9 +63,10 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    api.programs.getAll().then(res => {
+    // Fetch canonical 46 Master Collections / Programs
+    api.programs.getMasterPrograms().then(res => {
       const progs = Array.isArray(res?.data) ? res.data : [];
-      setAvailablePrograms(progs.map(p => ({ id: p.id, name: p.name || p.title || 'Program' })));
+      setAvailablePrograms(progs.map(p => ({ id: p.id, name: p.name || p.title || 'Master Program' })));
     }).catch(() => {});
 
     api.categories.getAll().then(res => {
@@ -84,6 +86,19 @@ export default function MasterLibraryScreen({ navigation }: any) {
     const hqOnly = masterSongs.filter(s => Boolean(s.isHQOnly || s.isHqOnly)).length;
     return { total, active, history, hidden, hqOnly };
   }, [masterSongs]);
+
+  // Distinct Master Collections for Filter Bar
+  const masterCollectionsList = useMemo(() => {
+    const set = new Set<string>();
+    availablePrograms.forEach(p => {
+      if (p.name?.trim()) set.add(p.name.trim());
+    });
+    masterSongs.forEach(s => {
+      const coll = (s as any).program || (s as any).programName || s.category;
+      if (coll?.trim()) set.add(coll.trim());
+    });
+    return Array.from(set).sort();
+  }, [availablePrograms, masterSongs]);
 
   // Distinct Lead Singers for Filter Bar
   const leadSingersList = useMemo(() => {
@@ -105,20 +120,29 @@ export default function MasterLibraryScreen({ navigation }: any) {
       if (masterStatusTab === 'history' && !song.isHistory) return false;
       if (masterStatusTab === 'hidden' && !song.isHidden) return false;
 
-      // 2. Lead Singer filter
+      // 2. Collection filter
+      if (selectedCollection !== 'all') {
+        const songColl = ((song as any).program || (song as any).programName || song.category || '').toLowerCase();
+        if (songColl !== selectedCollection.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // 3. Lead Singer filter
       if (selectedLeadSinger !== 'all' && song.leadSinger?.toLowerCase() !== selectedLeadSinger.toLowerCase()) {
         return false;
       }
 
-      // 3. Search query
+      // 4. Search query
       if (search.trim()) {
         const q = search.toLowerCase();
         const matchesTitle = (song.title || '').toLowerCase().includes(q);
         const matchesSinger = (song.leadSinger || '').toLowerCase().includes(q);
         const matchesWriter = (song.writer || song.publishedByName || '').toLowerCase().includes(q);
         const matchesCategory = (song.category || '').toLowerCase().includes(q);
+        const matchesProgram = (((song as any).program || (song as any).programName) || '').toLowerCase().includes(q);
         const matchesKey = (song.key || '').toLowerCase().includes(q);
-        if (!matchesTitle && !matchesSinger && !matchesWriter && !matchesCategory && !matchesKey) {
+        if (!matchesTitle && !matchesSinger && !matchesWriter && !matchesCategory && !matchesProgram && !matchesKey) {
           return false;
         }
       }
@@ -129,7 +153,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
       const titleB = (b.title || '').toLowerCase();
       return sortOrder === 'asc' ? titleA.localeCompare(titleB) : titleB.localeCompare(titleA);
     });
-  }, [masterSongs, masterStatusTab, selectedLeadSinger, search, sortOrder]);
+  }, [masterSongs, masterStatusTab, selectedCollection, selectedLeadSinger, search, sortOrder]);
 
   // Filtered Zonal Songs
   const filteredZoneSongs = useMemo(() => {
@@ -255,6 +279,47 @@ export default function MasterLibraryScreen({ navigation }: any) {
         })}
       </View>
 
+      {/* ── MASTER PROGRAM / COLLECTION FILTER PILLS ──────────────────────── */}
+      <View style={styles.collectionFilterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.collectionFilterScroll}
+        >
+          <TouchableOpacity
+            style={[styles.collectionPill, selectedCollection === 'all' && styles.collectionPillActive]}
+            onPress={() => setSelectedCollection('all')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="albums-outline"
+              size={12}
+              color={selectedCollection === 'all' ? '#7c3aed' : '#64748b'}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={[styles.collectionPillText, selectedCollection === 'all' && styles.collectionPillTextActive]}>
+              All Collections ({masterSongs.length})
+            </Text>
+          </TouchableOpacity>
+          {masterCollectionsList.map(coll => {
+            const isSelected = selectedCollection.toLowerCase() === coll.toLowerCase();
+            const count = masterSongs.filter(s => ((s as any).program || (s as any).programName || s.category || '').toLowerCase() === coll.toLowerCase()).length;
+            return (
+              <TouchableOpacity
+                key={coll}
+                style={[styles.collectionPill, isSelected && styles.collectionPillActive]}
+                onPress={() => setSelectedCollection(isSelected ? 'all' : coll)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.collectionPillText, isSelected && styles.collectionPillTextActive]}>
+                  {coll}{count > 0 ? ` (${count})` : ''}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       {/* ── CLEAN MASTER CATALOG SONG FEED ──────────────────────────────────── */}
       <FlashList
         data={filteredMasterSongs}
@@ -282,8 +347,8 @@ export default function MasterLibraryScreen({ navigation }: any) {
               icon="musical-notes-outline"
               title="No Songs Found"
               description={
-                search || masterStatusTab !== 'all'
-                  ? 'No songs match your search or status filter.'
+                search || masterStatusTab !== 'all' || selectedCollection !== 'all'
+                  ? 'No songs match your search or collection filter.'
                   : 'The master catalog has no registered songs yet.'
               }
               actionLabel={adminUser?.isHQAdmin ? "+ Add Master Song" : undefined}
@@ -345,9 +410,12 @@ export default function MasterLibraryScreen({ navigation }: any) {
               {/* Card Footer: Tags & Action Icons */}
               <View style={styles.cardFooterRow}>
                 <View style={styles.cardTagsRow}>
-                  {item.category ? (
+                  {(item.program || (item as any).programName || item.category) ? (
                     <View style={styles.categoryPill}>
-                      <Text style={styles.categoryPillText}>{item.category}</Text>
+                      <Ionicons name="albums-outline" size={10} color="#64748b" style={{ marginRight: 3 }} />
+                      <Text style={styles.categoryPillText}>
+                        {item.program || (item as any).programName || item.category}
+                      </Text>
                     </View>
                   ) : null}
 
@@ -680,6 +748,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f1f5f9',
     paddingHorizontal: 7,
     paddingVertical: 2.5,
@@ -689,6 +759,40 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '600',
     color: '#475569',
+  },
+  collectionFilterContainer: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+  },
+  collectionFilterScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  collectionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  collectionPillActive: {
+    backgroundColor: '#f5f3ff',
+    borderColor: '#c4b5fd',
+  },
+  collectionPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  collectionPillTextActive: {
+    color: '#7c3aed',
+    fontWeight: '700',
   },
   stemsPill: {
     flexDirection: 'row',
