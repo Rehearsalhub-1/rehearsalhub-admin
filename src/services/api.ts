@@ -115,6 +115,8 @@ export const api = {
     },
     getMemberRehearsals: () =>
       apiClient.get<{ success: boolean; data: any[] }>('/subgroups/member-rehearsals'),
+    getMasterPrograms: () =>
+      apiClient.get<{ success: boolean; data: any[] }>('/programs?category=ministered'),
     getById: (programId: string) =>
       apiClient.get<{ success: boolean; data: any }>(`/programs/${programId}`),
     create: (data: Record<string, any>) =>
@@ -324,9 +326,9 @@ export const api = {
       apiClient.get<{ success: boolean; data: any[] }>(`/categories${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     getPage: () =>
       apiClient.get<{ success: boolean; data: any[] }>('/categories/page'),
-    create: (data: { name: string; color?: string; description?: string; isActive?: boolean }) =>
+    create: (data: { name: string; color?: string; description?: string; isActive?: boolean; type?: string; image?: string; zoneId?: string }) =>
       apiClient.post<{ success: boolean; data?: any }>('/categories', data),
-    update: (id: string, data: { name?: string; color?: string }) =>
+    update: (id: string, data: { name?: string; color?: string; image?: string; type?: string }) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/categories/${id}`, data),
     delete: (id: string) =>
       apiClient.delete<{ success: boolean }>(`/categories/${id}`),

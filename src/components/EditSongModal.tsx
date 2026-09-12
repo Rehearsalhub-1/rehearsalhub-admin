@@ -394,6 +394,8 @@ export default function EditSongModal({
     }
     setNewCategoryName('');
     setShowNewCategoryInput(false);
+
+    api.categories.create({ name: trimmed, type: 'SONG' }).catch(() => {});
   };
 
   // Categories Toggle
@@ -853,30 +855,32 @@ export default function EditSongModal({
       )}
 
       {/* HQ Only / Regional Visibility Toggle */}
-      <View style={styles.hqOnlyRow}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-            <Ionicons
-              name={isHQOnly ? 'lock-closed' : 'globe-outline'}
-              size={15}
-              color={isHQOnly ? '#7c3aed' : '#059669'}
-              style={{ marginRight: 6 }}
-            />
-            <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Hide from Regional Zones (HQ Only)</Text>
+      {isMaster && (
+        <View style={styles.hqOnlyRow}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+              <Ionicons
+                name={isHQOnly ? 'lock-closed' : 'globe-outline'}
+                size={15}
+                color={isHQOnly ? '#7c3aed' : '#059669'}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Hide from Regional Zones (HQ Only)</Text>
+            </View>
+            <Text style={styles.broadcastSubtext}>
+              {isHQOnly
+                ? 'HQ Exclusive: Hidden from all regional zones. Visible only to Loveworld Singers HQ.'
+                : 'Universal Repertoire: Visible to all regional zones & church choir hubs.'}
+            </Text>
           </View>
-          <Text style={styles.broadcastSubtext}>
-            {isHQOnly
-              ? 'HQ Exclusive: Hidden from all regional zones. Visible only to Loveworld Singers HQ.'
-              : 'Universal Repertoire: Visible to all regional zones & church choir hubs.'}
-          </Text>
+          <Switch
+            value={isHQOnly}
+            onValueChange={setIsHQOnly}
+            trackColor={{ false: '#cbd5e1', true: '#c4b5fd' }}
+            thumbColor={isHQOnly ? '#7c3aed' : '#ffffff'}
+          />
         </View>
-        <Switch
-          value={isHQOnly}
-          onValueChange={setIsHQOnly}
-          trackColor={{ false: '#cbd5e1', true: '#c4b5fd' }}
-          thumbColor={isHQOnly ? '#7c3aed' : '#ffffff'}
-        />
-      </View>
+      )}
 
       {!isMaster && (
         <View style={[styles.fieldGroup, { marginTop: 12 }]}>

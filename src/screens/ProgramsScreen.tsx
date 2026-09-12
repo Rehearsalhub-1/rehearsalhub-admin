@@ -179,6 +179,8 @@ export function ProgramModal({
   const [availablePageCategories, setAvailablePageCategories] = useState<string[]>(DEFAULT_PROGRAM_CATEGORIES);
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryImageUrl, setNewCategoryImageUrl] = useState('');
+  const [mediaTarget, setMediaTarget] = useState<'banner' | 'category'>('banner');
 
   const [form, setForm] = useState({
     name: '',
@@ -229,6 +231,7 @@ export function ProgramModal({
       setShowCustomBanner(false);
       setShowNewCategoryInput(false);
       setNewCategoryName('');
+      setNewCategoryImageUrl('');
 
       api.categories.getPage().then(res => {
         const pageCategories = (Array.isArray(res?.data) ? res.data : [])
@@ -248,15 +251,30 @@ export function ProgramModal({
     }
   }, [visible, editingProgram]);
 
-  const handleAddNewCategory = () => {
+  const handleAddNewCategory = async () => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return;
     if (!availablePageCategories.includes(trimmed)) {
       setAvailablePageCategories(prev => [...prev, trimmed]);
     }
     setForm(p => ({ ...p, pageCategory: trimmed }));
+
+    const categoryImageToSave = newCategoryImageUrl || form.bannerUrl || undefined;
+
     setNewCategoryName('');
+    setNewCategoryImageUrl('');
     setShowNewCategoryInput(false);
+
+    try {
+      await api.categories.create({
+        name: trimmed,
+        type: 'PAGE',
+        color: '#7c3aed',
+        image: categoryImageToSave,
+      });
+    } catch (e) {
+      console.warn('[handleAddNewCategory] Failed to save category to backend:', e);
+    }
   };
 
   const resolvedBanner = form.bannerKey
@@ -456,12 +474,33 @@ export function ProgramModal({
                       autoFocus
                       onSubmitEditing={handleAddNewCategory}
                     />
+                    <TouchableOpacity
+                      style={[
+                        modalStyles.categoryImageBtn,
+                        newCategoryImageUrl ? modalStyles.categoryImageBtnActive : null,
+                      ]}
+                      onPress={() => {
+                        setMediaTarget('category');
+                        setShowMediaLibrary(true);
+                      }}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons
+                        name={newCategoryImageUrl ? 'checkmark-circle' : 'image-outline'}
+                        size={16}
+                        color={newCategoryImageUrl ? '#10b981' : '#7c3aed'}
+                      />
+                    </TouchableOpacity>
                     <TouchableOpacity style={modalStyles.addCategoryConfirmBtn} onPress={handleAddNewCategory}>
                       <Text style={modalStyles.addCategoryConfirmBtnText}>Add</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={modalStyles.addCategoryCancelBtn}
-                      onPress={() => { setShowNewCategoryInput(false); setNewCategoryName(''); }}
+                      onPress={() => {
+                        setShowNewCategoryInput(false);
+                        setNewCategoryName('');
+                        setNewCategoryImageUrl('');
+                      }}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
                       <Ionicons name="close" size={16} color="#64748b" />
@@ -649,12 +688,20 @@ export function ProgramModal({
 
       <MediaSelectionModal
         visible={showMediaLibrary}
-        onClose={() => setShowMediaLibrary(false)}
-        allowedType="image"
-        title="Select Banner Artwork"
-        onSelect={(url) => {
-          setForm(p => ({ ...p, bannerUrl: url, bannerKey: '' }));
+        onClose={() => {
           setShowMediaLibrary(false);
+          setMediaTarget('banner');
+        }}
+        allowedType="image"
+        title={mediaTarget === 'category' ? 'Select Category Artwork' : 'Select Banner Artwork'}
+        onSelect={(url) => {
+          if (mediaTarget === 'category') {
+            setNewCategoryImageUrl(url);
+          } else {
+            setForm(p => ({ ...p, bannerUrl: url, bannerKey: '' }));
+          }
+          setShowMediaLibrary(false);
+          setMediaTarget('banner');
         }}
       />
     </Modal>
@@ -1623,6 +1670,20 @@ const modalStyles = StyleSheet.create({
   },
   addCategoryCancelBtn: {
     padding: 6,
+  },
+  categoryImageBtn: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryImageBtnActive: {
+    borderColor: '#10b981',
+    backgroundColor: '#ecfdf5',
   },
   categoryChip: {
     flexDirection: 'row',

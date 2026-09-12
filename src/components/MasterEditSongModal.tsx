@@ -21,6 +21,7 @@ import MediaSelectionModal from './MediaSelectionModal';
 import { MasterSong } from './MasterSongDetailModal';
 import { api } from '../services/api';
 import { customAlert } from '../context/AlertContext';
+import { stripHtml } from '../lib/stripHtml';
 
 export interface MasterEditSongModalProps {
   visible: boolean;
@@ -129,6 +130,15 @@ export default function MasterEditSongModal({
       setShowAddPart(false);
       setNewPartName('');
 
+      api.categories.getAll().then(res => {
+        const cats = (Array.isArray(res?.data) ? res.data : [])
+          .map((c: any) => c.name || c.title || String(c))
+          .filter(Boolean);
+        if (cats.length > 0) {
+          setCategoriesList(prev => Array.from(new Set([...cats, ...DEFAULT_CATEGORIES, ...prev])));
+        }
+      }).catch(() => {});
+
       if (song && !isCreate) {
         setTitle(song.title || '');
         setWriter(song.writer || song.publishedByName || '');
@@ -142,9 +152,9 @@ export default function MasterEditSongModal({
         setCategory(song.category || '');
         setImageUrl(song.imageUrl || '');
         setIsHQOnly(Boolean(song.isHQOnly || song.isHqOnly));
-        setLyrics(song.lyrics || '');
-        setSolfa(song.solfas || song.solfa || song.conductorGuide || '');
-        setHistory(song.history || song.coordinatorComment || song.coordinatorNotes || '');
+        setLyrics(stripHtml(song.lyrics || ''));
+        setSolfa(stripHtml(song.solfas || song.solfa || song.conductorGuide || ''));
+        setHistory(stripHtml(song.history || song.coordinatorComment || song.coordinatorNotes || ''));
 
         // Ensure category is in categoriesList
         if (song.category && !categoriesList.includes(song.category)) {
@@ -221,6 +231,8 @@ export default function MasterEditSongModal({
     setCategory(trimmed);
     setNewCatName('');
     setShowNewCatInput(false);
+
+    api.categories.create({ name: trimmed, type: 'SONG' }).catch(() => {});
   }
 
   // Handle add custom stem
