@@ -40,6 +40,8 @@ yarn-error.*
 /ios
 
 # Android build cache
+local.properties
+**/local.properties
 android/.cxx/
 android/.gradle/
 android/app/build/
