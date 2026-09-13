@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Colors } from '../constants/Colors';
 import { customAlert } from '../context/AlertContext';
+import { RichLyricsRenderer } from './RichLyricsRenderer';
 
 export interface MasterSong {
   id: string;
@@ -475,11 +476,10 @@ export default function MasterSongDetailModal({
                 <Text style={styles.contentCardTitle}>Full Lyrics</Text>
                 <Text style={styles.contentCardMeta}>Loveworld Official Catalog</Text>
               </View>
-              {cleanLyrics ? (
-                <Text style={styles.lyricsBodyText}>{cleanLyrics}</Text>
-              ) : (
-                <Text style={styles.emptyContentText}>No lyrics recorded for this song.</Text>
-              )}
+              <RichLyricsRenderer
+                content={song.lyrics}
+                emptyText="No lyrics recorded for this song."
+              />
             </View>
           )}
 
@@ -489,11 +489,11 @@ export default function MasterSongDetailModal({
                 <Text style={styles.contentCardTitle}>Conductor Arrangement & Solfa</Text>
                 <Text style={styles.contentCardMeta}>Rehearsal Guidelines</Text>
               </View>
-              {cleanConductorGuide ? (
-                <Text style={styles.solfaBodyText}>{cleanConductorGuide}</Text>
-              ) : (
-                <Text style={styles.emptyContentText}>No conductor notes or tonic solfa provided.</Text>
-              )}
+              <RichLyricsRenderer
+                content={song.conductorGuide || song.solfas || song.solfa}
+                emptyText="No conductor notes or tonic solfa provided."
+                isMono
+              />
             </View>
           )}
         </ScrollView>

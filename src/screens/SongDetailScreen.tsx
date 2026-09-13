@@ -6,11 +6,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
-import { stripHtml } from '../lib/stripHtml';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAlert } from '../context/AlertContext';
+import { RichLyricsRenderer } from '../components/RichLyricsRenderer';
+import { htmlToEditorText, editorTextToHtml } from '../lib/lyricsFormat';
 
 const TABS = ['lyrics', 'solfas', 'audio', 'personnel', 'comments'] as const;
 
@@ -51,8 +52,8 @@ export default function SongDetailScreen({ route, navigation }: any) {
         conductor: initialSong.conductor || '',
         key: initialSong.key || '',
         tempo: initialSong.tempo || '',
-        lyrics: initialSong.lyrics || '',
-        solfas: initialSong.solfas || '',
+        lyrics: htmlToEditorText(initialSong.lyrics),
+        solfas: htmlToEditorText(initialSong.solfas),
         notation: initialSong.notation || '',
         comments: initialSong.notes || initialSong.comments || '',
       });
@@ -74,8 +75,8 @@ export default function SongDetailScreen({ route, navigation }: any) {
           conductor: res.data.conductor || '',
           key: res.data.key || '',
           tempo: res.data.tempo || '',
-          lyrics: res.data.lyrics || '',
-          solfas: res.data.solfas || '',
+          lyrics: htmlToEditorText(res.data.lyrics),
+          solfas: htmlToEditorText(res.data.solfas),
           notation: res.data.notation || '',
           comments: res.data.notes || res.data.comments || '',
         });
@@ -91,12 +92,17 @@ export default function SongDetailScreen({ route, navigation }: any) {
     if (!song?.id) return;
     setSaving(true);
     try {
+      const payload = {
+        ...editForm,
+        lyrics: editorTextToHtml(editForm.lyrics),
+        solfas: editorTextToHtml(editForm.solfas),
+      };
       if (isZoneSong) {
-        await api.songs.updateSubgroupSong(song.id, editForm);
+        await api.songs.updateSubgroupSong(song.id, payload);
       } else {
-        await api.songs.update(song.id, editForm);
+        await api.songs.update(song.id, payload);
       }
-      setSong((prev: any) => ({ ...prev, ...editForm }));
+      setSong((prev: any) => ({ ...prev, ...payload }));
       setIsEditing(false);
       showAlert('Saved', 'Song details updated.');
     } catch (e: any) {
@@ -194,7 +200,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
                 multiline
               />
             ) : (
-              <Text style={styles.bodyText}>{stripHtml(song?.lyrics) || 'No lyrics available for this song.'}</Text>
+              <RichLyricsRenderer content={song?.lyrics} emptyText="No lyrics available for this song." />
             )}
           </View>
         )}
@@ -215,9 +221,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
                 multiline
               />
             ) : (
-              <Text style={[styles.bodyText, { fontFamily: 'monospace' }]}>
-                {stripHtml(song?.solfas || song?.notation) || 'No solfa guide uploaded.'}
-              </Text>
+              <RichLyricsRenderer content={song?.solfas || song?.notation} emptyText="No solfa guide uploaded." isMono />
             )}
           </View>
         )}

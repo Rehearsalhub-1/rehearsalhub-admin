@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import MediaSelectionModal from './MediaSelectionModal';
 import { stripHtml } from '../lib/stripHtml';
+import { htmlToEditorText, editorTextToHtml } from '../lib/lyricsFormat';
 import { api } from '../services/api';
 import { customAlert } from '../context/AlertContext';
 
@@ -250,9 +251,9 @@ export default function EditSongModal({
       setSongLeadGuitarist(song.leadGuitarist || '');
       setSongDrummer(song.drummer || '');
 
-      setSongLyrics(stripHtml(song.lyrics));
-      setSongSolfas(stripHtml(song.solfas || song.solfa));
-      setSongNotation(stripHtml(song.notation));
+      setSongLyrics(htmlToEditorText(song.lyrics));
+      setSongSolfas(htmlToEditorText(song.solfas || song.solfa));
+      setSongNotation(htmlToEditorText(song.notation));
 
       // Parse latest comment
       let commentText = song.coordinatorComment || '';
@@ -635,7 +636,7 @@ export default function EditSongModal({
       praiseNightName: songProgram || programName,
       programId: programId || undefined,
       programName: songProgram || programName,
-      lyrics: songLyrics,
+      lyrics: editorTextToHtml(songLyrics),
       leadSinger: songLeadSinger.trim(),
       writer: songWriter.trim(),
       conductor: songConductor.trim(),
@@ -644,9 +645,9 @@ export default function EditSongModal({
       leadKeyboardist: songLeadKeyboardist.trim(),
       leadGuitarist: songLeadGuitarist.trim(),
       drummer: songDrummer.trim(),
-      solfas: songSolfas,
-      solfa: songSolfas,
-      notation: songNotation,
+      solfas: editorTextToHtml(songSolfas),
+      solfa: editorTextToHtml(songSolfas),
+      notation: editorTextToHtml(songNotation),
       rehearsalCount: rehearsalCount,
       audioFile: songAudioFile.trim(),
       audioUrl: songAudioFile.trim(),
@@ -1370,7 +1371,7 @@ export default function EditSongModal({
       <View style={styles.cardWhiteBody}>
         <View style={styles.helperBanner}>
           <Text style={styles.helperBannerText}>
-            Rich text editor - Use the toolbar above to format your lyrics
+            Formatting preserved: Line breaks and section labels (**VERSE 1**, **CHORUS**) are maintained. HTML tags are also preserved.
           </Text>
         </View>
 
