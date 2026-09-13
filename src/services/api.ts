@@ -303,9 +303,15 @@ export const api = {
     broadcast: (payload: { title: string; message: string; priority?: string; category?: string; targetAudience?: string }) =>
       apiClient.post<{ success: boolean }>('/notifications/broadcast', payload),
     send: (payload: Record<string, any>) =>
-      apiClient.post<{ success: boolean; recipientCount?: number }>('/notifications', payload),
+      apiClient.post<{ success: boolean; data?: any; recipientCount?: number }>('/notifications', payload),
     getSent: () =>
       apiClient.get<{ success: boolean; count: number; data: any[] }>('/notifications/sent'),
+    markRead: (id: string, isRead = true) =>
+      apiClient.patch<{ success: boolean }>(`/notifications/${id}`, { is_read: isRead }),
+    markAllRead: () =>
+      apiClient.patch<{ success: boolean }>('/notifications/read-all', {}),
+    delete: (id: string) =>
+      apiClient.delete<{ success: boolean }>(`/notifications/${id}`),
   },
 
   // ── Helpdesk & Support Desk ──────────────────────────────────────────────
@@ -402,25 +408,6 @@ export const api = {
       apiClient.patch<{ success: boolean; data?: any }>(`/upcoming-events/${id}`, data),
     delete: (id: string) =>
       apiClient.delete<{ success: boolean; message?: string }>(`/upcoming-events/${id}`),
-  },
-
-  // ── Notifications (Admin Broadcast & Targeted) ────────────────────────
-  notifications: {
-    /** Send a broadcast (targetOrgId) or targeted (targetUserId) notification */
-    send: (payload: Record<string, any>) =>
-      apiClient.post<{ success: boolean; data?: any; recipientCount?: number }>('/notifications', payload),
-    /** Get list of notifications sent by this admin */
-    getSent: () =>
-      apiClient.get<{ success: boolean; data: any[] }>('/notifications/sent'),
-    /** Mark a specific notification as read/unread for the current user */
-    markRead: (id: string, isRead = true) =>
-      apiClient.patch<{ success: boolean }>(`/notifications/${id}`, { is_read: isRead }),
-    /** Mark all notifications as read */
-    markAllRead: () =>
-      apiClient.patch<{ success: boolean }>('/notifications/read-all', {}),
-    /** Delete / dismiss a notification */
-    delete: (id: string) =>
-      apiClient.delete<{ success: boolean }>(`/notifications/${id}`),
   },
 
   // ── Health ───────────────────────────────────────────────────────────────
