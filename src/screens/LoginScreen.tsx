@@ -11,11 +11,8 @@ import {
   Alert,
   ScrollView,
   StatusBar,
-  Modal,
   Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,8 +20,6 @@ import { api, SessionExpiredError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useAdminStore } from '../stores/adminStore';
 import { customAlert } from '../context/AlertContext';
-
-WebBrowser.maybeCompleteAuthSession();
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -50,117 +45,6 @@ export default function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [kingsChatLoading, setKingsChatLoading] = useState(false);
-
-  // Multi-Account Chooser State
-  const [multipleAccounts, setMultipleAccounts] = useState<any[] | null>(null);
-  const [savedKcToken, setSavedKcToken] = useState<string>('');
-  const [accountSelectLoading, setAccountSelectLoading] = useState(false);
-
-  async function handleSelectAccount(targetEmail: string) {
-    if (!savedKcToken) return;
-    setAccountSelectLoading(true);
-    try {
-      const retryRes = await api.auth.kingschatLogin({ accessToken: savedKcToken, selectedEmail: targetEmail, email: targetEmail });
-
-      if (retryRes.success && retryRes.data) {
-        const { accessToken: jwtToken, refreshToken, user } = retryRes.data;
-        setMultipleAccounts(null);
-        await api.auth.storeTokens(jwtToken, refreshToken, user.id);
-        await refreshUser();
-        const currentSession = useAdminStore.getState().session;
-        navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
-      } else {
-        customAlert('Login Failed', retryRes.error || 'Failed to authenticate');
-      }
-    } catch (err: any) {
-      customAlert('Login Failed', err?.message || 'Failed to sign into account');
-    } finally {
-      setAccountSelectLoading(false);
-    }
-  }
-
-  async function handleKingsChatAuth() {
-    setKingsChatLoading(true);
-    try {
-      const KINGSCHAT_CLIENT_ID =
-        process.env.EXPO_PUBLIC_KINGSCHAT_CLIENT_ID || 'a1f444fa-ea50-47cf-ba2b-232d0b46d1f5';
-      const authUrl = `https://accounts.kingschat.online/log-in?clientId=${KINGSCHAT_CLIENT_ID}&origin=studio&state=studio`;
-
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, 'rehearsalhub-admin://kingschat-callback');
-
-      if (result.type === 'success' && result.url) {
-        // Extract token from both query parameters and URL hash fragments
-        let accessToken = '';
-
-        let kcUserId = '';
-        let kcEmail = '';
-        const tokenMatch = result.url.match(/(?:access_token|accessToken|token)=([^&#]+)/);
-        if (tokenMatch && tokenMatch[1]) {
-          accessToken = decodeURIComponent(tokenMatch[1]);
-        }
-        try {
-          const cleanUrl = result.url.replace('#', '?');
-          const urlObj = new URL(cleanUrl);
-          if (!accessToken) {
-            accessToken =
-              urlObj.searchParams.get('access_token') ||
-              urlObj.searchParams.get('accessToken') ||
-              urlObj.searchParams.get('token') ||
-              '';
-          }
-          kcUserId = urlObj.searchParams.get('user_id') || urlObj.searchParams.get('userId') || urlObj.searchParams.get('kingschat_id') || '';
-          kcEmail = urlObj.searchParams.get('email') || '';
-        } catch {}
-
-        if (!accessToken) {
-          customAlert('Authentication Failed', 'Failed to retrieve access token from KingsChat. Please try again.');
-          return;
-        }
-
-        const res = await api.auth.kingschatLogin({
-          accessToken,
-          kingschatUserId: kcUserId || undefined,
-          email: kcEmail || undefined,
-        });
-
-        if (!res.success) {
-          if (res.code === 'MULTIPLE_ACCOUNTS' && (res as any).accounts?.length > 1) {
-            setMultipleAccounts((res as any).accounts);
-            setSavedKcToken(accessToken);
-            return;
-          }
-
-          if (res.code === 'NO_ACCOUNT' || res.code === 'NEW_USER') {
-            customAlert(
-              'No Coordinator Account Found',
-              'Your KingsChat profile is not linked to an existing Coordinator account. Please sign in with your email & password first or contact your Zonal Coordinator.'
-            );
-            return;
-          }
-          customAlert('Login Failed', res.error || 'Failed to authenticate with KingsChat');
-          return;
-        }
-
-        if (!res.data) {
-          customAlert('Login Failed', 'Invalid response received from server.');
-          return;
-        }
-
-        const { accessToken: jwtToken, refreshToken, user } = res.data;
-        await api.auth.storeTokens(jwtToken, refreshToken, user.id);
-        await refreshUser();
-        const currentSession = useAdminStore.getState().session;
-        navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
-      }
-    } catch (err: any) {
-      if (!err?.message?.includes('cancel') && !err?.message?.includes('dismissed')) {
-        customAlert('KingsChat Login Error', err?.message || 'Failed to authenticate with KingsChat');
-      }
-    } finally {
-      setKingsChatLoading(false);
-    }
-  }
 
   async function handleLogin() {
     const rawIdentifier = identifier.trim();
@@ -221,30 +105,6 @@ export default function LoginScreen({ navigation }: Props) {
 
           {/* Sign In Card */}
           <View style={styles.card}>
-            {/* 1-Tap KingsChat Button */}
-            <TouchableOpacity
-              style={[styles.kingschatButton, kingsChatLoading && styles.buttonDisabled]}
-              onPress={handleKingsChatAuth}
-              disabled={kingsChatLoading}
-              activeOpacity={0.85}
-            >
-              {kingsChatLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <View style={styles.buttonInner}>
-                  <Ionicons name="chatbubbles" size={18} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.kingschatButtonText}>Continue with KingsChat</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or sign in with email</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
             {/* Identifier Input */}
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Email or Username</Text>
@@ -316,91 +176,6 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Multi-Account Chooser Modal */}
-      {multipleAccounts && (
-        <Modal
-          visible={!!multipleAccounts}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setMultipleAccounts(null)}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={[styles.modalCard, { maxHeight: '80%' }]}>
-              <View style={styles.modalHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="people-outline" size={18} color={Colors.accent} />
-                  <Text style={styles.modalTitle}>Select Account</Text>
-                </View>
-                <TouchableOpacity onPress={() => setMultipleAccounts(null)} hitSlop={10}>
-                  <Ionicons name="close" size={20} color={Colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={{ padding: 18 }}>
-                <Text style={styles.modalSub}>
-                  Multiple accounts are linked to this KingsChat profile. Choose which account to sign into:
-                </Text>
-
-                {multipleAccounts.map((acc, idx) => {
-                  const fullName = `${acc.firstName || ''} ${acc.lastName || ''}`.trim() || 'Coordinator';
-                  const roleBadge =
-                    acc.role === 'super_admin' || acc.role === 'hq_admin' || acc.hasHqAccess
-                      ? 'HQ Admin'
-                      : acc.role === 'zone_coordinator'
-                      ? 'Zonal Coordinator'
-                      : acc.role === 'church_coordinator'
-                      ? 'Church Coordinator'
-                      : acc.role === 'subgroup_coordinator'
-                      ? 'Group Coordinator'
-                      : 'Choir Member';
-
-                  return (
-                    <TouchableOpacity
-                      key={acc.id || idx}
-                      disabled={accountSelectLoading}
-                      onPress={() => handleSelectAccount(acc.email)}
-                      style={{
-                        backgroundColor: '#ffffff',
-                        borderWidth: 1,
-                        borderColor: '#e2e8f0',
-                        borderRadius: 14,
-                        padding: 14,
-                        marginBottom: 10,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <View style={{ flex: 1, marginRight: 10 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                          <Text style={{ color: Colors.textPrimary, fontSize: 14, fontWeight: '700' }}>{fullName}</Text>
-                          <View style={{ backgroundColor: '#f3e8ff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                            <Text style={{ color: '#7c3aed', fontSize: 10, fontWeight: '700' }}>{roleBadge}</Text>
-                          </View>
-                        </View>
-                        <Text style={{ color: Colors.textSecondary, fontSize: 12 }}>{acc.email}</Text>
-                        {acc.zoneCode ? (
-                          <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }}>
-                            Zone: {acc.zoneCode}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color={Colors.accent} />
-                    </TouchableOpacity>
-                  );
-                })}
-
-                {accountSelectLoading && (
-                  <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-                    <ActivityIndicator color={Colors.accent} size="small" />
-                  </View>
-                )}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-      )}
     </View>
   );
 }

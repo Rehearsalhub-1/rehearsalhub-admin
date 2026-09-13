@@ -1,6 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = (process.env.EXPO_PUBLIC_BACKEND_URL || 'https://rehearsalhub-api-production-6a17.up.railway.app')
+const rawUrl = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const effectiveUrl = (!rawUrl || rawUrl.includes('loveworld-singers-backend.vercel.app'))
+  ? 'https://rehearsalhub-api-production-6a17.up.railway.app'
+  : rawUrl;
+
+const BASE_URL = effectiveUrl
   .replace(/\/+$/, '')
   .replace(/\/api$/, '');
 
