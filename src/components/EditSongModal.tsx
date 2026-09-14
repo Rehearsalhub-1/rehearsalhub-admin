@@ -33,7 +33,7 @@ export interface PraiseNightSong {
   leadSinger?: string;
   conductor?: string;
   writer?: string;
-  category?: string;
+  category?: string | null;
   categories?: string[];
   lyrics?: string;
   solfa?: string;
@@ -608,7 +608,9 @@ export default function EditSongModal({
       return;
     }
 
-    const primaryCategory = songCategories[0] || '';
+    // Explicitly use null when no category is selected so the backend clears the field.
+    // Using `|| undefined` would omit the key from the payload, causing the DB to keep the old value.
+    const primaryCategory = songCategories.length > 0 ? songCategories[0] : null;
     const commentsList = (coordinatorComment.trim() || coordinatorAudioUrl.trim())
       ? [
           {
@@ -638,8 +640,8 @@ export default function EditSongModal({
       is_hq_only: isHQOnly,
       isHqOnly: isHQOnly,
       scope: isHQOnly ? 'hq' : 'global',
-      category: primaryCategory || undefined,
-      categories: songCategories,
+      category: primaryCategory,          // null = explicitly clear, string = set category
+      categories: songCategories,          // [] = no categories
       praiseNightId: programId || undefined,
       praiseNightName: songProgram || programName,
       programId: programId || undefined,
