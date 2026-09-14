@@ -235,8 +235,8 @@ export default function MoreScreen({ navigation }: any) {
             sub="Singer roster, vocal parts, and permissions"
             onPress={() => navigation.navigate('Members')}
           />
-          {/* Hide Churches & Subgroups in Church Mode or for HQ Admins */}
-          {!isPureChurchAdmin && !isChurchMode && !adminUser?.isHQAdmin && (
+          {/* Hide Churches & Subgroups in Church Mode */}
+          {!isPureChurchAdmin && !isChurchMode && (
             <MenuItem
               iconName="business-outline"
               iconColor="#0284c7"
