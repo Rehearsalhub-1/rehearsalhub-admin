@@ -9,6 +9,7 @@ import { ZoneProvider } from './src/context/ZoneContext';
 import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AppUpdateChecker } from './src/components/AppUpdateChecker';
+import { useOTAUpdates } from './src/hooks/useOTAUpdates';
 import { Colors } from './src/constants/Colors';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -32,6 +33,7 @@ const NavTheme = {
 };
 
 function AuthGate() {
+  useOTAUpdates();
   const { loading, isAdmin, session } = useAuth();
   const needsScopeSelection = Boolean(session?.isDualRole || (session?.churches?.length || 0) > 1);
   const appState = useRef(AppState.currentState);

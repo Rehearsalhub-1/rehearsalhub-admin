@@ -28,7 +28,12 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-updates",
+      [
+        "expo-updates",
+        {
+          "launchWaitMs": 3000
+        }
+      ],
       "expo-audio",
       "expo-video",
       "expo-splash-screen"
@@ -42,7 +47,11 @@
     "updates": {
       "url": "https://u.expo.dev/8ddb3927-56d5-4250-9b96-afad8db443a6",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 3000,
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      },
+      "disableAntiBrickingMeasures": true
     },
     "owner": "hub11"
   }
