@@ -459,14 +459,23 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
     fetchSongs();
   }, [fetchSongs]);
 
-  // Compute unique categories and ordered categories
+  // Returns the song's actual category, or null if none set
+  const getSongDisplayCategory = (s: PraiseSong): string | null => {
+    const primary = s.category?.trim();
+    if (primary) return primary;
+    if (Array.isArray(s.categories) && s.categories.length > 0) {
+      const first = s.categories.find(c => c && c.trim());
+      if (first) return first.trim();
+    }
+    return null; // truly no category — will appear under "All" only
+  };
+
+  // Compute unique categories (only real ones, no fallback)
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
     programSongs.forEach(s => {
-      if (s.category && s.category.trim()) cats.add(s.category.trim());
-      if (Array.isArray(s.categories)) {
-        s.categories.forEach(c => c && c.trim() && cats.add(c.trim()));
-      }
+      const cat = getSongDisplayCategory(s);
+      if (cat) cats.add(cat);
     });
     return Array.from(cats);
   }, [programSongs]);
@@ -483,25 +492,14 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     programSongs.forEach(s => {
-      const cat = s.category?.trim();
+      const cat = getSongDisplayCategory(s);
       if (cat) counts[cat] = (counts[cat] || 0) + 1;
-      if (Array.isArray(s.categories)) {
-        s.categories.forEach(c => {
-          const trimmed = c?.trim();
-          if (trimmed && trimmed !== cat) counts[trimmed] = (counts[trimmed] || 0) + 1;
-        });
-      }
     });
     return counts;
   }, [programSongs]);
 
-  const uncategorizedCount = useMemo(() => {
-    return programSongs.filter(s => {
-      const hasCat = Boolean(s.category && s.category.trim());
-      const hasMulti = Array.isArray(s.categories) && s.categories.some(c => c && c.trim());
-      return !hasCat && !hasMulti;
-    }).length;
-  }, [programSongs]);
+  // No truly uncategorized chip — songs without a category show under "All" only
+  const uncategorizedCount = 0;
 
   const handleOpenReorderModal = () => {
     setReorderCategoriesList(orderedCategories.length > 0 ? [...orderedCategories] : [...uniqueCategories]);
@@ -610,7 +608,9 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         leadSinger: updated.leadSinger,
         conductor: updated.conductor,
         writer: updated.writer,
-        category: updated.category || undefined,
+        // Pass null explicitly so the API clears the category in the DB.
+      // Using || undefined would omit the key and the DB would keep the old value.
+      category: 'category' in updated ? (updated.category ?? null) : undefined,
         categories: updated.categories || [],
         lyrics: updated.lyrics,
         solfas: updated.solfas || updated.solfa,
@@ -689,16 +689,9 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
       if (statusFilter === 'unheard' && isHeard) return false;
 
       if (selectedCategory !== 'all') {
-        if (selectedCategory === '__uncategorized__') {
-          const hasCat = Boolean(song.category && song.category.trim());
-          const hasMulti = Array.isArray(song.categories) && song.categories.some(c => c && c.trim());
-          if (hasCat || hasMulti) return false;
-        } else {
-          const cat = (song.category || '').trim();
-          const matchesCat = cat === selectedCategory;
-          const matchesMulti = Array.isArray(song.categories) && song.categories.some(c => c && c.trim() === selectedCategory);
-          if (!matchesCat && !matchesMulti) return false;
-        }
+        // Match against actual category (null = no category = only shown under All)
+        const displayCat = getSongDisplayCategory(song);
+        if (displayCat !== selectedCategory) return false;
       }
 
       if (searchQuery.trim()) {

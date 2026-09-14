@@ -82,7 +82,6 @@ export interface EditSongModalProps {
 }
 
 const DEFAULT_CATEGORIES = [
-  'Worship',
   'Praise',
   'Thanksgiving',
   'Anthem',

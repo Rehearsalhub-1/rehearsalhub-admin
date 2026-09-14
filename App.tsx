@@ -10,6 +10,7 @@ import { AlertProvider } from './src/context/AlertContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AppUpdateChecker } from './src/components/AppUpdateChecker';
 import { useOTAUpdates } from './src/hooks/useOTAUpdates';
+import OTAUpdateModal from './src/components/OTAUpdateModal';
 import { Colors } from './src/constants/Colors';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -33,7 +34,7 @@ const NavTheme = {
 };
 
 function AuthGate() {
-  useOTAUpdates();
+  const { showUpdateModal, dismissModal } = useOTAUpdates();
   const { loading, isAdmin, session } = useAuth();
   const needsScopeSelection = Boolean(session?.isDualRole || (session?.churches?.length || 0) > 1);
   const appState = useRef(AppState.currentState);
@@ -66,6 +67,11 @@ function AuthGate() {
         <AppNavigator initialRoute={isAdmin ? (needsScopeSelection ? 'ModePicker' : 'MainTabs') : 'Login'} />
       </NavigationContainer>
       <AppUpdateChecker />
+      <OTAUpdateModal
+        visible={showUpdateModal}
+        appName="RehearsalHub Studio"
+        onLater={dismissModal}
+      />
     </SafeAreaProvider>
   );
 }
