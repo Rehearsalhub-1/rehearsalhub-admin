@@ -17,7 +17,8 @@
         "backgroundColor": "#0b0514"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.karaoke.rehearsalhubadmin"
+      "package": "com.karaoke.rehearsalhubadmin",
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"

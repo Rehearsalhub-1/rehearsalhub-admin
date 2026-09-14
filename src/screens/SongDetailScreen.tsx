@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput,
+  ActivityIndicator, Alert, TextInput, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { useZoneContext } from '../context/ZoneContext';
 import { useAlert } from '../context/AlertContext';
 import { RichLyricsRenderer } from '../components/RichLyricsRenderer';
 import { htmlToEditorText, editorTextToHtml } from '../lib/lyricsFormat';
+import LyricsFormattingToolbar from '../components/LyricsFormattingToolbar';
 
 const TABS = ['lyrics', 'solfas', 'audio', 'personnel', 'comments'] as const;
 
@@ -27,6 +28,7 @@ export default function SongDetailScreen({ route, navigation }: any) {
   const [activeTab, setActiveTab] = useState<typeof TABS[number]>('lyrics');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [lyricsSelection, setLyricsSelection] = useState({ start: 0, end: 0 });
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -133,6 +135,9 @@ export default function SongDetailScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackBtn}>
           <Ionicons name="chevron-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
+        {song?.imageUrl ? (
+          <Image source={{ uri: song.imageUrl }} style={styles.headerArtworkImg} resizeMode="cover" />
+        ) : null}
         <View style={{ flex: 1, marginRight: 8 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>{song?.title || 'Song Details'}</Text>
           <Text style={styles.headerMeta} numberOfLines={1}>
@@ -191,14 +196,22 @@ export default function SongDetailScreen({ route, navigation }: any) {
               <Text style={styles.cardTitle}>Lyrics Sheet</Text>
             </View>
             {isEditing ? (
-              <TextInput
-                style={[styles.input, styles.textarea]}
-                value={editForm.lyrics}
-                onChangeText={t => setEditForm(p => ({ ...p, lyrics: t }))}
-                placeholder="Enter song lyrics..."
-                placeholderTextColor={Colors.textMuted}
-                multiline
-              />
+              <View>
+                <LyricsFormattingToolbar
+                  value={editForm.lyrics || ''}
+                  onChangeText={t => setEditForm(p => ({ ...p, lyrics: t }))}
+                  selection={lyricsSelection}
+                />
+                <TextInput
+                  style={[styles.input, styles.textarea]}
+                  value={editForm.lyrics}
+                  onChangeText={t => setEditForm(p => ({ ...p, lyrics: t }))}
+                  onSelectionChange={e => setLyricsSelection(e.nativeEvent.selection)}
+                  placeholder="Enter song lyrics..."
+                  placeholderTextColor={Colors.textMuted}
+                  multiline
+                />
+              </View>
             ) : (
               <RichLyricsRenderer content={song?.lyrics} emptyText="No lyrics available for this song." />
             )}
@@ -377,9 +390,14 @@ const styles = StyleSheet.create({
   },
   headerBackBtn: {
     padding: 6,
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9',
-    marginRight: 8,
+    marginRight: 6,
+  },
+  headerArtworkImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#e2e8f0',
+    marginRight: 10,
   },
   headerTitle: {
     color: Colors.textPrimary,

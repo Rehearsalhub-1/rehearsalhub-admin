@@ -67,6 +67,8 @@ interface PraiseSong {
   heard?: boolean;
   status?: string;
   comments?: any[];
+  programId?: string;
+  praiseNightId?: string;
 }
 
 interface MasterSong {
@@ -493,6 +495,14 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
     return counts;
   }, [programSongs]);
 
+  const uncategorizedCount = useMemo(() => {
+    return programSongs.filter(s => {
+      const hasCat = Boolean(s.category && s.category.trim());
+      const hasMulti = Array.isArray(s.categories) && s.categories.some(c => c && c.trim());
+      return !hasCat && !hasMulti;
+    }).length;
+  }, [programSongs]);
+
   const handleOpenReorderModal = () => {
     setReorderCategoriesList(orderedCategories.length > 0 ? [...orderedCategories] : [...uniqueCategories]);
     setReorderModalVisible(true);
@@ -587,6 +597,12 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
   function handleSongUpdated(updated: PraiseSong) {
     setProgramSongs(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated } : s)));
     if (updated.id) {
+      const normalizedImageUrl = updated.imageUrl?.trim()
+        ? (updated.imageUrl.trim().startsWith('http://') && !updated.imageUrl.includes('localhost') && !updated.imageUrl.includes('10.0.2.2')
+            ? 'https://' + updated.imageUrl.trim().slice(7)
+            : updated.imageUrl.trim())
+        : '';
+
       api.songs.update(updated.id, {
         title: updated.title,
         key: updated.key,
@@ -594,12 +610,13 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         leadSinger: updated.leadSinger,
         conductor: updated.conductor,
         writer: updated.writer,
-        category: updated.category,
-        categories: updated.categories,
+        category: updated.category || undefined,
+        categories: updated.categories || [],
         lyrics: updated.lyrics,
         solfas: updated.solfas || updated.solfa,
         solfa: updated.solfas || updated.solfa,
         notation: updated.notation,
+        imageUrl: normalizedImageUrl,
         audioFile: updated.audioFile || updated.audioUrl,
         audioUrls: updated.audioUrls,
         leadKeyboardist: updated.leadKeyboardist,
@@ -615,8 +632,31 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
 
   function handleSongCreated(newSong?: PraiseSong) {
     if (newSong) {
+      const normalizedImageUrl = newSong.imageUrl?.trim()
+        ? (newSong.imageUrl.trim().startsWith('http://') && !newSong.imageUrl.includes('localhost') && !newSong.imageUrl.includes('10.0.2.2')
+            ? 'https://' + newSong.imageUrl.trim().slice(7)
+            : newSong.imageUrl.trim())
+        : '';
+
+      const songPayload: PraiseSong = {
+        ...newSong,
+        imageUrl: normalizedImageUrl,
+        category: newSong.category || undefined,
+        categories: newSong.categories || [],
+        programId: currentProgram.id,
+        praiseNightId: currentProgram.id,
+      };
+
+      api.songs.create(songPayload)
+        .then(res => {
+          if (res?.data?.id) {
+            setProgramSongs(prev => prev.map(s => (s.id === newSong.id ? { ...s, ...res.data } : s)));
+          }
+        })
+        .catch(err => console.error('[handleSongCreated] api.songs.create error:', err));
+
       setProgramSongs(prev => {
-        const next = [newSong, ...prev];
+        const next = [songPayload, ...prev];
         api.programs.updateSongIds(currentProgram.id, next.map(s => s.id)).catch(() => {});
         return next;
       });
@@ -649,10 +689,16 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
       if (statusFilter === 'unheard' && isHeard) return false;
 
       if (selectedCategory !== 'all') {
-        const cat = (song.category || '').trim();
-        const matchesCat = cat === selectedCategory;
-        const matchesMulti = Array.isArray(song.categories) && song.categories.some(c => c && c.trim() === selectedCategory);
-        if (!matchesCat && !matchesMulti) return false;
+        if (selectedCategory === '__uncategorized__') {
+          const hasCat = Boolean(song.category && song.category.trim());
+          const hasMulti = Array.isArray(song.categories) && song.categories.some(c => c && c.trim());
+          if (hasCat || hasMulti) return false;
+        } else {
+          const cat = (song.category || '').trim();
+          const matchesCat = cat === selectedCategory;
+          const matchesMulti = Array.isArray(song.categories) && song.categories.some(c => c && c.trim() === selectedCategory);
+          if (!matchesCat && !matchesMulti) return false;
+        }
       }
 
       if (searchQuery.trim()) {
@@ -767,7 +813,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         </View>
 
         {/* Horizontal Category Chips Filter Bar */}
-        {orderedCategories.length > 0 && (
+        {(orderedCategories.length > 0 || uncategorizedCount > 0) && (
           <View style={styles.categoryBarWrap}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryBarScroll}>
               <TouchableOpacity
@@ -779,6 +825,18 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
                   All ({programSongs.length})
                 </Text>
               </TouchableOpacity>
+
+              {uncategorizedCount > 0 && (
+                <TouchableOpacity
+                  style={[styles.catChip, selectedCategory === '__uncategorized__' && styles.catChipActive]}
+                  onPress={() => setSelectedCategory(selectedCategory === '__uncategorized__' ? 'all' : '__uncategorized__')}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.catChipText, selectedCategory === '__uncategorized__' && styles.catChipTextActive]}>
+                    Uncategorized ({uncategorizedCount})
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {orderedCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
@@ -858,12 +916,20 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
               }}
               style={[styles.trackCard, isLive && styles.trackCardActive]}
             >
-              {/* Left Column: Track Number */}
-              <View style={styles.trackIndexBox}>
-                <Text style={styles.trackIndexNum}>
-                  {String(index + 1).padStart(2, '0')}
-                </Text>
-              </View>
+              {/* Left Column: Track Number or Album Art Thumbnail */}
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.artworkThumb}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.trackIndexBox}>
+                  <Text style={styles.trackIndexNum}>
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                </View>
+              )}
 
               {/* Middle Column: Song Info & Badges */}
               <View style={styles.trackInfoCol}>
@@ -1276,6 +1342,13 @@ const styles = StyleSheet.create({
   },
   trackIndexBox: {
     width: 24,
+    marginRight: 10,
+  },
+  artworkThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#e2e8f0',
     marginRight: 10,
   },
   trackIndexNum: {
@@ -1856,6 +1929,7 @@ const sheetStyles = StyleSheet.create({
     height: 40,
     borderRadius: 8,
     backgroundColor: '#e2e8f0',
+    marginRight: 10,
   },
   stemsHeaderRow: {
     flexDirection: 'row',

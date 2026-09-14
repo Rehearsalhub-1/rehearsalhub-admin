@@ -222,6 +222,14 @@ export default function MoreScreen({ navigation }: any) {
               onPress={() => navigation.navigate('Categories')}
             />
           )}
+          <MenuItem
+            iconName="folder-open-outline"
+            iconColor="#0284c7"
+            iconBg="#f0f9ff"
+            label="Media Library"
+            sub="Cloud audio tracks, stems, and album artworks"
+            onPress={() => navigation.navigate('MediaLibrary')}
+          />
         </View>
 
         {/* ── Choir & Operations ────────────────────────────────────────── */}

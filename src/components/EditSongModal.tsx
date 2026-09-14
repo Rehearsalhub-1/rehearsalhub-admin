@@ -21,6 +21,7 @@ import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import MediaSelectionModal from './MediaSelectionModal';
 import { stripHtml } from '../lib/stripHtml';
 import { htmlToEditorText, editorTextToHtml } from '../lib/lyricsFormat';
+import LyricsFormattingToolbar from './LyricsFormattingToolbar';
 import { api } from '../services/api';
 import { customAlert } from '../context/AlertContext';
 
@@ -184,6 +185,7 @@ export default function EditSongModal({
 
   // Lyrics, Notation & Directives
   const [songLyrics, setSongLyrics] = useState('');
+  const [lyricsSelection, setLyricsSelection] = useState({ start: 0, end: 0 });
   const [songSolfas, setSongSolfas] = useState('');
   const [songNotation, setSongNotation] = useState('');
   const [coordinatorComment, setCoordinatorComment] = useState('');
@@ -606,7 +608,7 @@ export default function EditSongModal({
       return;
     }
 
-    const primaryCategory = songCategories[0] || 'Worship';
+    const primaryCategory = songCategories[0] || '';
     const commentsList = (coordinatorComment.trim() || coordinatorAudioUrl.trim())
       ? [
           {
@@ -619,6 +621,12 @@ export default function EditSongModal({
         ]
       : [];
 
+    const normalizedImageUrl = songImageUrl.trim()
+      ? (songImageUrl.trim().startsWith('http://') && !songImageUrl.includes('localhost') && !songImageUrl.includes('10.0.2.2')
+          ? 'https://' + songImageUrl.trim().slice(7)
+          : songImageUrl.trim())
+      : '';
+
     const payload: PraiseNightSong = {
       id: song?.id || `song-${Date.now()}`,
       title: songTitle.trim(),
@@ -630,8 +638,8 @@ export default function EditSongModal({
       is_hq_only: isHQOnly,
       isHqOnly: isHQOnly,
       scope: isHQOnly ? 'hq' : 'global',
-      category: primaryCategory,
-      categories: songCategories.length > 0 ? songCategories : [primaryCategory],
+      category: primaryCategory || undefined,
+      categories: songCategories,
       praiseNightId: programId || undefined,
       praiseNightName: songProgram || programName,
       programId: programId || undefined,
@@ -653,7 +661,7 @@ export default function EditSongModal({
       audioUrl: songAudioFile.trim(),
       audioUrls: audioUrls,
       customParts: customParts,
-      imageUrl: songImageUrl.trim(),
+      imageUrl: normalizedImageUrl,
       coordinatorComment: coordinatorComment.trim(),
       coordinatorAudioUrl: coordinatorAudioUrl.trim(),
       comments: commentsList,
@@ -727,15 +735,27 @@ export default function EditSongModal({
         {/* Categories Checkbox Box */}
         <View style={{ flex: isMedium ? 1 : undefined }}>
           <View style={styles.categoriesHeaderRow}>
-            <Text style={styles.fieldLabel}>Categories * (Select one or more)</Text>
-            <TouchableOpacity
-              style={styles.addCategoryPill}
-              onPress={() => setShowNewCategoryInput(true)}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Ionicons name="add" size={13} color="#7c3aed" style={{ marginRight: 2 }} />
-              <Text style={styles.addCategoryPillText}>New Category</Text>
-            </TouchableOpacity>
+            <Text style={styles.fieldLabel}>Categories (Optional)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {songCategories.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearCategoriesPill}
+                  onPress={() => setSongCategories([])}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="close-circle-outline" size={13} color="#ef4444" style={{ marginRight: 2 }} />
+                  <Text style={styles.clearCategoriesPillText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.addCategoryPill}
+                onPress={() => setShowNewCategoryInput(true)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="add" size={13} color="#7c3aed" style={{ marginRight: 2 }} />
+                <Text style={styles.addCategoryPillText}>New Category</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Inline Add Category Input */}
@@ -772,6 +792,23 @@ export default function EditSongModal({
               contentContainerStyle={{ paddingVertical: 2 }}
               keyboardShouldPersistTaps="handled"
             >
+              {/* Uncategorized / None Option */}
+              <TouchableOpacity
+                style={[styles.categoryCheckboxRow, songCategories.length === 0 && styles.categoryCheckboxRowNoneActive]}
+                onPress={() => setSongCategories([])}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={songCategories.length === 0 ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={18}
+                  color={songCategories.length === 0 ? '#10b981' : '#94a3b8'}
+                  style={{ marginRight: 10 }}
+                />
+                <Text style={[styles.categoryCheckboxText, songCategories.length === 0 && { color: '#059669', fontWeight: '700' }]}>
+                  None (Uncategorized)
+                </Text>
+              </TouchableOpacity>
+
               {availableCategories.map(cat => {
                 const isChecked = songCategories.includes(cat);
                 return (
@@ -796,7 +833,7 @@ export default function EditSongModal({
             </ScrollView>
           </View>
           <Text style={styles.selectedCategoriesSummary}>
-            Selected: {songCategories.length > 0 ? songCategories.join(', ') : 'None'}
+            Selected: {songCategories.length > 0 ? songCategories.join(', ') : 'None (Uncategorized)'}
           </Text>
         </View>
 
@@ -1369,11 +1406,11 @@ export default function EditSongModal({
       </View>
 
       <View style={styles.cardWhiteBody}>
-        <View style={styles.helperBanner}>
-          <Text style={styles.helperBannerText}>
-            Formatting preserved: Line breaks and section labels (**VERSE 1**, **CHORUS**) are maintained. HTML tags are also preserved.
-          </Text>
-        </View>
+        <LyricsFormattingToolbar
+          value={songLyrics}
+          onChangeText={setSongLyrics}
+          selection={lyricsSelection}
+        />
 
         <TextInput
           style={[styles.inputPrimary, styles.multilineEditor]}
@@ -1382,6 +1419,7 @@ export default function EditSongModal({
           textAlignVertical="top"
           value={songLyrics}
           onChangeText={setSongLyrics}
+          onSelectionChange={e => setLyricsSelection(e.nativeEvent.selection)}
           placeholder={`Enter complete song lyrics here...\n\nExample:\nVerse 1:\n[Your verse lyrics here]\n\nChorus:\n[Your chorus lyrics here]`}
           placeholderTextColor="#94a3b8"
         />
@@ -2143,6 +2181,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#7c3aed',
+  },
+  clearCategoriesPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  clearCategoriesPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  categoryCheckboxRowNoneActive: {
+    backgroundColor: '#ecfdf5',
   },
   newCategoryInputRow: {
     flexDirection: 'row',

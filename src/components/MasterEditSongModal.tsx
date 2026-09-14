@@ -22,6 +22,7 @@ import { MasterSong } from './MasterSongDetailModal';
 import { api } from '../services/api';
 import { customAlert } from '../context/AlertContext';
 import { stripHtml } from '../lib/stripHtml';
+import LyricsFormattingToolbar from './LyricsFormattingToolbar';
 
 export interface MasterEditSongModalProps {
   visible: boolean;
@@ -92,8 +93,9 @@ export default function MasterEditSongModal({
   const [newPartName, setNewPartName] = useState('');
   const [showAddPart, setShowAddPart] = useState(false);
 
-  // Lyrics & Guides
+  // Lyrics, Notes & Solfa
   const [lyrics, setLyrics] = useState('');
+  const [lyricsSelection, setLyricsSelection] = useState({ start: 0, end: 0 });
   const [solfa, setSolfa] = useState('');
   const [history, setHistory] = useState('');
 
@@ -164,7 +166,7 @@ export default function MasterEditSongModal({
         setLeadKeyboardist(song.leadKeyboardist || '');
         setBassGuitarist(song.bassGuitarist || '');
         setDrummer(song.drummer || '');
-        const existingColl = (song as any).program || (song as any).programName || song.category || 'Praise Night 28';
+        const existingColl = (song as any).program || (song as any).programName || song.category || '';
         setCategory(existingColl);
         setImageUrl(song.imageUrl || '');
         setIsHQOnly(Boolean(song.isHQOnly || song.isHqOnly));
@@ -212,7 +214,7 @@ export default function MasterEditSongModal({
         setLeadKeyboardist('');
         setBassGuitarist('');
         setDrummer('');
-        setCategory('Praise Night 28');
+        setCategory('');
         setImageUrl('');
         setIsHQOnly(false);
         setLyrics('');
@@ -337,17 +339,24 @@ export default function MasterEditSongModal({
         (song as any)?.praiseNightId ||
         undefined;
 
+      const normalizedImageUrl = imageUrl.trim()
+        ? (imageUrl.trim().startsWith('http://') && !imageUrl.includes('localhost') && !imageUrl.includes('10.0.2.2')
+            ? 'https://' + imageUrl.trim().slice(7)
+            : imageUrl.trim())
+        : '';
+
       const payload: MasterSong = {
         id: song?.id || `master-${Date.now()}`,
         title: title.trim(),
         writer: writer.trim(),
         publishedByName: writer.trim(),
         leadSinger: leadSinger.trim(),
-        category: category.trim(),
-        program: category.trim(),
-        programName: category.trim(),
-        programId: resolvedProgramId,
-        praiseNightId: resolvedProgramId,
+        category: category.trim() || undefined,
+        categories: category.trim() ? [category.trim()] : [],
+        program: category.trim() || undefined,
+        programName: category.trim() || undefined,
+        programId: category.trim() ? resolvedProgramId : undefined,
+        praiseNightId: category.trim() ? resolvedProgramId : undefined,
         key: key.trim(),
         tempo: tempo.trim(),
         conductor: conductor.trim(),
@@ -363,7 +372,7 @@ export default function MasterEditSongModal({
         solfa: solfa.trim(),
         conductorGuide: solfa.trim(),
         history: history.trim(),
-        imageUrl: imageUrl.trim(),
+        imageUrl: normalizedImageUrl,
         isHQOnly: isHQOnly,
         isHqOnly: isHQOnly,
         isMaster: true,
@@ -549,13 +558,29 @@ export default function MasterEditSongModal({
                     )}
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+                      <TouchableOpacity
+                        style={[styles.categoryChip, !category && styles.categoryChipActive]}
+                        onPress={() => setCategory('')}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={12}
+                          color={!category ? '#7c3aed' : '#64748b'}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={[styles.categoryChipText, !category && styles.categoryChipTextActive]}>
+                          None (Uncategorized)
+                        </Text>
+                      </TouchableOpacity>
+
                       {collectionsList.map(cat => {
                         const isSelected = category === cat;
                         return (
                           <TouchableOpacity
                             key={cat}
                             style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
-                            onPress={() => setCategory(cat)}
+                            onPress={() => setCategory(isSelected ? '' : cat)}
                             activeOpacity={0.8}
                           >
                             <Ionicons
@@ -855,12 +880,18 @@ export default function MasterEditSongModal({
               <View style={styles.tabSection}>
                 <View style={styles.card}>
                   <Text style={styles.cardSectionTitle}>Official Song Lyrics</Text>
+                  <LyricsFormattingToolbar
+                    value={lyrics}
+                    onChangeText={setLyrics}
+                    selection={lyricsSelection}
+                  />
                   <TextInput
                     style={styles.multilineInput}
                     placeholder="Enter full song lyrics with verses and chorus..."
                     placeholderTextColor="#94a3b8"
                     value={lyrics}
                     onChangeText={setLyrics}
+                    onSelectionChange={e => setLyricsSelection(e.nativeEvent.selection)}
                     multiline
                     textAlignVertical="top"
                   />

@@ -65,9 +65,9 @@ export const RichLyricsRenderer: React.FC<RichLyricsRendererProps> = ({
     }
 
     // Tokenize line by bold/italic tags and markdown
-    // Matching <b>...</b>, <strong>...</strong>, <i>...</i>, **...**
+    // Matching <b>...</b>, <strong>...</strong>, <i>...</i>, <em...</em>, **...**, *...*
     const tokens: React.ReactNode[] = [];
-    const regex = /(<b[^>]*>.*?<\/b>|<strong[^>]*>.*?<\/strong>|<i[^>]*>.*?<\/i>|<em[^>]*>.*?<\/em>|\*\*.*?\*\*)/gi;
+    const regex = /(<b[^>]*>.*?<\/b>|<strong[^>]*>.*?<\/strong>|<i[^>]*>.*?<\/i>|<em[^>]*>.*?<\/em>|\*\*.*?\*\*|\*[^*\n]+\*)/gi;
 
     let lastIndex = 0;
     let match;
@@ -81,9 +81,13 @@ export const RichLyricsRenderer: React.FC<RichLyricsRendererProps> = ({
       }
 
       const matchStr = match[0];
-      const innerText = matchStr.replace(/<[^>]+>/g, '').replace(/\*\*/g, '');
+      const isItalic = /^<i|^<em|^\*[^*]/i.test(matchStr);
+      const innerText = matchStr
+        .replace(/<[^>]+>/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/^\*|\*$/g, '');
 
-      if (/^<i|^<em/i.test(matchStr)) {
+      if (isItalic) {
         tokens.push(
           <Text key={`i-${lineIdx}-${match.index}`} style={styles.italicText}>
             {innerText}

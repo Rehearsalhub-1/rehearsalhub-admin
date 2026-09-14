@@ -9,6 +9,7 @@ import {
   Platform,
   Linking,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ export interface MasterSong {
   publishedByName?: string;
   leadSinger?: string;
   category?: string;
+  categories?: string[];
   program?: string;
   programName?: string;
   programId?: string;
@@ -255,9 +257,17 @@ export default function MasterSongDetailModal({
           {/* Hero Card */}
           <View style={styles.heroCard}>
             <View style={styles.heroTopRow}>
-              <View style={styles.musicIconBox}>
-                <Ionicons name="musical-notes" size={24} color="#ffffff" />
-              </View>
+              {song.imageUrl ? (
+                <Image
+                  source={{ uri: song.imageUrl }}
+                  style={styles.heroArtworkImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.musicIconBox}>
+                  <Ionicons name="musical-notes" size={24} color="#ffffff" />
+                </View>
+              )}
               <View style={styles.heroTitleCol}>
                 <Text style={styles.songTitle} numberOfLines={2}>
                   {song.title}
@@ -596,6 +606,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 3,
+  },
+  heroArtworkImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#e2e8f0',
   },
   heroTitleCol: {
     flex: 1,

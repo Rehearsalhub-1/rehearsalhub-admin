@@ -9,6 +9,7 @@ import {
   TextInput,
   ScrollView,
   Platform,
+  Image,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -379,6 +380,13 @@ export default function MasterLibraryScreen({ navigation }: any) {
             >
               {/* Card Header: Title & Key / Tempo */}
               <View style={styles.cardHeaderRow}>
+                {item.imageUrl ? (
+                  <Image
+                    source={{ uri: item.imageUrl }}
+                    style={styles.cardArtworkThumb}
+                    resizeMode="cover"
+                  />
+                ) : null}
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={styles.cardTitleText} numberOfLines={1}>
                     {item.title}
@@ -686,6 +694,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+  },
+  cardArtworkThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#e2e8f0',
+    marginRight: 10,
   },
   cardTitleText: {
     fontSize: 15,
