@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert,
+  ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAdminStore } from '../stores/adminStore';
 import ZoneHeader from '../components/ZoneHeader';
 import { useAlert } from '../context/AlertContext';
+import { useOTAUpdates } from '../hooks/useOTAUpdates';
 
 interface MenuItemProps {
   iconName: keyof typeof Ionicons.glyphMap;
@@ -77,6 +79,44 @@ export default function MoreScreen({ navigation }: any) {
         },
       },
     ]);
+  }
+
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const { checkManually } = useOTAUpdates();
+
+  async function handleCheckForUpdates() {
+    if (checkingUpdates) return;
+    setCheckingUpdates(true);
+    try {
+      const res = await checkManually();
+      if (res.status === 'updated') {
+        showAlert(
+          'Update Ready 🚀',
+          'A new update has been downloaded! Restart now to apply it immediately.',
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Restart Now',
+              onPress: async () => {
+                try {
+                  await Updates.reloadAsync();
+                } catch (e) {
+                  console.warn('Reload failed:', e);
+                }
+              },
+            },
+          ]
+        );
+      } else if (res.status === 'up_to_date') {
+        showAlert('Up to Date', 'You are running the latest version of RehearsalHub Admin.');
+      } else if (res.status === 'disabled') {
+        showAlert('Updates Disabled', res.message);
+      } else if (res.status === 'error') {
+        showAlert('Update Check Failed', res.message);
+      }
+    } finally {
+      setCheckingUpdates(false);
+    }
   }
 
   const rawZoneName = activeZone?.name;
@@ -295,6 +335,19 @@ export default function MoreScreen({ navigation }: any) {
             </View>
           </>
         )}
+
+        {/* ── System & Updates ─────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>System & Updates</Text>
+        <View style={styles.menuGroup}>
+          <MenuItem
+            iconName="cloud-download-outline"
+            iconColor="#7c3aed"
+            iconBg="#faf5ff"
+            label="Check for Updates"
+            sub={checkingUpdates ? "Connecting to EAS servers..." : "Version 1.0.0 (Tap to check for updates)"}
+            onPress={handleCheckForUpdates}
+          />
+        </View>
 
         {/* ── Account ───────────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Account</Text>

@@ -284,16 +284,34 @@ export const api = {
     delete: (mediaId: string) =>
       apiClient.delete<{ success: boolean }>(`/media/${mediaId}`),
     upload: async (file: { uri: string; name: string; type: string }, folder = 'rehearsals') => {
-      const formData = new FormData();
-      // React Native requires appending file as a blob-like object.
-      // Using 'as any' is required because RN's FormData differs from the web spec.
-      formData.append('file', {
-        uri: file.uri,
-        name: file.name || 'upload',
-        type: file.type || 'application/octet-stream',
-      } as unknown as Blob);
-      formData.append('folder', folder);
-      return apiClient.upload<{ success: boolean; data: { url: string; key: string; size: number } }>('/upload', formData);
+      const { BASE_URL, getAccessToken } = await import('../lib/apiClient');
+      const { File: ExpoFile, UploadType } = await import('expo-file-system');
+      const token = await getAccessToken();
+      const uploadUrl = `${BASE_URL}/upload`;
+
+      const expoFile = new ExpoFile(file.uri);
+      const fsResult = await expoFile.upload(uploadUrl, {
+        uploadType: UploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType: file.type || 'application/octet-stream',
+        parameters: { folder },
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(process.env.EXPO_PUBLIC_INTERNAL_API_KEY
+            ? { 'x-api-key': process.env.EXPO_PUBLIC_INTERNAL_API_KEY }
+            : {}),
+        },
+      });
+
+      if (fsResult.status < 200 || fsResult.status >= 300) {
+        let errMsg = 'Upload failed';
+        try { errMsg = JSON.parse(fsResult.body)?.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+
+      let parsed: any = {};
+      try { parsed = JSON.parse(fsResult.body); } catch {}
+      return parsed as { success: boolean; data: { url: string; key: string; size: number } };
     },
   },
 
