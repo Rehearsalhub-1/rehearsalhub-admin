@@ -271,9 +271,8 @@ export const api = {
 
   // ── Media Assets & Cloud Uploads ────────────────────────────────────────
   media: {
-    getAll: (zoneId?: string, limit = 2000, type?: string) => {
+    getAll: (zoneId?: string, type?: string) => {
       const params = new URLSearchParams();
-      params.append('limit', String(limit));
       if (zoneId) params.append('zoneId', zoneId);
       if (type) params.append('type', type);
       return apiClient.get<{ success: boolean; data: any[] }>(`/media?${params.toString()}`);

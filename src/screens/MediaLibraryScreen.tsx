@@ -226,6 +226,7 @@ export default function MediaLibraryScreen() {
   const loadMedia = useCallback(async () => {
     setLoadError(null);
     try {
+      // No limit — fetch all records from the server
       const res = await api.media.getAll(activeZone?.id);
       const items = Array.isArray(res?.data) ? res.data : [];
       if (items.length > 0) {

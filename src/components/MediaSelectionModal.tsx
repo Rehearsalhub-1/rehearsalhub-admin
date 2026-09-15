@@ -70,8 +70,11 @@ export default function MediaSelectionModal({
   const [mediaList, setMediaList] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // uploadLabel gives the user live status during the two-stage upload
+  const [uploadLabel, setUploadLabel] = useState('Uploading...');
   const [search, setSearch] = useState('');
-  const [selectedType, setSelectedType] = useState<string>(allowedType);
+  // Always show all type chips so users can browse any media type regardless of the allowedType hint
+  const [selectedType, setSelectedType] = useState<string>('all');
 
   // Audio Playback Preview State
   const [playingUrl, setPlayingUrl] = useState<string | null>(null);
@@ -93,10 +96,12 @@ export default function MediaSelectionModal({
     setAudioLoadingUrl(null);
   }, []);
 
-  const handleClose = useCallback(() => {
-    stopAudio();
+  // FIX: await audio cleanup before calling onClose so nothing unmounts mid-cleanup
+  const handleClose = useCallback(async () => {
+    if (uploading) return; // don't allow closing during an upload
+    await stopAudio();
     onClose();
-  }, [stopAudio, onClose]);
+  }, [uploading, stopAudio, onClose]);
 
   useEffect(() => {
     return () => {
@@ -151,17 +156,16 @@ export default function MediaSelectionModal({
   useEffect(() => {
     if (visible) {
       setSearch('');
-      setSelectedType(allowedType);
+      setSelectedType('all');
       fetchMedia();
     } else {
       stopAudio();
     }
-  }, [visible, allowedType, fetchMedia, stopAudio]);
+  }, [visible, fetchMedia, stopAudio]);
 
   const filtered = useMemo(() => {
     return mediaList.filter(item => {
-      const matchesType =
-        selectedType === 'all' || item.type === selectedType;
+      const matchesType = selectedType === 'all' || item.type === selectedType;
       const q = search.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -180,6 +184,7 @@ export default function MediaSelectionModal({
       if (result.canceled) return;
       const file = result.assets[0];
       setUploading(true);
+      setUploadLabel('Uploading file to cloud...');
 
       // Use expo-file-system's new File.upload() API (SDK 57).
       // The old fetch + FormData with plain object { uri, name, type } throws
@@ -212,6 +217,7 @@ export default function MediaSelectionModal({
       try { uploadData = JSON.parse(fsResult.body); } catch {}
 
       const fileUrl = uploadData.data?.url || uploadData.url || '';
+      setUploadLabel('Saving to media library...');
       const newMediaRes = await api.media.create({
         name: file.name,
         url: fileUrl,
@@ -226,13 +232,14 @@ export default function MediaSelectionModal({
         type: inferMediaType(file.mimeType ?? ''),
       };
 
-      stopAudio();
+      await stopAudio();
       onSelect(fileUrl, newMedia);
       onClose();
     } catch (e: any) {
       customAlert('Upload Failed', e.message || 'Could not upload file.');
     } finally {
       setUploading(false);
+      setUploadLabel('Uploading...');
     }
   }
 
@@ -267,33 +274,60 @@ export default function MediaSelectionModal({
             },
           ]}
         >
+          {/* Upload-in-progress blocking overlay */}
+          {uploading && (
+            <View style={pickerStyles.uploadOverlay}>
+              <View style={pickerStyles.uploadOverlayCard}>
+                <ActivityIndicator size="large" color="#7c3aed" />
+                <Text style={pickerStyles.uploadOverlayLabel}>{uploadLabel}</Text>
+                <Text style={pickerStyles.uploadOverlaySub}>Please wait — do not close this screen</Text>
+              </View>
+            </View>
+          )}
+
           {/* Top Drag Pill */}
           <View style={pickerStyles.dragHandle} />
 
           {/* Modal Header */}
           <View style={pickerStyles.header}>
-            <TouchableOpacity onPress={handleClose} style={pickerStyles.headerActionBtn}>
+            <TouchableOpacity
+              onPress={handleClose}
+              disabled={uploading}
+              style={[pickerStyles.headerActionBtn, uploading && { opacity: 0.4 }]}
+            >
               <Text style={pickerStyles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <View style={pickerStyles.headerCenter}>
               <Text style={pickerStyles.headerTitle}>{title}</Text>
+              {!loading && mediaList.length > 0 && (
+                <Text style={pickerStyles.headerCount}>
+                  {filtered.length === mediaList.length
+                    ? `${mediaList.length} files`
+                    : `${filtered.length} of ${mediaList.length}`}
+                </Text>
+              )}
             </View>
 
-            <TouchableOpacity
-              onPress={handleUpload}
-              disabled={uploading}
-              style={pickerStyles.uploadBtn}
-            >
-              {uploading ? (
-                <ActivityIndicator size="small" color="#7c3aed" />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload-outline" size={15} color="#7c3aed" style={{ marginRight: 3 }} />
-                  <Text style={pickerStyles.uploadBtnText}>Upload</Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {/* Refresh button */}
+              <TouchableOpacity
+                onPress={fetchMedia}
+                disabled={loading || uploading}
+                style={pickerStyles.refreshBtn}
+              >
+                <Ionicons name="refresh" size={15} color="#7c3aed" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleUpload}
+                disabled={uploading || loading}
+                style={[pickerStyles.uploadBtn, (uploading || loading) && { opacity: 0.6 }]}
+              >
+                <Ionicons name="cloud-upload-outline" size={15} color="#7c3aed" style={{ marginRight: 3 }} />
+                <Text style={pickerStyles.uploadBtnText}>Upload</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Search bar */}
@@ -313,25 +347,35 @@ export default function MediaSelectionModal({
             ) : null}
           </View>
 
-          {/* Type Filter Chips (if allowedType is 'all') */}
-          {allowedType === 'all' && (
-            <View style={pickerStyles.typeChipsRow}>
-              {(['all', 'audio', 'image', 'video', 'document'] as const).map(t => {
-                const active = selectedType === t;
-                return (
-                  <TouchableOpacity
-                    key={t}
-                    style={[pickerStyles.typeChip, active && pickerStyles.typeChipActive]}
-                    onPress={() => setSelectedType(t)}
-                  >
-                    <Text style={[pickerStyles.typeChipText, active && pickerStyles.typeChipTextActive]}>
-                      {t.toUpperCase()}
+          {/* Type Filter Chips — always shown so admins can browse all types */}
+          <View style={pickerStyles.typeChipsRow}>
+            {(['all', 'audio', 'image', 'video', 'document'] as const).map(t => {
+              const active = selectedType === t;
+              const counts: Record<string, number> = {
+                all: mediaList.length,
+                audio: mediaList.filter(m => m.type === 'audio').length,
+                image: mediaList.filter(m => m.type === 'image').length,
+                video: mediaList.filter(m => m.type === 'video').length,
+                document: mediaList.filter(m => m.type === 'document').length,
+              };
+              return (
+                <TouchableOpacity
+                  key={t}
+                  style={[pickerStyles.typeChip, active && pickerStyles.typeChipActive]}
+                  onPress={() => setSelectedType(t)}
+                >
+                  <Text style={[pickerStyles.typeChipText, active && pickerStyles.typeChipTextActive]}>
+                    {t.toUpperCase()}
+                  </Text>
+                  {counts[t] > 0 && (
+                    <Text style={[pickerStyles.typeChipCount, active && pickerStyles.typeChipCountActive]}>
+                      {' '}{counts[t]}
                     </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           {loading ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 }}>
@@ -603,13 +647,57 @@ const pickerStyles = StyleSheet.create({
     fontSize: 13,
     color: '#0f172a',
   },
+  headerCount: {
+    fontSize: 10.5,
+    color: '#94a3b8',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  refreshBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: '#f5f3ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    zIndex: 99,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  uploadOverlayCard: {
+    alignItems: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  uploadOverlayLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginTop: 8,
+  },
+  uploadOverlaySub: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   typeChipsRow: {
     flexDirection: 'row',
     gap: 6,
     paddingHorizontal: 16,
     marginBottom: 10,
+    flexWrap: 'wrap',
   },
   typeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 6,
@@ -625,6 +713,14 @@ const pickerStyles = StyleSheet.create({
   },
   typeChipTextActive: {
     color: '#ffffff',
+  },
+  typeChipCount: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  typeChipCountActive: {
+    color: 'rgba(255,255,255,0.75)',
   },
   mediaRow: {
     flexDirection: 'row',

@@ -67,6 +67,8 @@ export interface PraiseNightSong {
   isHidden?: boolean;
 }
 
+export type EditSongTab = 'details' | 'lyrics' | 'audio' | 'personnel' | 'all';
+
 export interface EditSongModalProps {
   visible: boolean;
   song: PraiseNightSong | null;
@@ -76,6 +78,7 @@ export interface EditSongModalProps {
   praiseNights?: Array<{ id: string; name: string }>;
   categories?: string[];
   isMaster?: boolean;
+  initialTab?: EditSongTab;
   onClose: () => void;
   onUpdate: (updatedSong: PraiseNightSong) => void;
   onDelete?: (songId: string) => void;
@@ -91,6 +94,14 @@ const DEFAULT_CATEGORIES = [
   'Choir Special',
 ];
 
+const EDIT_SONG_TABS = [
+  { id: 'details', label: 'Details', icon: 'document-text-outline' },
+  { id: 'lyrics', label: 'Lyrics & Solfa', icon: 'musical-notes-outline' },
+  { id: 'audio', label: 'AudioLab', icon: 'headset-outline' },
+  { id: 'personnel', label: 'Personnel', icon: 'people-outline' },
+  { id: 'all', label: 'All Cards', icon: 'grid-outline' },
+] as const;
+
 export default function EditSongModal({
   visible,
   song,
@@ -100,6 +111,7 @@ export default function EditSongModal({
   praiseNights,
   categories = DEFAULT_CATEGORIES,
   isMaster = false,
+  initialTab = 'details',
   onClose,
   onUpdate,
   onDelete,
@@ -191,6 +203,9 @@ export default function EditSongModal({
   const [coordinatorAudioUrl, setCoordinatorAudioUrl] = useState('');
 
   // Modals & Pickers
+  const [activeTab, setActiveTab] = useState<EditSongTab>(initialTab);
+  const [showFullscreenLyrics, setShowFullscreenLyrics] = useState(false);
+  const [fullscreenFontSize, setFullscreenFontSize] = useState(16);
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [mediaTarget, setMediaTarget] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'audio' | 'image'>('audio');
@@ -306,7 +321,10 @@ export default function EditSongModal({
       setCoordinatorAudioUrl('');
       setHistoryEntries([]);
     }
-  }, [song, visible, programName]);
+    if (visible) {
+      setActiveTab(initialTab);
+    }
+  }, [song, visible, programName, initialTab]);
 
   // Audio cleanup
   const stopAudio = useCallback(async () => {
@@ -1397,13 +1415,23 @@ export default function EditSongModal({
           <View style={[styles.dotMarker, { backgroundColor: '#3b82f6' }]} />
           <Text style={styles.cardHeaderTitle}>Song Lyrics</Text>
         </View>
-        <TouchableOpacity
-          style={styles.addHistoryBtn}
-          onPress={() => handleAddHistory('lyrics')}
-        >
-          <Ionicons name="time-outline" size={13} color="#475569" style={{ marginRight: 4 }} />
-          <Text style={styles.addHistoryBtnText}>Add History</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={styles.fullscreenBtn}
+            onPress={() => setShowFullscreenLyrics(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="scan-outline" size={13} color="#7c3aed" style={{ marginRight: 4 }} />
+            <Text style={styles.fullscreenBtnText}>Full Screen</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addHistoryBtn}
+            onPress={() => handleAddHistory('lyrics')}
+          >
+            <Ionicons name="time-outline" size={13} color="#475569" style={{ marginRight: 4 }} />
+            <Text style={styles.addHistoryBtnText}>History</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.cardWhiteBody}>
@@ -1414,9 +1442,13 @@ export default function EditSongModal({
         />
 
         <TextInput
-          style={[styles.inputPrimary, styles.multilineEditor]}
+          style={[
+            styles.inputPrimary,
+            styles.multilineEditor,
+            activeTab === 'lyrics' && styles.multilineEditorTabActive,
+          ]}
           multiline
-          numberOfLines={8}
+          numberOfLines={activeTab === 'lyrics' ? 18 : 8}
           textAlignVertical="top"
           value={songLyrics}
           onChangeText={setSongLyrics}
@@ -1612,6 +1644,16 @@ export default function EditSongModal({
               </TouchableOpacity>
             )}
 
+            {/* Quick 1-Tap Save in Header */}
+            <TouchableOpacity
+              onPress={handleSubmit}
+              style={styles.headerQuickSaveBtn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="checkmark-sharp" size={15} color="#ffffff" style={{ marginRight: 3 }} />
+              <Text style={styles.headerQuickSaveBtnText}>Save</Text>
+            </TouchableOpacity>
+
             {isEditing && (
               <TouchableOpacity
                 onPress={handleDelete}
@@ -1631,6 +1673,47 @@ export default function EditSongModal({
           </View>
         </View>
 
+        {/* ── 1b. Segmented Tabs Bar (Instant section switching) ─────────────── */}
+        <View style={styles.tabBarContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabBarScrollContent}
+          >
+            {EDIT_SONG_TABS.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[styles.tabItem, isActive && styles.tabItemActive]}
+                  onPress={() => setActiveTab(tab.id as EditSongTab)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={tab.icon as any}
+                    size={14}
+                    color={isActive ? '#7c3aed' : '#64748b'}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text style={[styles.tabItemText, isActive && styles.tabItemTextActive]}>
+                    {tab.label}
+                  </Text>
+                  {tab.id === 'lyrics' && (songLyrics.trim().length > 0 || songSolfas.trim().length > 0) && (
+                    <View style={[styles.tabBadgeDot, isActive && styles.tabBadgeDotActive]} />
+                  )}
+                  {tab.id === 'audio' && Object.values(audioUrls || {}).filter(Boolean).length > 0 && (
+                    <View style={styles.tabCountBadge}>
+                      <Text style={styles.tabCountBadgeText}>
+                        {Object.values(audioUrls || {}).filter(Boolean).length}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         {/* ── 2. Scrollable Body: Dual-Column Desktop OR Single-Column Mobile ── */}
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView
@@ -1642,35 +1725,61 @@ export default function EditSongModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {isDesktop ? (
-              /* Desktop / iPad Pro: 2-Column Layout (col-span-2 & col-span-3) */
-              <View style={styles.desktopTwoColContainer}>
-                {/* Left Column: Basic Info, Music Details, AudioLab, Personnel */}
-                <View style={styles.desktopLeftCol}>
+            {activeTab === 'details' && (
+              <View style={{ gap: 16 }}>
+                {renderCard1()}
+                {renderCard2()}
+              </View>
+            )}
+
+            {activeTab === 'lyrics' && (
+              <View style={{ gap: 16 }}>
+                {renderCard5()}
+                {renderCard6()}
+              </View>
+            )}
+
+            {activeTab === 'audio' && (
+              <View style={{ gap: 16 }}>
+                {renderCard3()}
+              </View>
+            )}
+
+            {activeTab === 'personnel' && (
+              <View style={{ gap: 16 }}>
+                {renderCard4()}
+                {renderCard7()}
+              </View>
+            )}
+
+            {activeTab === 'all' && (
+              isDesktop ? (
+                /* Desktop / iPad Pro: 2-Column Layout (col-span-2 & col-span-3) */
+                <View style={styles.desktopTwoColContainer}>
+                  <View style={styles.desktopLeftCol}>
+                    {renderCard1()}
+                    {renderCard2()}
+                    {renderCard3()}
+                    {renderCard4()}
+                  </View>
+                  <View style={styles.desktopRightCol}>
+                    {renderCard5()}
+                    {renderCard6()}
+                    {renderCard7()}
+                  </View>
+                </View>
+              ) : (
+                /* Mobile / Phablet: Fluid Single-Column Flow */
+                <View style={{ gap: 16 }}>
                   {renderCard1()}
                   {renderCard2()}
                   {renderCard3()}
                   {renderCard4()}
-                </View>
-
-                {/* Right Column: Lyrics, Notation, Comments */}
-                <View style={styles.desktopRightCol}>
                   {renderCard5()}
                   {renderCard6()}
                   {renderCard7()}
                 </View>
-              </View>
-            ) : (
-              /* Mobile / Phablet: Fluid Single-Column Flow */
-              <View style={{ gap: 16 }}>
-                {renderCard1()}
-                {renderCard2()}
-                {renderCard3()}
-                {renderCard4()}
-                {renderCard5()}
-                {renderCard6()}
-                {renderCard7()}
-              </View>
+              )
             )}
 
             <View style={{ height: 40 }} />
@@ -1764,6 +1873,97 @@ export default function EditSongModal({
           title={mediaType === 'image' ? 'Select Song Artwork' : 'Select Audio File'}
           onSelect={handleMediaSelected}
         />
+
+        {/* ── Fullscreen Lyrics Editor Modal ─────────────────────────────────── */}
+        <Modal
+          visible={showFullscreenLyrics}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowFullscreenLyrics(false)}
+        >
+          <View style={[styles.fullscreenLyricsRoot, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
+            {/* Header */}
+            <View style={styles.fullscreenHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 12 }}>
+                <TouchableOpacity
+                  onPress={() => setShowFullscreenLyrics(false)}
+                  style={styles.fullscreenCloseBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={22} color="#334155" />
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fullscreenHeaderTitle} numberOfLines={1}>
+                    {songTitle || song?.title || 'Song Lyrics'}
+                  </Text>
+                  <Text style={styles.fullscreenHeaderSub}>
+                    {songLyrics.split('\n').filter(Boolean).length} lines • {songLyrics.trim().split(/\s+/).filter(Boolean).length} words
+                  </Text>
+                </View>
+              </View>
+
+              {/* Controls */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.fontStepper}>
+                  <TouchableOpacity
+                    onPress={() => setFullscreenFontSize(prev => Math.max(12, prev - 1))}
+                    style={styles.fontStepBtn}
+                  >
+                    <Text style={styles.fontStepBtnText}>A-</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.fontStepValue}>{fullscreenFontSize}</Text>
+                  <TouchableOpacity
+                    onPress={() => setFullscreenFontSize(prev => Math.min(26, prev + 1))}
+                    style={styles.fontStepBtn}
+                  >
+                    <Text style={styles.fontStepBtnText}>A+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => setShowFullscreenLyrics(false)}
+                  style={styles.fullscreenDoneBtn}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="checkmark" size={15} color="#ffffff" style={{ marginRight: 4 }} />
+                  <Text style={styles.fullscreenDoneBtnText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Toolbar */}
+            <View style={styles.fullscreenToolbarWrap}>
+              <LyricsFormattingToolbar
+                value={songLyrics}
+                onChangeText={setSongLyrics}
+                selection={lyricsSelection}
+              />
+            </View>
+
+            {/* Editor */}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ flex: 1 }}
+            >
+              <TextInput
+                style={[
+                  styles.fullscreenInput,
+                  {
+                    fontSize: fullscreenFontSize,
+                    lineHeight: Math.round(fullscreenFontSize * 1.55),
+                  },
+                ]}
+                multiline
+                textAlignVertical="top"
+                value={songLyrics}
+                onChangeText={setSongLyrics}
+                onSelectionChange={e => setLyricsSelection(e.nativeEvent.selection)}
+                placeholder="Type or paste complete song lyrics here..."
+                placeholderTextColor="#94a3b8"
+              />
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
 
         {/* ── Program Selection Modal ────────────────────────────────────────── */}
         <Modal visible={showProgramPicker} transparent animationType="fade">
@@ -3147,5 +3347,189 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
+  },
+
+  // ── Segmented Tab Bar ─────────────────────────────────────────────────────
+  tabBarContainer: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  tabBarScrollContent: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  tabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  tabItemActive: {
+    backgroundColor: '#f5f3ff',
+    borderColor: '#c4b5fd',
+  },
+  tabItemText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  tabItemTextActive: {
+    color: '#7c3aed',
+  },
+  tabBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#94a3b8',
+    marginLeft: 5,
+  },
+  tabBadgeDotActive: {
+    backgroundColor: '#7c3aed',
+  },
+  tabCountBadge: {
+    marginLeft: 5,
+    backgroundColor: '#7c3aed',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  tabCountBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+
+  // ── Header Quick Save Button ──────────────────────────────────────────────
+  headerQuickSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#7c3aed',
+  },
+  headerQuickSaveBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+
+  // ── Full Screen Expand Button (in Lyrics card header) ────────────────────
+  fullscreenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#f5f3ff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#c4b5fd',
+  },
+  fullscreenBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7c3aed',
+  },
+
+  // ── Expanded multiline editor when on Lyrics tab ──────────────────────────
+  multilineEditorTabActive: {
+    minHeight: 320,
+  },
+
+  // ── Fullscreen Lyrics Editor Modal ────────────────────────────────────────
+  fullscreenLyricsRoot: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  fullscreenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  fullscreenCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  fullscreenHeaderSub: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  fullscreenDoneBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  fullscreenDoneBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  fullscreenToolbarWrap: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  fullscreenInput: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+    color: '#0f172a',
+    textAlignVertical: 'top',
+    backgroundColor: '#ffffff',
+  },
+  fontStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+  },
+  fontStepBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  fontStepBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  fontStepValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0f172a',
+    paddingHorizontal: 4,
+    minWidth: 24,
+    textAlign: 'center',
   },
 });
