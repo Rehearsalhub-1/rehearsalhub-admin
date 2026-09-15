@@ -726,10 +726,11 @@ export default function MediaLibraryScreen() {
           const uploadRes = await api.media.upload(
             {
               uri: selectedFile.uri,
-              name: selectedFile.name,
+              name: formTitle.trim() || selectedFile.name,
               type: selectedFile.type,
             },
-            'rehearsals'
+            'rehearsals',
+            activeZone?.id
           );
           finalUrl = uploadRes.data?.url || (uploadRes as any).url || selectedFile.uri;
           if (!finalUrl || finalUrl === selectedFile.uri) {
@@ -761,14 +762,22 @@ export default function MediaLibraryScreen() {
       };
 
       try {
-        await api.media.create({
+        const createRes = await api.media.create({
+          title: newAsset.name,
           name: newAsset.name,
           url: newAsset.url,
           type: newAsset.type,
+          folder: 'rehearsals',
           description: newAsset.description,
           zoneId: activeZone?.id,
+          organizationId: activeZone?.id,
         });
-      } catch {}
+        if (createRes?.data?.id) {
+          newAsset.id = createRes.data.id;
+        }
+      } catch (err: any) {
+        console.warn('[MediaLibrary] Failed to create media asset in DB:', err);
+      }
 
       setMediaList((prev) => [newAsset, ...prev]);
       setModalVisible(false);

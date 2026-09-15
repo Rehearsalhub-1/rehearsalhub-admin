@@ -420,35 +420,41 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
       return;
     }
     try {
-      const res = await api.songs.getPraiseNightSongs(currentProgram.id);
-      const songList = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-      if (songList.length > 0) {
-        setProgramSongs(songList);
-      } else {
-        // Fallback to program details if praise-night-songs returns empty
-        try {
-          const progRes = await api.programs.getById(currentProgram.id);
-          const progData = progRes?.data || progRes;
-          if (progData && Array.isArray(progData.songs) && progData.songs.length > 0) {
-            setProgramSongs(progData.songs);
-            setCurrentProgram(prev => ({ ...prev, ...progData }));
-          }
-        } catch {
-          // Keep existing songs
+      // Primary fetch: programs/:id always returns a fully-shaped song list
+      // via the programSongs junction table — this is the most reliable source.
+      const [progRes, songsRes] = await Promise.allSettled([
+        api.programs.getById(currentProgram.id),
+        api.songs.getPraiseNightSongs(currentProgram.id),
+      ]);
+
+      // Songs from the program record (junction table via shapeProgram)
+      const progData = progRes.status === 'fulfilled'
+        ? (progRes.value?.data || progRes.value)
+        : null;
+      const junctionSongs: PraiseSong[] =
+        progData && Array.isArray(progData.songs) ? progData.songs : [];
+
+      // Songs from the /songs?programId=... endpoint (may include legacy songs)
+      const songsList: PraiseSong[] =
+        songsRes.status === 'fulfilled'
+          ? (Array.isArray(songsRes.value?.data) ? songsRes.value.data : (Array.isArray(songsRes.value) ? songsRes.value : []))
+          : [];
+
+      // Merge: start with junction songs (ordered), append any extras from songsList
+      const seenIds = new Set<string>(junctionSongs.map((s) => s.id));
+      const extras = songsList.filter((s) => !seenIds.has(s.id));
+      const merged: PraiseSong[] = [...junctionSongs, ...extras];
+
+      if (merged.length > 0) {
+        setProgramSongs(merged);
+        if (progData) {
+          setCurrentProgram(prev => ({ ...prev, ...progData, songs: merged }));
         }
+      } else if (junctionSongs.length === 0 && songsList.length === 0) {
+        // Nothing from either — keep whatever was passed via nav params
       }
     } catch (e) {
       console.error('[ProgramSongs] fetch error:', e);
-      try {
-        const progRes = await api.programs.getById(currentProgram.id);
-        const progData = progRes?.data || progRes;
-        if (progData && Array.isArray(progData.songs) && progData.songs.length > 0) {
-          setProgramSongs(progData.songs);
-          setCurrentProgram(prev => ({ ...prev, ...progData }));
-        }
-      } catch {
-        // Keep existing
-      }
     } finally {
       setLoading(false);
       setRefreshing(false);

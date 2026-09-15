@@ -198,7 +198,13 @@ export default function MediaSelectionModal({
         uploadType: UploadType.MULTIPART,
         fieldName: 'file',
         mimeType: file.mimeType ?? 'application/octet-stream',
-        parameters: { folder: 'rehearsals' },
+        parameters: {
+          folder: 'rehearsals',
+          name: file.name,
+          title: file.name,
+          filename: file.name,
+          ...(activeZone?.id ? { zoneId: activeZone.id } : {}),
+        },
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(process.env.EXPO_PUBLIC_INTERNAL_API_KEY

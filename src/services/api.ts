@@ -287,7 +287,7 @@ export const api = {
       apiClient.patch<{ success: boolean; data?: any }>(`/media/${mediaId}`, data).catch(() => ({ success: true })),
     delete: (mediaId: string) =>
       apiClient.delete<{ success: boolean }>(`/media/${mediaId}`),
-    upload: async (file: { uri: string; name: string; type: string }, folder = 'rehearsals') => {
+    upload: async (file: { uri: string; name: string; type: string }, folder = 'rehearsals', zoneId?: string) => {
       const { BASE_URL, getAccessToken } = await import('../lib/apiClient');
       const { File: ExpoFile, UploadType } = await import('expo-file-system');
       const token = await getAccessToken();
@@ -298,9 +298,16 @@ export const api = {
         uploadType: UploadType.MULTIPART,
         fieldName: 'file',
         mimeType: file.type || 'application/octet-stream',
-        parameters: { folder },
+        parameters: {
+          folder,
+          name: file.name,
+          title: file.name,
+          filename: file.name,
+          ...(zoneId ? { zoneId } : {}),
+        },
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(zoneId ? { 'x-zone-id': zoneId } : {}),
           ...(process.env.EXPO_PUBLIC_INTERNAL_API_KEY
             ? { 'x-api-key': process.env.EXPO_PUBLIC_INTERNAL_API_KEY }
             : {}),
