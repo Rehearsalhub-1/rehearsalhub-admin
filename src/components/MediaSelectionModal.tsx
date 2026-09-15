@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import * as DocumentPicker from 'expo-document-picker';
+import { File as ExpoFile, UploadType } from 'expo-file-system';
 import { Colors } from '../constants/Colors';
 import { api } from '../services/api';
 import { EmptyState } from './ui';
@@ -180,16 +181,37 @@ export default function MediaSelectionModal({
       const file = result.assets[0];
       setUploading(true);
 
-      const uploadData = await api.media.upload(
-        {
-          uri: file.uri,
-          name: file.name,
-          type: file.mimeType ?? 'application/octet-stream',
-        },
-        'rehearsals'
-      );
+      // Use expo-file-system's new File.upload() API (SDK 57).
+      // The old fetch + FormData with plain object { uri, name, type } throws
+      // "Unsupported FormDataPart implementation" in Expo's new fetch.
+      const { BASE_URL, getAccessToken } = await import('../lib/apiClient');
+      const token = await getAccessToken();
+      const uploadUrl = `${BASE_URL}/upload`;
 
-      const fileUrl = uploadData.data?.url || (uploadData as any).url || '';
+      const expoFile = new ExpoFile(file.uri);
+      const fsResult = await expoFile.upload(uploadUrl, {
+        uploadType: UploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType: file.mimeType ?? 'application/octet-stream',
+        parameters: { folder: 'rehearsals' },
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(process.env.EXPO_PUBLIC_INTERNAL_API_KEY
+            ? { 'x-api-key': process.env.EXPO_PUBLIC_INTERNAL_API_KEY }
+            : {}),
+        },
+      });
+
+      if (fsResult.status < 200 || fsResult.status >= 300) {
+        let errMsg = 'Upload failed';
+        try { errMsg = JSON.parse(fsResult.body)?.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
+
+      let uploadData: any = {};
+      try { uploadData = JSON.parse(fsResult.body); } catch {}
+
+      const fileUrl = uploadData.data?.url || uploadData.url || '';
       const newMediaRes = await api.media.create({
         name: file.name,
         url: fileUrl,

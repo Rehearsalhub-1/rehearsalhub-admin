@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import * as Updates from 'expo-updates';
 
@@ -12,13 +12,12 @@ export interface OTACheckResult {
 /**
  * useOTAUpdates
  *
- * Silently checks for an EAS OTA (JS bundle) update on app launch and foreground transitions.
- * Returns `showUpdateModal` + `dismissModal` to drive <OTAUpdateModal /> instead of Alert.
+ * Silently checks for and downloads EAS OTA updates on launch and foreground.
+ * The update is applied automatically on the NEXT cold launch — no modal, no interruption.
  */
 export function useOTAUpdates() {
   const lastCheckedAt = useRef<number>(0);
   const isChecking = useRef<boolean>(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const runBackgroundCheck = async () => {
     if (__DEV__ || !Updates.isEnabled) return;
@@ -33,11 +32,11 @@ export function useOTAUpdates() {
     try {
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
-        console.log('[OTA] Auto-downloading new update in background...');
+        console.log('[OTA] New update found — downloading silently...');
         await Updates.fetchUpdateAsync();
-        console.log('[OTA] Auto-download complete — showing modal.');
-        // Show custom modal instead of Alert so users see spinner on restart
-        setShowUpdateModal(true);
+        // Update is now cached. It will be applied automatically on next cold launch.
+        // No modal, no interruption — users see the new version next time they open the app.
+        console.log('[OTA] Download complete. Will apply on next launch.');
       }
     } catch (err: any) {
       console.warn('[OTA] Background check warning:', err?.message || err);
@@ -55,8 +54,8 @@ export function useOTAUpdates() {
       const result = await Updates.checkForUpdateAsync();
       if (result.isAvailable) {
         await Updates.fetchUpdateAsync();
-        setShowUpdateModal(true);
-        return { status: 'updated', message: 'Update downloaded and ready to apply.' };
+        // Still no forced restart — just tell the user it'll apply next time
+        return { status: 'updated', message: 'Update downloaded! You\'ll see it next time you open the app.' };
       }
       return { status: 'up_to_date', message: 'App is already up to date.' };
     } catch (err: any) {
@@ -79,8 +78,9 @@ export function useOTAUpdates() {
   }, []);
 
   return {
-    showUpdateModal,
-    dismissModal: () => setShowUpdateModal(false),
+    // Kept for backwards compatibility — always false now (no modal shown)
+    showUpdateModal: false as const,
+    dismissModal: () => {},
     checkManually,
   };
 }

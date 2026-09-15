@@ -271,7 +271,7 @@ export const api = {
 
   // ── Media Assets & Cloud Uploads ────────────────────────────────────────
   media: {
-    getAll: (zoneId?: string, limit = 100, type?: string) => {
+    getAll: (zoneId?: string, limit = 2000, type?: string) => {
       const params = new URLSearchParams();
       params.append('limit', String(limit));
       if (zoneId) params.append('zoneId', zoneId);
@@ -286,11 +286,13 @@ export const api = {
       apiClient.delete<{ success: boolean }>(`/media/${mediaId}`),
     upload: async (file: { uri: string; name: string; type: string }, folder = 'rehearsals') => {
       const formData = new FormData();
+      // React Native requires appending file as a blob-like object.
+      // Using 'as any' is required because RN's FormData differs from the web spec.
       formData.append('file', {
         uri: file.uri,
-        name: file.name,
-        type: file.type,
-      } as any);
+        name: file.name || 'upload',
+        type: file.type || 'application/octet-stream',
+      } as unknown as Blob);
       formData.append('folder', folder);
       return apiClient.upload<{ success: boolean; data: { url: string; key: string; size: number } }>('/upload', formData);
     },
