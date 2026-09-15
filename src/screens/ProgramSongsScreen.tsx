@@ -661,21 +661,13 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         })
         .catch(err => console.error('[handleSongCreated] api.songs.create error:', err));
 
-      setProgramSongs(prev => {
-        const next = [songPayload, ...prev];
-        api.programs.updateSongIds(currentProgram.id, next.map(s => s.id)).catch(() => {});
-        return next;
-      });
+      setProgramSongs(prev => [songPayload, ...prev]);
     }
   }
 
   function handleSongCloned(clonedSong?: PraiseSong) {
     if (clonedSong) {
-      setProgramSongs(prev => {
-        const next = [clonedSong, ...prev];
-        api.programs.updateSongIds(currentProgram.id, next.map(s => s.id)).catch(() => {});
-        return next;
-      });
+      setProgramSongs(prev => [clonedSong, ...prev]);
     }
   }
 
