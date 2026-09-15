@@ -231,6 +231,14 @@ export default function MoreScreen({ navigation }: any) {
             sub="Rehearsal programs, setlists, and running orders"
             onPress={() => navigation.navigate('Programs')}
           />
+          <MenuItem
+            iconName="time-outline"
+            iconColor="#6366f1"
+            iconBg="#eef2ff"
+            label="Schedule Manager"
+            sub="Rehearsal timetables, daily slots, and active schedule"
+            onPress={() => navigation.navigate('Schedule')}
+          />
           {/* Hide Submitted Songs in pure Church Mode */}
           {!isPureChurchAdmin && !isChurchMode && (
             <MenuItem
