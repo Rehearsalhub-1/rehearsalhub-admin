@@ -283,13 +283,11 @@ export default function EditSongModal({
       setCoordinatorAudioUrl(commentAudio);
 
       setHistoryEntries(Array.isArray(song.history) ? song.history : []);
-      if (song.id) {
+      if (song.id && !song.id.startsWith('song-')) {
         api.songs.getSongHistory(song.id)
           .then((res: any) => {
             const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-            if (list.length > 0) {
-              setHistoryEntries(list);
-            }
+            setHistoryEntries(list);
           })
           .catch(() => {});
       }
@@ -323,6 +321,12 @@ export default function EditSongModal({
     }
     if (visible) {
       setActiveTab(initialTab);
+    } else {
+      setShowHistoryList(false);
+      setShowHistoryForm(false);
+      setShowStatusPicker(false);
+      setShowProgramPicker(false);
+      setEditingHistoryEntryId(null);
     }
   }, [song, visible, programName, initialTab]);
 
@@ -549,7 +553,7 @@ export default function EditSongModal({
 
   const handleSaveHistoryEntry = async () => {
     if (!historyFormTitle.trim()) {
-      customAlert('Required', 'Please enter a version title.');
+      Alert.alert('Required', 'Please enter a version title.');
       return;
     }
 
@@ -568,7 +572,7 @@ export default function EditSongModal({
             new_value: originalHistoryValues.new_value,
           });
         }
-        setHistoryEntries(prev => prev.map(entry => {
+        const updatedList = historyEntries.map(entry => {
           if (entry.id === editingHistoryEntryId) {
             return {
               ...entry,
@@ -580,17 +584,21 @@ export default function EditSongModal({
             };
           }
           return entry;
-        }));
-        customAlert('History Updated', 'Revision entry has been updated.');
+        });
+        setHistoryEntries(updatedList);
+        if (song && Array.isArray(song.history)) {
+          song.history = updatedList;
+        }
+        Alert.alert('History Updated', 'Revision entry has been updated.');
       } catch (err: any) {
-        customAlert('Update Failed', err?.message || 'Could not update history entry.');
+        Alert.alert('Update Failed', err?.message || 'Could not update history entry.');
         return;
       }
     } else {
       // Create new version in DB and state
       try {
         let savedEntryId = `hist-${Date.now()}`;
-        if (song?.id) {
+        if (song?.id && !song.id.startsWith('song-')) {
           const res = await api.songs.createSongHistory({
             songId: song.id,
             type: historyFormType,
@@ -604,6 +612,7 @@ export default function EditSongModal({
 
         const newEntry = {
           id: savedEntryId,
+          songId: song?.id,
           type: historyFormType,
           title: titleText,
           description: descText,
@@ -613,10 +622,14 @@ export default function EditSongModal({
           date: new Date().toLocaleString(),
           created_by: 'Coordinator',
         };
-        setHistoryEntries(prev => [newEntry, ...prev]);
-        customAlert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
+        const newList = [newEntry, ...historyEntries];
+        setHistoryEntries(newList);
+        if (song && Array.isArray(song.history)) {
+          song.history = newList;
+        }
+        Alert.alert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
       } catch (err: any) {
-        customAlert('Save Failed', err?.message || 'Could not record history version.');
+        Alert.alert('Save Failed', err?.message || 'Could not record history version.');
         return;
       }
     }
@@ -626,7 +639,7 @@ export default function EditSongModal({
   };
 
   const handleDeleteHistoryEntry = (id: string) => {
-    customAlert(
+    Alert.alert(
       'Delete History Entry',
       'Are you sure you want to delete this revision history entry?',
       [
@@ -639,9 +652,15 @@ export default function EditSongModal({
               if (!id.startsWith('hist-')) {
                 await api.songs.deleteSongHistory(id);
               }
-              setHistoryEntries(prev => prev.filter(h => h.id !== id));
+              setHistoryEntries(prev => {
+                const filtered = prev.filter(h => h.id !== id);
+                if (song && Array.isArray(song.history)) {
+                  song.history = filtered;
+                }
+                return filtered;
+              });
             } catch (err: any) {
-              customAlert('Delete Failed', err?.message || 'Could not delete history entry.');
+              Alert.alert('Delete Failed', err?.message || 'Could not delete history entry.');
             }
           },
         },
@@ -652,7 +671,7 @@ export default function EditSongModal({
   // Update / Add Song Submit Action
   const handleSubmit = () => {
     if (!songTitle.trim()) {
-      customAlert('Required Field', 'Please enter a song title.');
+      Alert.alert('Required Field', 'Please enter a song title.');
       return;
     }
 
@@ -720,12 +739,12 @@ export default function EditSongModal({
 
     stopAudio();
     onUpdate(payload);
-    onClose();
+    handleClose();
   };
 
   const handleDelete = () => {
     if (!song || !song.id) return;
-    customAlert(
+    Alert.alert(
       'Delete Song',
       `Are you sure you want to delete "${songTitle || song.title}"?`,
       [
@@ -736,7 +755,7 @@ export default function EditSongModal({
           onPress: () => {
             stopAudio();
             if (onDelete && song.id) onDelete(song.id);
-            onClose();
+            handleClose();
           },
         },
       ]
@@ -745,6 +764,11 @@ export default function EditSongModal({
 
   const handleClose = () => {
     stopAudio();
+    setShowHistoryList(false);
+    setShowHistoryForm(false);
+    setShowStatusPicker(false);
+    setShowProgramPicker(false);
+    setEditingHistoryEntryId(null);
     onClose();
   };
 
@@ -887,34 +911,19 @@ export default function EditSongModal({
           </Text>
         </View>
 
-        {/* Status Dropdown (Program Songs) vs Master Program (Master Songs) */}
-        {isMaster ? (
-          <View style={{ flex: isMedium ? 1 : undefined, marginTop: isMedium ? 0 : 12 }}>
-            <Text style={styles.fieldLabel}>Master Collection</Text>
-            <TouchableOpacity
-              style={styles.pickerTrigger}
-              onPress={() => setShowProgramPicker(true)}
-            >
-              <Text style={styles.pickerTriggerText}>
-                {songProgram || 'Select Program'}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={{ flex: isMedium ? 1 : undefined, marginTop: isMedium ? 0 : 12 }}>
-            <Text style={styles.fieldLabel}>Rehearsal Status</Text>
-            <TouchableOpacity
-              style={styles.pickerTrigger}
-              onPress={() => setShowStatusPicker(true)}
-            >
-              <Text style={styles.pickerTriggerText}>
-                {songStatus === 'heard' ? 'Heard' : 'Unheard'}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Rehearsal Status Dropdown */}
+        <View style={{ flex: isMedium ? 1 : undefined, marginTop: isMedium ? 0 : 12 }}>
+          <Text style={styles.fieldLabel}>Rehearsal Status</Text>
+          <TouchableOpacity
+            style={styles.pickerTrigger}
+            onPress={() => setShowStatusPicker(true)}
+          >
+            <Text style={styles.pickerTriggerText}>
+              {songStatus === 'heard' ? 'Heard' : 'Unheard'}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color="#64748b" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* LIVE Broadcast Toggle Row (Card 1) — Only for Program Rehearsal Songs, NOT Master Catalog */}
@@ -1982,38 +1991,6 @@ export default function EditSongModal({
           </View>
         </Modal>
 
-        {/* ── Program Selection Modal ────────────────────────────────────────── */}
-        <Modal visible={showProgramPicker} transparent animationType="fade">
-          <TouchableOpacity
-            style={styles.pickerOverlay}
-            activeOpacity={1}
-            onPress={() => setShowProgramPicker(false)}
-          >
-            <View style={[styles.pickerModalContent, isTablet && styles.pickerModalContentCentered]}>
-              <Text style={styles.pickerModalTitle}>{isMaster ? 'Select Master Collection' : 'Select Program'}</Text>
-              <ScrollView style={{ maxHeight: 280 }}>
-                {availablePrograms.map(pn => (
-                  <TouchableOpacity
-                    key={pn.id}
-                    style={styles.pickerOptionItem}
-                    onPress={() => {
-                      setSongProgram(pn.name);
-                      setShowProgramPicker(false);
-                    }}
-                  >
-                    <Text style={[styles.pickerOptionText, songProgram === pn.name && styles.pickerOptionTextActive]}>
-                      {pn.name}
-                    </Text>
-                    {songProgram === pn.name && (
-                      <Ionicons name="checkmark" size={18} color="#7c3aed" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-
         {/* ── Status Selection Modal ────────────────────────────────────────── */}
         <Modal visible={showStatusPicker} transparent animationType="fade">
           <TouchableOpacity
@@ -2045,7 +2022,7 @@ export default function EditSongModal({
         </Modal>
 
         {/* ── View History Entries Modal (Web Admin 1:1 Parity) ─────────────── */}
-        <Modal visible={showHistoryList} transparent animationType="slide">
+        <Modal visible={showHistoryList} transparent animationType="slide" onRequestClose={() => setShowHistoryList(false)}>
           <View style={styles.pickerOverlay}>
             <View style={[styles.historyListSheet, isTablet && styles.historySheetCentered, { paddingBottom: Math.max(insets.bottom, 16) }]}>
               <View style={styles.historySheetHeader}>
@@ -2126,7 +2103,7 @@ export default function EditSongModal({
         </Modal>
 
         {/* ── Add / Edit History Form Modal (Web Admin 1:1 Parity) ──────────── */}
-        <Modal visible={showHistoryForm} transparent animationType="slide">
+        <Modal visible={showHistoryForm} transparent animationType="slide" onRequestClose={() => { setEditingHistoryEntryId(null); setShowHistoryForm(false); }}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.pickerOverlay}>
             <View style={[styles.historyListSheet, isTablet && styles.historySheetCentered, { paddingBottom: Math.max(insets.bottom, 16) }]}>
               <View style={styles.historySheetHeader}>
