@@ -547,54 +547,78 @@ export default function EditSongModal({
     setShowHistoryForm(true);
   };
 
-  const handleSaveHistoryEntry = () => {
+  const handleSaveHistoryEntry = async () => {
     if (!historyFormTitle.trim()) {
       customAlert('Required', 'Please enter a version title.');
       return;
     }
 
+    const titleText = historyFormTitle.trim();
+    const descText = historyFormDesc.trim() || titleText;
+
     if (editingHistoryEntryId) {
-      // Update existing entry
-      setHistoryEntries(prev => prev.map(entry => {
-        if (entry.id === editingHistoryEntryId) {
-          return {
-            ...entry,
-            title: historyFormTitle.trim(),
+      // Update existing entry on server and local state
+      try {
+        if (!editingHistoryEntryId.startsWith('hist-')) {
+          await api.songs.updateSongHistory(editingHistoryEntryId, {
             type: historyFormType,
-            description: historyFormDesc.trim(),
+            title: titleText,
+            description: descText,
+            old_value: originalHistoryValues.old_value,
             new_value: originalHistoryValues.new_value,
-            updated_at: new Date().toISOString(),
-          };
+          });
         }
-        return entry;
-      }));
-      customAlert('History Updated', 'Revision entry has been updated.');
+        setHistoryEntries(prev => prev.map(entry => {
+          if (entry.id === editingHistoryEntryId) {
+            return {
+              ...entry,
+              title: titleText,
+              type: historyFormType,
+              description: descText,
+              new_value: originalHistoryValues.new_value,
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return entry;
+        }));
+        customAlert('History Updated', 'Revision entry has been updated.');
+      } catch (err: any) {
+        customAlert('Update Failed', err?.message || 'Could not update history entry.');
+        return;
+      }
     } else {
-      // Create new version
-      const newEntry = {
-        id: `hist-${Date.now()}`,
-        type: historyFormType,
-        title: historyFormTitle.trim(),
-        description: historyFormDesc.trim(),
-        old_value: originalHistoryValues.old_value,
-        new_value: originalHistoryValues.new_value,
-        created_at: new Date().toISOString(),
-        date: new Date().toLocaleString(),
-        created_by: 'Coordinator',
-      };
-      setHistoryEntries(prev => [newEntry, ...prev]);
-      // Persist to API
-      if (song?.id) {
-        const { apiClient } = require('../lib/apiClient');
-        apiClient.post('/songs/history', {
-          songId: song.id,
+      // Create new version in DB and state
+      try {
+        let savedEntryId = `hist-${Date.now()}`;
+        if (song?.id) {
+          const res = await api.songs.createSongHistory({
+            songId: song.id,
+            type: historyFormType,
+            title: titleText,
+            description: descText,
+            old_value: originalHistoryValues.old_value,
+            new_value: originalHistoryValues.new_value,
+          });
+          if (res?.data?.id) savedEntryId = res.data.id;
+        }
+
+        const newEntry = {
+          id: savedEntryId,
           type: historyFormType,
-          description: historyFormDesc.trim(),
+          title: titleText,
+          description: descText,
           old_value: originalHistoryValues.old_value,
           new_value: originalHistoryValues.new_value,
-        }).catch(() => {});
+          created_at: new Date().toISOString(),
+          date: new Date().toLocaleString(),
+          created_by: 'Coordinator',
+        };
+        setHistoryEntries(prev => [newEntry, ...prev]);
+        customAlert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
+      } catch (err: any) {
+        customAlert('Save Failed', err?.message || 'Could not record history version.');
+        return;
       }
-      customAlert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
     }
 
     setEditingHistoryEntryId(null);
@@ -610,8 +634,15 @@ export default function EditSongModal({
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setHistoryEntries(prev => prev.filter(h => h.id !== id));
+          onPress: async () => {
+            try {
+              if (!id.startsWith('hist-')) {
+                await api.songs.deleteSongHistory(id);
+              }
+              setHistoryEntries(prev => prev.filter(h => h.id !== id));
+            } catch (err: any) {
+              customAlert('Delete Failed', err?.message || 'Could not delete history entry.');
+            }
           },
         },
       ]
@@ -939,20 +970,6 @@ export default function EditSongModal({
         </View>
       )}
 
-      {!isMaster && (
-        <View style={[styles.fieldGroup, { marginTop: 12 }]}>
-          <Text style={styles.fieldLabel}>Program</Text>
-          <TouchableOpacity
-            style={styles.pickerTrigger}
-            onPress={() => setShowProgramPicker(true)}
-          >
-            <Text style={styles.pickerTriggerText} numberOfLines={1}>
-              {songProgram || 'Select Program'}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color="#64748b" />
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Song Artwork Section */}
       <View style={[styles.fieldGroup, { marginTop: 14 }]}>
