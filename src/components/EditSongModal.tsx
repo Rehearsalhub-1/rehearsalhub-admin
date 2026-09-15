@@ -540,12 +540,16 @@ export default function EditSongModal({
 
   const handleEditHistoryEntry = (entry: any) => {
     setEditingHistoryEntryId(entry.id);
-    setHistoryFormTitle(entry.title || '');
-    setHistoryFormDesc(entry.description || '');
+    const resolvedTitle = entry.title || entry.description || '';
+    const resolvedNotes = entry.notes !== undefined
+      ? entry.notes
+      : (entry.description && entry.description !== entry.title ? entry.description : '');
+    setHistoryFormTitle(resolvedTitle);
+    setHistoryFormDesc(resolvedNotes);
     setHistoryFormType(entry.type || 'song-details');
     setOriginalHistoryValues({
-      old_value: entry.old_value || entry.description || '',
-      new_value: entry.new_value || entry.old_value || entry.description || '',
+      old_value: entry.old_value ?? entry.oldValue ?? '',
+      new_value: entry.new_value ?? entry.newValue ?? entry.old_value ?? entry.oldValue ?? '',
     });
     setShowHistoryList(false);
     setShowHistoryForm(true);
@@ -558,27 +562,31 @@ export default function EditSongModal({
     }
 
     const titleText = historyFormTitle.trim();
-    const descText = historyFormDesc.trim() || titleText;
+    const descText = historyFormDesc.trim();
 
     if (editingHistoryEntryId) {
       // Update existing entry on server and local state
       try {
+        let updatedEntryData: any = null;
         if (!editingHistoryEntryId.startsWith('hist-')) {
-          await api.songs.updateSongHistory(editingHistoryEntryId, {
+          const res = await api.songs.updateSongHistory(editingHistoryEntryId, {
             type: historyFormType,
             title: titleText,
             description: descText,
             old_value: originalHistoryValues.old_value,
             new_value: originalHistoryValues.new_value,
           });
+          if (res?.data) updatedEntryData = res.data;
         }
         const updatedList = historyEntries.map(entry => {
           if (entry.id === editingHistoryEntryId) {
             return {
               ...entry,
-              title: titleText,
-              type: historyFormType,
-              description: descText,
+              ...(updatedEntryData || {}),
+              title: updatedEntryData?.title || titleText,
+              type: updatedEntryData?.type || historyFormType,
+              description: updatedEntryData?.description || descText || titleText,
+              notes: updatedEntryData?.notes !== undefined ? updatedEntryData.notes : descText,
               new_value: originalHistoryValues.new_value,
               updated_at: new Date().toISOString(),
             };
@@ -598,6 +606,7 @@ export default function EditSongModal({
       // Create new version in DB and state
       try {
         let savedEntryId = `hist-${Date.now()}`;
+        let savedServerData: any = null;
         if (song?.id && !song.id.startsWith('song-')) {
           const res = await api.songs.createSongHistory({
             songId: song.id,
@@ -607,7 +616,10 @@ export default function EditSongModal({
             old_value: originalHistoryValues.old_value,
             new_value: originalHistoryValues.new_value,
           });
-          if (res?.data?.id) savedEntryId = res.data.id;
+          if (res?.data?.id) {
+            savedEntryId = res.data.id;
+            savedServerData = res.data;
+          }
         }
 
         const newEntry = {
@@ -615,12 +627,14 @@ export default function EditSongModal({
           songId: song?.id,
           type: historyFormType,
           title: titleText,
-          description: descText,
+          description: descText || titleText,
+          notes: descText,
           old_value: originalHistoryValues.old_value,
           new_value: originalHistoryValues.new_value,
           created_at: new Date().toISOString(),
           date: new Date().toLocaleString(),
           created_by: 'Coordinator',
+          ...(savedServerData || {}),
         };
         const newList = [newEntry, ...historyEntries];
         setHistoryEntries(newList);
@@ -2055,7 +2069,7 @@ export default function EditSongModal({
                             </Text>
                           </View>
                           <Text style={styles.webHistoryTitleText}>{h.title}</Text>
-                          {h.description ? (
+                          {h.description && h.description !== h.title ? (
                             <Text style={styles.webHistoryDescText}>{h.description}</Text>
                           ) : null}
                           <Text style={styles.webHistoryAuthorText}>Created by: {h.created_by || 'Coordinator'}</Text>
