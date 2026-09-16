@@ -34,12 +34,24 @@ export function useZoneContext() {
       : [],
     isChurchMode: session?.mode === 'church',
     activeRoleMode: (session?.mode === 'church' ? 'church' : 'org') as 'church' | 'org',
-    // No-ops — mode changes go through adminStore.setMode()
-    setActiveZone: () => {},
-    switchZone: () => {},
-    switchChurch: () => {},
-    toggleRoleMode: () => {},
-    setRoleMode: () => {},
+    setActiveZone: (_zoneId: string) => {
+      useAdminStore.getState().setMode('zone');
+    },
+    switchZone: (_zoneId?: string) => {
+      useAdminStore.getState().setMode('zone');
+    },
+    switchChurch: (churchId: string) => {
+      useAdminStore.getState().setChurch(churchId);
+    },
+    toggleRoleMode: () => {
+      const s = useAdminStore.getState().session;
+      if (s) {
+        useAdminStore.getState().setMode(s.mode === 'church' ? 'zone' : 'church');
+      }
+    },
+    setRoleMode: (mode: 'church' | 'org') => {
+      useAdminStore.getState().setMode(mode === 'church' ? 'church' : 'zone');
+    },
   };
 }
 

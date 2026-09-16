@@ -230,27 +230,35 @@ export default function MediaLibraryScreen() {
       const res = await api.media.getAll(activeZone?.id);
       const items = Array.isArray(res?.data) ? res.data : [];
       if (items.length > 0) {
-        const mapped: MediaItem[] = items.map((item: any) => ({
-          id: item.id || `media_${Math.random()}`,
-          name: item.name || item.title || 'Untitled Asset',
-          url: item.url || item.videoUrl || '',
-          videoUrl: item.videoUrl,
-          type:
-            item.type ||
-            (item.url?.match(/\.(mp3|wav|m4a|aac)$/i)
-              ? 'audio'
-              : item.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i)
-              ? 'image'
-              : 'document'),
-          size: item.size,
-          thumbnail: item.thumbnail || (item.url ? getYouTubeThumbnail(item.url) : null),
-          description: item.description,
-          uploadedAt: item.uploadedAt || item.createdAt,
-          folder: item.folder,
-          views: item.views,
-          forHq: item.forHq ?? true,
-          zoneId: item.zoneId,
-        }));
+        const mapped: MediaItem[] = items.map((item: any) => {
+          let resolvedName = (item.name || item.title || '').trim();
+          if (!resolvedName || /^[a-z0-9_-]{15,35}$/i.test(resolvedName)) {
+            const d = item.uploadedAt || item.createdAt ? new Date(item.uploadedAt || item.createdAt) : null;
+            const dateStr = d && !isNaN(d.getTime()) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            resolvedName = `Rehearsal Audio ${dateStr}`.trim();
+          }
+          return {
+            id: item.id || `media_${Math.random()}`,
+            name: resolvedName,
+            url: item.url || item.videoUrl || '',
+            videoUrl: item.videoUrl,
+            type:
+              item.type ||
+              (item.url?.match(/\.(mp3|wav|m4a|aac)$/i)
+                ? 'audio'
+                : item.url?.match(/\.(jpg|jpeg|png|webp|gif)$/i)
+                ? 'image'
+                : 'document'),
+            size: item.size,
+            thumbnail: item.thumbnail || (item.url ? getYouTubeThumbnail(item.url) : null),
+            description: item.description,
+            uploadedAt: item.uploadedAt || item.createdAt,
+            folder: item.folder,
+            views: item.views,
+            forHq: item.forHq ?? true,
+            zoneId: item.zoneId,
+          };
+        });
         setMediaList(mapped);
       } else {
         setMediaList([]);
@@ -721,6 +729,10 @@ export default function MediaLibraryScreen() {
       let detectedType = formCategory;
       const sizeLabel = selectedFile?.size ? formatFileSize(selectedFile.size) : 'Online Stream';
 
+      const targetZoneId = (activeZone?.id && activeZone.id !== 'all' && activeZone.id !== 'global')
+        ? activeZone.id
+        : 'zone-001';
+
       if (inputSource === 'device' && selectedFile) {
         try {
           const uploadRes = await api.media.upload(
@@ -730,7 +742,7 @@ export default function MediaLibraryScreen() {
               type: selectedFile.type,
             },
             'rehearsals',
-            activeZone?.id
+            targetZoneId
           );
           finalUrl = uploadRes.data?.url || (uploadRes as any).url || selectedFile.uri;
           if (!finalUrl || finalUrl === selectedFile.uri) {
@@ -758,26 +770,24 @@ export default function MediaLibraryScreen() {
         description: formNotes.trim() || undefined,
         uploadedAt: new Date().toISOString(),
         forHq: true,
-        zoneId: activeZone?.id,
+        zoneId: targetZoneId,
       };
 
-      try {
-        const createRes = await api.media.create({
-          title: newAsset.name,
-          name: newAsset.name,
-          url: newAsset.url,
-          type: newAsset.type,
-          folder: 'rehearsals',
-          description: newAsset.description,
-          zoneId: activeZone?.id,
-          organizationId: activeZone?.id,
-        });
-        if (createRes?.data?.id) {
-          newAsset.id = createRes.data.id;
-        }
-      } catch (err: any) {
-        console.warn('[MediaLibrary] Failed to create media asset in DB:', err);
+      const createRes = await api.media.create({
+        title: newAsset.name,
+        name: newAsset.name,
+        url: newAsset.url,
+        type: newAsset.type,
+        folder: 'rehearsals',
+        description: newAsset.description,
+        zoneId: targetZoneId,
+        organizationId: targetZoneId,
+      });
+
+      if (!createRes?.data?.id) {
+        throw new Error((createRes as any)?.error || 'Server did not confirm media creation. Please try again.');
       }
+      newAsset.id = createRes.data.id;
 
       setMediaList((prev) => [newAsset, ...prev]);
       setModalVisible(false);

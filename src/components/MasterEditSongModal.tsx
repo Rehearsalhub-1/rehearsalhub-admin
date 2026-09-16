@@ -387,7 +387,15 @@ export default function MasterEditSongModal({
       }
       if (response && response.success === false) throw new Error('Failed to save master song.');
 
-      onSaved(payload, isCreate);
+      const savedSong: MasterSong = response?.data
+        ? {
+            ...payload,
+            id: response.data.id || payload.id,
+            ...response.data,
+          }
+        : payload;
+
+      onSaved(savedSong, isCreate);
       onClose();
     } catch (e: any) {
       customAlert('Save Error', e.message || 'Failed to save master song.');

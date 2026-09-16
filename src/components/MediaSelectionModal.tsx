@@ -193,6 +193,10 @@ export default function MediaSelectionModal({
       const token = await getAccessToken();
       const uploadUrl = `${BASE_URL}/upload`;
 
+      const targetZoneId = (activeZone?.id && activeZone.id !== 'all' && activeZone.id !== 'global')
+        ? activeZone.id
+        : 'zone-001';
+
       const expoFile = new ExpoFile(file.uri);
       const fsResult = await expoFile.upload(uploadUrl, {
         uploadType: UploadType.MULTIPART,
@@ -203,10 +207,11 @@ export default function MediaSelectionModal({
           name: file.name,
           title: file.name,
           filename: file.name,
-          ...(activeZone?.id ? { zoneId: activeZone.id } : {}),
+          zoneId: targetZoneId,
         },
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'x-zone-id': targetZoneId,
           ...(process.env.EXPO_PUBLIC_INTERNAL_API_KEY
             ? { 'x-api-key': process.env.EXPO_PUBLIC_INTERNAL_API_KEY }
             : {}),
@@ -228,15 +233,15 @@ export default function MediaSelectionModal({
         name: file.name,
         url: fileUrl,
         type: inferMediaType(file.mimeType ?? ''),
-        zoneId: activeZone?.id,
+        zoneId: targetZoneId,
+        organizationId: targetZoneId,
       });
 
-      const newMedia: MediaFile = newMediaRes?.data || {
-        id: String(Date.now()),
-        name: file.name,
-        url: fileUrl,
-        type: inferMediaType(file.mimeType ?? ''),
-      };
+      if (!newMediaRes?.data?.id) {
+        throw new Error((newMediaRes as any)?.error || 'Server did not confirm media record. Please try again.');
+      }
+
+      const newMedia: MediaFile = newMediaRes.data;
 
       await stopAudio();
       onSelect(fileUrl, newMedia);

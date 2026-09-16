@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { apiClient, clearTokens, SessionExpiredError } from '../lib/apiClient';
+import { apiClient, clearTokens, SessionExpiredError, setMobileTenantScope } from '../lib/apiClient';
 
 export interface AdminSession {
   userId: string;
@@ -15,6 +15,19 @@ export interface AdminSession {
   churches: Array<{ id: string; name: string }>;
   isHQ: boolean;
   isDualRole: boolean;
+}
+
+function syncScopeFromSession(session: AdminSession | null) {
+  if (!session) {
+    setMobileTenantScope({ zoneId: null, zoneCode: null, churchId: null, scope: 'global' });
+    return;
+  }
+  const isChurch = session.mode === 'church';
+  setMobileTenantScope({
+    zoneId: session.zoneId || null,
+    churchId: isChurch ? session.churchId : null,
+    scope: isChurch ? 'church' : (session.zoneId ? 'zone' : 'global'),
+  });
 }
 
 interface AdminStore {
@@ -39,6 +52,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     try {
       const token = await SecureStore.getItemAsync('jwt');
       if (!token) {
+        syncScopeFromSession(null);
         set({ session: null, isAuthenticated: false, loading: false });
         return;
       }
@@ -48,13 +62,16 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         const cached = await SecureStore.getItemAsync(SESSION_KEY);
         if (cached) {
           const s: AdminSession = JSON.parse(cached);
-          set({ session: { ...s, churches: s.churches || (s.churchId ? [{ id: s.churchId, name: s.churchName || 'Church' }] : []) }, isAuthenticated: true, loading: false });
+          const restored: AdminSession = { ...s, churches: s.churches || (s.churchId ? [{ id: s.churchId, name: s.churchName || 'Church' }] : []) };
+          syncScopeFromSession(restored);
+          set({ session: restored, isAuthenticated: true, loading: false });
         }
       } catch {}
 
       // Live fetch from /auth/me
       const meRes = await apiClient.get<{ success: boolean; data: any }>('/auth/me');
       if (!meRes?.data) {
+        syncScopeFromSession(null);
         set({ session: null, isAuthenticated: false, loading: false });
         return;
       }
@@ -100,7 +117,8 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         raw.zoneId;
 
       if (!zoneId) {
-        console.error('[AdminStore] No zoneId resolved � cannot build session');
+        console.error('[AdminStore] No zoneId resolved — cannot build session');
+        syncScopeFromSession(null);
         set({ session: null, isAuthenticated: false, loading: false });
         return;
       }
@@ -165,15 +183,17 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
       };
 
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
+      syncScopeFromSession(session);
       set({ session, isAuthenticated: true, loading: false });
     } catch (err: any) {
+      syncScopeFromSession(null);
       if (err instanceof SessionExpiredError) {
         await clearTokens();
         await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
         set({ session: null, isAuthenticated: false, loading: false });
         return;
       }
-      console.error('[AdminStore] bootstrap error � clearing session:', err);
+      console.error('[AdminStore] bootstrap error — clearing session:', err);
       await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
       set({ session: null, isAuthenticated: false, loading: false });
     }
@@ -184,6 +204,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     if (!session) return;
     const updated: AdminSession = { ...session, mode };
     SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+    syncScopeFromSession(updated);
     set({ session: updated });
   },
 
@@ -194,6 +215,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     if (!church) return;
     const updated: AdminSession = { ...session, mode: 'church', churchId: church.id, churchName: church.name };
     SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+    syncScopeFromSession(updated);
     set({ session: updated });
   },
 
@@ -206,6 +228,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     } catch {}
     await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
     await clearTokens();
+    syncScopeFromSession(null);
     set({ session: null, isAuthenticated: false, loading: false });
   },
 }));
