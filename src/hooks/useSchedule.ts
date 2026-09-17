@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
 import { ScheduleProgram } from '../screens/ScheduleScreen';
+import { useWebSocket } from './useWebSocket';
 
 export function useSchedule() {
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
@@ -41,6 +42,10 @@ export function useSchedule() {
     setLoading(true);
     fetch();
   }, [fetch]);
+
+  useWebSocket('schedule', 'all', () => {
+    fetch();
+  }, true);
 
   const refetch = useCallback(() => {
     setRefreshing(true);

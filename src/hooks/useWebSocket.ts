@@ -8,6 +8,8 @@ const RESOURCE_ALIASES: Record<string, string[]> = {
   call: ['calls', 'incoming_call', 'call_status', 'call_signal'],
   calls: ['call'],
   song: ['songs', 'praise_night_song', 'active_song'],
+  schedule: ['schedules'],
+  schedules: ['schedule'],
 };
 const eventCursors = new Map<string, number>();
 
