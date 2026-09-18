@@ -288,6 +288,18 @@ export default function EditSongModal({
           .then((res: any) => {
             const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
             setHistoryEntries(list);
+            if (!commentText) {
+              const latestComment = list.find((e: any) => {
+                const t = (e.type || '').toLowerCase();
+                return t === 'comments' || t === 'comment' || t.includes('comment');
+              });
+              if (latestComment) {
+                const text = latestComment.new_value || latestComment.notes || latestComment.description || latestComment.title || '';
+                if (text && typeof text === 'string') {
+                  setCoordinatorComment(text);
+                }
+              }
+            }
           })
           .catch(() => {});
       }
@@ -568,16 +580,14 @@ export default function EditSongModal({
       // Update existing entry on server and local state
       try {
         let updatedEntryData: any = null;
-        if (!editingHistoryEntryId.startsWith('hist-')) {
-          const res = await api.songs.updateSongHistory(editingHistoryEntryId, {
-            type: historyFormType,
-            title: titleText,
-            description: descText,
-            old_value: originalHistoryValues.old_value,
-            new_value: originalHistoryValues.new_value,
-          });
-          if (res?.data) updatedEntryData = res.data;
-        }
+        const res = await api.songs.updateSongHistory(editingHistoryEntryId, {
+          type: historyFormType,
+          title: titleText,
+          description: descText,
+          old_value: originalHistoryValues.old_value,
+          new_value: originalHistoryValues.new_value,
+        });
+        if (res?.data) updatedEntryData = res.data;
         const updatedList = historyEntries.map(entry => {
           if (entry.id === editingHistoryEntryId) {
             return {
@@ -664,9 +674,7 @@ export default function EditSongModal({
           style: 'destructive',
           onPress: async () => {
             try {
-              if (!id.startsWith('hist-')) {
-                await api.songs.deleteSongHistory(id);
-              }
+              await api.songs.deleteSongHistory(id);
               setHistoryEntries(prev => {
                 const filtered = prev.filter(h => h.id !== id);
                 if (song && Array.isArray(song.history)) {
