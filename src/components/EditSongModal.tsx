@@ -283,7 +283,7 @@ export default function EditSongModal({
       setCoordinatorAudioUrl(commentAudio);
 
       setHistoryEntries(Array.isArray(song.history) ? song.history : []);
-      if (song.id && !song.id.startsWith('song-')) {
+      if (song.id) {
         api.songs.getSongHistory(song.id)
           .then((res: any) => {
             const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
@@ -605,26 +605,27 @@ export default function EditSongModal({
     } else {
       // Create new version in DB and state
       try {
-        let savedEntryId = `hist-${Date.now()}`;
-        let savedServerData: any = null;
-        if (song?.id && !song.id.startsWith('song-')) {
-          const res = await api.songs.createSongHistory({
-            songId: song.id,
-            type: historyFormType,
-            title: titleText,
-            description: descText,
-            old_value: originalHistoryValues.old_value,
-            new_value: originalHistoryValues.new_value,
-          });
-          if (res?.data?.id) {
-            savedEntryId = res.data.id;
-            savedServerData = res.data;
-          }
+        if (!song?.id) {
+          Alert.alert('Cannot Save History', 'Please save the song first before adding history revisions.');
+          return;
+        }
+
+        const res = await api.songs.createSongHistory({
+          songId: song.id,
+          type: historyFormType,
+          title: titleText,
+          description: descText,
+          old_value: originalHistoryValues.old_value,
+          new_value: originalHistoryValues.new_value,
+        });
+
+        if (!res?.data?.id) {
+          throw new Error('Server did not return a confirmed history ID.');
         }
 
         const newEntry = {
-          id: savedEntryId,
-          songId: song?.id,
+          id: res.data.id,
+          songId: song.id,
           type: historyFormType,
           title: titleText,
           description: descText || titleText,
@@ -634,16 +635,16 @@ export default function EditSongModal({
           created_at: new Date().toISOString(),
           date: new Date().toLocaleString(),
           created_by: 'Coordinator',
-          ...(savedServerData || {}),
+          ...res.data,
         };
         const newList = [newEntry, ...historyEntries];
         setHistoryEntries(newList);
         if (song && Array.isArray(song.history)) {
           song.history = newList;
         }
-        Alert.alert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved.`);
+        Alert.alert('History Saved', `New audit version for "${formatHistoryType(historyFormType)}" saved to database.`);
       } catch (err: any) {
-        Alert.alert('Save Failed', err?.message || 'Could not record history version.');
+        Alert.alert('Save Failed', err?.message || 'Could not record history version to database.');
         return;
       }
     }

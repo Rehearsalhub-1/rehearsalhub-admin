@@ -225,6 +225,23 @@ function CloneFromMasterModal({ visible, programId, existingIds, onClose, onClon
         throw new Error('Failed to save cloned song.');
       }
 
+      // Clone existing history from masterSong if available
+      try {
+        const histRes = await api.songs.getSongHistory(masterSong.id);
+        const pastEntries = Array.isArray(histRes?.data) ? histRes.data : [];
+        const newTargetId = result.data?.id || clonedSong.id;
+        for (const entry of pastEntries) {
+          await api.songs.createSongHistory({
+            songId: newTargetId,
+            type: entry.type || 'details',
+            title: entry.title || entry.description || 'Historical Record',
+            description: entry.description || entry.notes || entry.title || '',
+            old_value: entry.old_value || entry.oldValue || '',
+            new_value: entry.new_value || entry.newValue || '',
+          }).catch(() => {});
+        }
+      } catch {}
+
       onCloned(result.data || clonedSong);
       onClose();
     } catch (e: any) {
