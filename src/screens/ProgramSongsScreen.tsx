@@ -647,8 +647,11 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
         drummer: updated.drummer,
         isActive: updated.isActive,
         isHQOnly: (updated as any).isHQOnly,
-        rehearsalCount: updated.rehearsalCount,
         coordinatorComment: updated.coordinatorComment,
+        comments: updated.comments,
+        coordinatorAudioUrl: updated.coordinatorAudioUrl,
+        notes: updated.coordinatorComment,
+        rehearsalCount: updated.rehearsalCount,
       }).catch(e => console.warn('[ProgramSongs] update failed:', e));
     }
   }

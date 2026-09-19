@@ -16,6 +16,28 @@ import LyricsFormattingToolbar from '../components/LyricsFormattingToolbar';
 
 const TABS = ['lyrics', 'solfas', 'audio', 'personnel', 'comments'] as const;
 
+function parseCommentText(val: any): string {
+  if (!val) return '';
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parseCommentText(parsed);
+      } catch {}
+    }
+    return trimmed;
+  }
+  if (Array.isArray(val) && val.length > 0) {
+    const last = val[val.length - 1];
+    return typeof last === 'string' ? last : (last?.text || last?.comment || last?.content || '');
+  }
+  if (typeof val === 'object' && val !== null) {
+    return val.text || val.comment || val.content || '';
+  }
+  return String(val);
+}
+
 export default function SongDetailScreen({ route, navigation }: any) {
   const { song: initialSong, songId } = route.params || {};
   const { adminUser } = useAuth();
@@ -42,11 +64,15 @@ export default function SongDetailScreen({ route, navigation }: any) {
     solfas: '',
     notation: '',
     comments: '',
+    rehearsalCount: 0,
   });
 
   useEffect(() => {
     if (initialSong) {
       setSong(initialSong);
+      const commentsText = parseCommentText(initialSong.notes || initialSong.coordinatorComment || initialSong.comments);
+      const count = Math.max(0, parseInt(initialSong.rehearsalCount ?? initialSong.rehearsal_count, 10) || 0);
+
       setEditForm({
         title: initialSong.title || '',
         writer: initialSong.writer || '',
@@ -57,7 +83,8 @@ export default function SongDetailScreen({ route, navigation }: any) {
         lyrics: htmlToEditorText(initialSong.lyrics),
         solfas: htmlToEditorText(initialSong.solfas),
         notation: initialSong.notation || '',
-        comments: initialSong.notes || initialSong.comments || '',
+        comments: commentsText,
+        rehearsalCount: count,
       });
     } else if (songId) {
       loadSongDetails();
@@ -70,6 +97,9 @@ export default function SongDetailScreen({ route, navigation }: any) {
       const res = await api.songs.getById(songId);
       if (res.data) {
         setSong(res.data);
+        const commentsText = parseCommentText(res.data.notes || res.data.coordinatorComment || res.data.comments);
+        const count = Math.max(0, parseInt(res.data.rehearsalCount ?? res.data.rehearsal_count, 10) || 0);
+
         setEditForm({
           title: res.data.title || '',
           writer: res.data.writer || '',
@@ -80,7 +110,8 @@ export default function SongDetailScreen({ route, navigation }: any) {
           lyrics: htmlToEditorText(res.data.lyrics),
           solfas: htmlToEditorText(res.data.solfas),
           notation: res.data.notation || '',
-          comments: res.data.notes || res.data.comments || '',
+          comments: commentsText,
+          rehearsalCount: count,
         });
       }
     } catch (e) {
@@ -347,6 +378,20 @@ export default function SongDetailScreen({ route, navigation }: any) {
                 <Text style={styles.metaValue}>{song?.tempo || '—'}</Text>
               )}
             </View>
+
+            <View style={styles.metaField}>
+              <Text style={styles.metaLabel}>Rehearsal Count</Text>
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={String(editForm.rehearsalCount)}
+                  onChangeText={t => setEditForm(p => ({ ...p, rehearsalCount: parseInt(t, 10) || 0 }))}
+                  keyboardType="number-pad"
+                />
+              ) : (
+                <Text style={styles.metaValue}>{song?.rehearsalCount !== undefined ? `x${song.rehearsalCount}` : 'x0'}</Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -366,7 +411,9 @@ export default function SongDetailScreen({ route, navigation }: any) {
                 multiline
               />
             ) : (
-              <Text style={styles.bodyText}>{song?.notes || song?.comments || 'No commentary recorded for this song.'}</Text>
+              <Text style={styles.bodyText}>
+                {parseCommentText(song?.notes || song?.coordinatorComment || song?.comments) || 'No commentary recorded for this song.'}
+              </Text>
             )}
           </View>
         )}
