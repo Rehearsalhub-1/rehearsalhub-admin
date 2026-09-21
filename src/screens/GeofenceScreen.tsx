@@ -207,15 +207,21 @@ export default function GeofenceScreen() {
       };
 
       await api.settings.update(docId, payload);
+      if (isHQ && activeZone?.id && activeZone.id !== 'zone-001') {
+        await api.settings.update(`geofence_${activeZone.id}`, payload).catch(() => null);
+      } else if (isHQ && activeZone?.id === 'zone-001') {
+        await api.settings.update('geofence_zone-001', payload).catch(() => null);
+      }
+
       customAlert(
         'Geofence Saved',
         `Geofenced clock-in for "${currentScopeTitle}" is now active with a ${radNum}m radius.`
       );
     } catch (e: any) {
-      console.warn('[Geofence] Save error:', e);
+      console.error('[Geofence] Save error:', e);
       customAlert(
-        'Geofence Saved',
-        `Geofenced clock-in configuration for "${currentScopeTitle}" has been updated.`
+        'Save Failed',
+        e?.message || e?.error || 'Failed to save geofence configuration.'
       );
     } finally {
       setSaving(false);
