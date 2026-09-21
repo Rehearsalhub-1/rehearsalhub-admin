@@ -26,6 +26,8 @@ import { useAuth } from '../context/AuthContext';
 import { customAlert } from '../context/AlertContext';
 import { useMasterLibrary } from '../hooks/useMasterLibrary';
 
+const FlashListAny = FlashList as any;
+
 export default function MasterLibraryScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const { activeZone } = useZoneContext();
@@ -38,6 +40,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
     masterSongs, masterLoading, refreshing,
     zoneSongs, zoneSongsLoading,
     refetch, fetchZoneSongs,
+    hasMore, loadMore,
     upsertMasterSong, removeMasterSong, toggleHideMasterSong, removeZoneSong,
   } = useMasterLibrary(activeDomainTab);
 
@@ -322,9 +325,12 @@ export default function MasterLibraryScreen({ navigation }: any) {
       </View>
 
       {/* ── CLEAN MASTER CATALOG SONG FEED ──────────────────────────────────── */}
-      <FlashList
+      <FlashListAny
         data={filteredMasterSongs}
-        keyExtractor={i => i.id}
+        keyExtractor={(i: MasterSong) => i.id}
+        estimatedItemSize={68}
+        onEndReached={() => { if (hasMore && !masterLoading) loadMore(); }}
+        onEndReachedThreshold={0.3}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: Math.max(insets.bottom, 24) + 30 }
@@ -357,7 +363,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
             />
           )
         }
-        renderItem={({ item }) => {
+        renderItem={({ item }: { item: MasterSong }) => {
           const isHq = Boolean(item.isHQOnly || item.isHqOnly);
           const hasStems = Boolean(
             item.audioUrls?.soprano ||

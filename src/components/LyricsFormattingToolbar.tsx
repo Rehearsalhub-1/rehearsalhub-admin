@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,10 +13,19 @@ export default function LyricsFormattingToolbar({
   onChangeText,
   selection,
 }: LyricsFormattingToolbarProps) {
+  // Keep last known selection in a ref — React Native clears selection
+  // before the button's onPress fires, so we capture it here.
+  const selectionRef = useRef<{ start: number; end: number } | null>(null);
+  if (selection && selection.end > selection.start) {
+    selectionRef.current = selection;
+  }
+
   const applyFormat = (type: 'bold' | 'italic' | 'verse' | 'chorus' | 'bridge' | 'vamp') => {
     const current = value || '';
-    const start = selection ? Math.min(selection.start, current.length) : current.length;
-    const end = selection ? Math.min(selection.end, current.length) : current.length;
+    // Use saved selection if available, otherwise insert at end of text
+    const sel = selectionRef.current;
+    const start = sel ? Math.min(sel.start, current.length) : current.length;
+    const end = sel ? Math.min(sel.end, current.length) : current.length;
     const hasSelection = end > start;
     const selectedText = hasSelection ? current.slice(start, end) : '';
 
@@ -56,6 +65,7 @@ export default function LyricsFormattingToolbar({
     }
 
     const nextText = current.slice(0, start) + replacement + current.slice(end);
+    selectionRef.current = null; // reset after applying so next tap doesn't reuse stale position
     onChangeText(nextText);
   };
 

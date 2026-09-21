@@ -25,6 +25,30 @@ import SupportChatScreen    from '../screens/SupportChatScreen';
 import ProgramSongsScreen  from '../screens/ProgramSongsScreen';
 import GeofenceScreen      from '../screens/GeofenceScreen';
 import ModePickerScreen from '../screens/ModePickerScreen';
+import { withErrorBoundary } from '../components/ScreenErrorBoundary';
+
+// Safe wrapped variants for all full-page screens
+const SafeLoginScreen          = withErrorBoundary(LoginScreen,          'LoginScreen');
+const SafeModePickerScreen     = withErrorBoundary(ModePickerScreen,     'ModePickerScreen');
+const SafeDashboardScreen      = withErrorBoundary(DashboardScreen,      'DashboardScreen');
+const SafeAttendanceScreen     = withErrorBoundary(AttendanceScreen,     'AttendanceScreen');
+const SafeProgramsScreen       = withErrorBoundary(ProgramsScreen,       'ProgramsScreen');
+const SafeMembersScreen        = withErrorBoundary(MembersScreen,        'MembersScreen');
+const SafeMoreScreen           = withErrorBoundary(MoreScreen,           'MoreScreen');
+const SafeSubmittedSongsScreen = withErrorBoundary(SubmittedSongsScreen, 'SubmittedSongsScreen');
+const SafeScheduleScreen       = withErrorBoundary(ScheduleScreen,       'ScheduleScreen');
+const SafeChurchesScreen       = withErrorBoundary(ChurchesScreen,       'ChurchesScreen');
+const SafeSongDetailScreen     = withErrorBoundary(SongDetailScreen,     'SongDetailScreen');
+const SafeProgramSongsScreen   = withErrorBoundary(ProgramSongsScreen,   'ProgramSongsScreen');
+const SafeAnalyticsScreen      = withErrorBoundary(AnalyticsScreen,      'AnalyticsScreen');
+const SafeCalendarScreen       = withErrorBoundary(CalendarScreen,       'CalendarScreen');
+const SafeMediaLibraryScreen   = withErrorBoundary(MediaLibraryScreen,   'MediaLibraryScreen');
+const SafeSupportChatScreen    = withErrorBoundary(SupportChatScreen,    'SupportChatScreen');
+const SafeMasterLibraryScreen  = withErrorBoundary(MasterLibraryScreen,  'MasterLibraryScreen');
+const SafeNotificationsScreen  = withErrorBoundary(NotificationsScreen,  'NotificationsScreen');
+const SafeCategoriesScreen     = withErrorBoundary(CategoriesScreen,     'CategoriesScreen');
+const SafeGeofenceScreen       = withErrorBoundary(GeofenceScreen,       'GeofenceScreen');
+const SafePraiseNightScreen    = withErrorBoundary(PraiseNightScreen,    'PraiseNightScreen');
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -49,7 +73,7 @@ function MainTabs() {
     >
       <Tab.Screen
         name="Dashboard"
-        component={DashboardScreen}
+        component={SafeDashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
           tabBarIcon: ({ color, size, focused }) => (
@@ -59,7 +83,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="AttendanceTab"
-        component={AttendanceScreen}
+        component={SafeAttendanceScreen}
         options={{
           tabBarLabel: 'Attendance',
           tabBarIcon: ({ color, size, focused }) => (
@@ -69,7 +93,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Programs"
-        component={ProgramsScreen}
+        component={SafeProgramsScreen}
         options={{
           tabBarLabel: 'Programs',
           tabBarIcon: ({ color, size, focused }) => (
@@ -79,7 +103,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Members"
-        component={MembersScreen}
+        component={SafeMembersScreen}
         options={{
           tabBarLabel: 'Members',
           tabBarIcon: ({ color, size, focused }) => (
@@ -89,7 +113,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="More"
-        component={MoreScreen}
+        component={SafeMoreScreen}
         options={{
           tabBarLabel: 'More',
           tabBarIcon: ({ color, size, focused }) => (
@@ -104,29 +128,29 @@ function MainTabs() {
 export default function AppNavigator({ initialRoute = 'Login' }: { initialRoute?: string }) {
   return (
     <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="ModePicker" component={ModePickerScreen} />
+      <Stack.Screen name="Login" component={SafeLoginScreen} />
+      <Stack.Screen name="ModePicker" component={SafeModePickerScreen} />
       <Stack.Screen name="MainTabs" component={MainTabs} />
 
-      <Stack.Screen name="Programs" component={ProgramsScreen} />
-      <Stack.Screen name="Program" component={ProgramsScreen} />
-      <Stack.Screen name="PraiseNight" component={ProgramsScreen} />
-      <Stack.Screen name="SubmittedSongs" component={SubmittedSongsScreen} />
-      <Stack.Screen name="Songs" component={SubmittedSongsScreen} />
-      <Stack.Screen name="Schedule" component={ScheduleScreen} />
-      <Stack.Screen name="Attendance" component={AttendanceScreen} />
-      <Stack.Screen name="Churches" component={ChurchesScreen} />
-      <Stack.Screen name="SongDetail" component={SongDetailScreen} />
-      <Stack.Screen name="ProgramSongs" component={ProgramSongsScreen} />
-      <Stack.Screen name="Analytics" component={AnalyticsScreen} />
-      <Stack.Screen name="Calendar" component={CalendarScreen} />
-      <Stack.Screen name="MediaLibrary" component={MediaLibraryScreen} />
-      <Stack.Screen name="Media" component={MediaLibraryScreen} />
-      <Stack.Screen name="SupportChat" component={SupportChatScreen} />
-      <Stack.Screen name="MasterLibrary" component={MasterLibraryScreen} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="Categories" component={CategoriesScreen} />
-      <Stack.Screen name="Geofence" component={GeofenceScreen} />
+      <Stack.Screen name="Programs" component={SafeProgramsScreen} />
+      <Stack.Screen name="Program" component={SafeProgramsScreen} />
+      <Stack.Screen name="PraiseNight" component={SafePraiseNightScreen} />
+      <Stack.Screen name="SubmittedSongs" component={SafeSubmittedSongsScreen} />
+      <Stack.Screen name="Songs" component={SafeSubmittedSongsScreen} />
+      <Stack.Screen name="Schedule" component={SafeScheduleScreen} />
+      <Stack.Screen name="Attendance" component={SafeAttendanceScreen} />
+      <Stack.Screen name="Churches" component={SafeChurchesScreen} />
+      <Stack.Screen name="SongDetail" component={SafeSongDetailScreen} />
+      <Stack.Screen name="ProgramSongs" component={SafeProgramSongsScreen} />
+      <Stack.Screen name="Analytics" component={SafeAnalyticsScreen} />
+      <Stack.Screen name="Calendar" component={SafeCalendarScreen} />
+      <Stack.Screen name="MediaLibrary" component={SafeMediaLibraryScreen} />
+      <Stack.Screen name="Media" component={SafeMediaLibraryScreen} />
+      <Stack.Screen name="SupportChat" component={SafeSupportChatScreen} />
+      <Stack.Screen name="MasterLibrary" component={SafeMasterLibraryScreen} />
+      <Stack.Screen name="Notifications" component={SafeNotificationsScreen} />
+      <Stack.Screen name="Categories" component={SafeCategoriesScreen} />
+      <Stack.Screen name="Geofence" component={SafeGeofenceScreen} />
     </Stack.Navigator>
   );
 }

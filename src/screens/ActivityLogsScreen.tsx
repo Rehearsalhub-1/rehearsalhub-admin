@@ -34,19 +34,39 @@ function getLogIcon(type: string): keyof typeof Ionicons.glyphMap {
 export default function ActivityLogsScreen({ navigation }: any) {
   const { isChurchMode } = useZoneContext();
   const { adminUser } = useAuth();
+  const PAGE_SIZE = 50;
+
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  async function fetchLogs() {
+  async function fetchLogs(reset: boolean = false) {
+    setFetchError(null);
+    const currentPage = reset ? 1 : page;
     try {
-      const result = await api.activityLogs.getAll();
-      setLogs(Array.isArray(result.data) ? result.data : []);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); setRefreshing(false); }
+      const result = await api.activityLogs.getAll(`limit=${PAGE_SIZE}&page=${currentPage}`);
+      const newLogs: ActivityLog[] = Array.isArray(result.data) ? result.data : [];
+      if (reset) {
+        setLogs(newLogs);
+        setPage(1);
+      } else {
+        setLogs(prev => [...prev, ...newLogs]);
+        setPage(prev => prev + 1);
+      }
+      setHasMore(newLogs.length === PAGE_SIZE);
+    } catch (e: any) {
+      console.error(e);
+      setFetchError(e?.message || 'Failed to load. Pull to retry.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }
 
-  useEffect(() => { fetchLogs(); }, []);
+  useEffect(() => { fetchLogs(true); }, []);
 
   function formatTime(ts: unknown): string {
     if (!ts) return '—';
@@ -106,8 +126,10 @@ export default function ActivityLogsScreen({ navigation }: any) {
         keyExtractor={i => i.id}
         contentContainerStyle={styles.list}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchLogs(); }} tintColor={Colors.accent} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchLogs(true); }} tintColor={Colors.accent} />
         }
+        onEndReached={() => { if (hasMore && !loading) fetchLogs(); }}
+        onEndReachedThreshold={0.3}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.iconContainer}>
@@ -123,10 +145,17 @@ export default function ActivityLogsScreen({ navigation }: any) {
           </View>
         )}
         ListEmptyComponent={
-          <View style={styles.center}>
-            <Ionicons name="analytics-outline" size={36} color="#cbd5e1" style={{ marginBottom: 10 }} />
-            <Text style={styles.emptyText}>No activity logs found</Text>
-          </View>
+          fetchError ? (
+            <View style={styles.center}>
+              <Ionicons name="cloud-offline-outline" size={36} color="#ef4444" style={{ marginBottom: 10 }} />
+              <Text style={[styles.emptyText, { color: '#ef4444', textAlign: 'center' }]}>{fetchError}</Text>
+            </View>
+          ) : (
+            <View style={styles.center}>
+              <Ionicons name="analytics-outline" size={36} color="#cbd5e1" style={{ marginBottom: 10 }} />
+              <Text style={styles.emptyText}>No activity logs found</Text>
+            </View>
+          )
         }
       />
     </SafeAreaView>

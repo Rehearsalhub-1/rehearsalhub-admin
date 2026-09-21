@@ -9,7 +9,7 @@ const BASE_URL = effectiveUrl
   .replace(/\/+$/, '')
   .replace(/\/api$/, '');
 
-const API_KEY = process.env.EXPO_PUBLIC_INTERNAL_API_KEY ?? '';
+const API_KEY = process.env.INTERNAL_API_KEY ?? '';
 
 export class SessionExpiredError extends Error {
   constructor() {

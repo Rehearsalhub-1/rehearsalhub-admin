@@ -308,8 +308,8 @@ export const api = {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(zoneId ? { 'x-zone-id': zoneId } : {}),
-          ...(process.env.EXPO_PUBLIC_INTERNAL_API_KEY
-            ? { 'x-api-key': process.env.EXPO_PUBLIC_INTERNAL_API_KEY }
+          ...(process.env.INTERNAL_API_KEY
+            ? { 'x-api-key': process.env.INTERNAL_API_KEY }
             : {}),
         },
       });
@@ -372,8 +372,8 @@ export const api = {
 
   // ── System Audit Logs ────────────────────────────────────────────────────
   activityLogs: {
-    getAll: () =>
-      apiClient.get<{ success: boolean; data: any[] }>('/activity-logs'),
+    getAll: (params?: string) =>
+      apiClient.get<{ success: boolean; data: any[] }>(`/activity-logs${params ? `?${params}` : ''}`),
   },
 
   // ── Analytics ────────────────────────────────────────────────────────────

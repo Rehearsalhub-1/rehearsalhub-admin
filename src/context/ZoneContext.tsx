@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { useAdminStore } from '../stores/adminStore';
 
 export interface ChurchOption {
@@ -18,7 +19,7 @@ export interface ZoneOption {
 export function useZoneContext() {
   const session = useAdminStore(s => s.session);
 
-  return {
+  return useMemo(() => ({
     activeZone: session
       ? { id: session.zoneId, name: session.zoneName, invitationCode: '' }
       : null,
@@ -52,7 +53,7 @@ export function useZoneContext() {
     setRoleMode: (mode: 'church' | 'org') => {
       useAdminStore.getState().setMode(mode === 'church' ? 'church' : 'zone');
     },
-  };
+  }), [session]);
 }
 
 export function ZoneProvider({ children }: { children: React.ReactNode }) {

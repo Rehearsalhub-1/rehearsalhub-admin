@@ -12,6 +12,34 @@ const RESOURCE_ALIASES: Record<string, string[]> = {
   schedules: ['schedule'],
 };
 const eventCursors = new Map<string, number>();
+const MAX_CURSORS = 500;
+const cursorAccessOrder: string[] = [];
+
+function setCursor(key: string, value: number): void {
+  if (eventCursors.has(key)) {
+    // Move existing key to end of access order
+    const idx = cursorAccessOrder.indexOf(key);
+    if (idx !== -1) cursorAccessOrder.splice(idx, 1);
+  } else if (eventCursors.size >= MAX_CURSORS) {
+    // Evict least-recently-used entry
+    const evictKey = cursorAccessOrder.shift();
+    if (evictKey !== undefined) eventCursors.delete(evictKey);
+  }
+  cursorAccessOrder.push(key);
+  eventCursors.set(key, value);
+}
+
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const DEBOUNCE_MS = 300;
+
+function debounceHandler(key: string, fn: () => void): void {
+  const existing = debounceTimers.get(key);
+  if (existing !== undefined) clearTimeout(existing);
+  debounceTimers.set(key, setTimeout(() => {
+    debounceTimers.delete(key);
+    fn();
+  }, DEBOUNCE_MS));
+}
 
 function matchesResource(subscribedResource: string, incomingResource: string): boolean {
   return subscribedResource === incomingResource ||
@@ -42,9 +70,10 @@ async function connect() {
   const token = await SecureStore.getItemAsync('jwt');
   if (!token) { isConnecting = false; return; }
 
-  socket = new WebSocket(`${WS_URL}/ws?token=${encodeURIComponent(token)}`);
+  socket = new WebSocket(`${WS_URL}/ws`);
 
   socket.onopen = () => {
+    socket?.send(JSON.stringify({ type: 'auth', token }));
     reconnectDelay = 1000;
     isConnecting = false;
     subscriptions.forEach(({ resource, id }) => {
@@ -66,14 +95,24 @@ async function connect() {
     try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.type !== 'event') return;
     if (Number.isFinite(msg.sequence)) {
-      eventCursors.set(`${msg.resource}:${msg.id}`, Number(msg.sequence));
+      setCursor(`${msg.resource}:${msg.id}`, Number(msg.sequence));
     }
     subscriptions.forEach(({ resource, id, handler }) => {
       if (matchesResource(resource, msg.resource) && (id === msg.id || id === 'all' || msg.id === 'all')) {
-        try {
-          handler(msg.data);
-        } catch (err) {
-          console.warn(`[useWebSocket] Handler error for ${resource}:${id}:`, err);
+        if (id === 'all') {
+          debounceHandler(`${resource}:all`, () => {
+            try {
+              handler(msg.data);
+            } catch (err) {
+              console.warn(`[useWebSocket] Handler error for ${resource}:${id}:`, err);
+            }
+          });
+        } else {
+          try {
+            handler(msg.data);
+          } catch (err) {
+            console.warn(`[useWebSocket] Handler error for ${resource}:${id}:`, err);
+          }
         }
       }
     });

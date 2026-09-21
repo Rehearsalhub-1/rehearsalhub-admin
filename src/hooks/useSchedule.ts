@@ -11,8 +11,10 @@ export function useSchedule() {
   const [activeProgramId, setActiveProgramId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
+    setFetchError(null);
     try {
       const zoneId = isChurchMode ? undefined : activeZone?.id;
       const subGroupId = isChurchMode ? activeChurch?.id : undefined;
@@ -30,8 +32,9 @@ export function useSchedule() {
       } else {
         setActiveProgramId('');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[useSchedule] fetch:', e);
+      setFetchError(e?.message || 'Failed to load. Pull to retry.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -59,6 +62,11 @@ export function useSchedule() {
     });
   }, []);
 
+  // Batch update all programs in a single state write (avoids N re-renders)
+  const bulkUpdatePrograms = useCallback((updater: (prev: ScheduleProgram[]) => ScheduleProgram[]) => {
+    setPrograms(updater);
+  }, []);
+
   const removeProgram = useCallback((id: string) => {
     setPrograms(prev => prev.filter(p => p.id !== id));
     setActiveProgramId(prev => {
@@ -73,8 +81,10 @@ export function useSchedule() {
     setActiveProgramId,
     loading,
     refreshing,
+    fetchError,
     refetch,
     upsertProgram,
+    bulkUpdatePrograms,
     removeProgram,
   };
 }

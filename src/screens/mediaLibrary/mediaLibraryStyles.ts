@@ -1,0 +1,332 @@
+import { StyleSheet, Platform } from 'react-native';
+
+export const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#f8fafc' },
+  accessNotice: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  accessNoticeText: { color: '#64748b', fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 10 },
+  headerToolBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff',
+    borderWidth: 1, borderColor: '#ede9fe', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, gap: 4,
+  },
+  headerToolBtnActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  headerToolBtnText: { fontSize: 12, fontWeight: '700', color: '#7c3aed' },
+  headerToolBtnTextActive: { color: '#ffffff' },
+  headerAddBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 2,
+  },
+  headerAddBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+  selectToolbar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#f5f3ff', paddingHorizontal: 16, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: '#ede9fe',
+  },
+  selectToolTextBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 3, paddingHorizontal: 6 },
+  selectToolText: { fontSize: 12, fontWeight: '700', color: '#7c3aed' },
+  tabsStrip: { backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#f1f5f9', paddingVertical: 10 },
+  tabsScroll: { paddingHorizontal: 16, gap: 8 },
+  tabChip: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  tabChipSelected: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  tabChipText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  tabChipTextSelected: { color: '#ffffff', fontWeight: '700' },
+  tabBadge: { marginLeft: 6, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, backgroundColor: '#ede9fe' },
+  tabBadgeSelected: { backgroundColor: 'rgba(255, 255, 255, 0.25)' },
+  tabBadgeNum: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
+  tabBadgeNumSelected: { color: '#ffffff' },
+  searchWrapper: { paddingHorizontal: 16, paddingVertical: 10 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: '#ede9fe', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
+  },
+  searchInput: { flex: 1, fontSize: 13, color: '#1e293b', paddingVertical: 0 },
+  toast: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'center', backgroundColor: '#6d28d9',
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, marginBottom: 8, elevation: 3,
+  },
+  toastText: { fontSize: 12, fontWeight: '600', color: '#ffffff' },
+  listContent: { paddingHorizontal: 16, paddingBottom: 36, gap: 10 },
+
+  // Card
+  card: {
+    backgroundColor: '#ffffff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#ede9fe',
+    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+  },
+  cardActiveAudio: { borderColor: '#7c3aed', backgroundColor: '#faf5ff' },
+  cardSelected: { borderColor: '#7c3aed', borderWidth: 1.5, backgroundColor: '#f5f3ff' },
+  cardMainRow: { flexDirection: 'row', alignItems: 'center' },
+  checkboxTouch: { marginRight: 8, padding: 2 },
+  iconBadge: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  iconAudio: { backgroundColor: '#f5f3ff' },
+  iconVideo: { backgroundColor: '#eff6ff' },
+  iconImage: { backgroundColor: '#fdf2f8' },
+  iconDoc: { backgroundColor: '#ecfdf5' },
+  mediaThumbBox: {
+    width: 54, height: 44, borderRadius: 10, overflow: 'hidden', marginRight: 12,
+    position: 'relative', backgroundColor: '#e2e8f0',
+  },
+  mediaThumb: { width: '100%', height: '100%', resizeMode: 'cover' },
+  playOverlay: {
+    ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cardInfo: { flex: 1, marginRight: 10 },
+  itemTitle: { fontSize: 14, fontWeight: '700', color: '#1e293b', lineHeight: 19, marginBottom: 3 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  categoryPillText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
+  metaDot: { fontSize: 11, color: '#cbd5e1', marginHorizontal: 4 },
+  metaSubText: { fontSize: 11, color: '#64748b' },
+  itemDesc: { fontSize: 11, color: '#94a3b8', marginTop: 3 },
+  primaryActionBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, gap: 4,
+  },
+  primaryActionBtnActive: { backgroundColor: '#5b21b6' },
+  primaryActionText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+  viewActionBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff',
+    borderWidth: 1, borderColor: '#ede9fe', paddingHorizontal: 11, paddingVertical: 6, borderRadius: 10,
+  },
+  viewActionText: { fontSize: 12, fontWeight: '700', color: '#7c3aed' },
+  cardBottomRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#f8fafc',
+  },
+  zoneTag: { fontSize: 11, color: '#64748b', fontWeight: '500' },
+  utilityBtns: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  utilBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 2 },
+  utilBtnText: { fontSize: 11, color: '#64748b', fontWeight: '600' },
+
+  // Floating Select Bar
+  floatingSelectBar: {
+    position: 'absolute', bottom: Platform.OS === 'ios' ? 24 : 12, left: 14, right: 14,
+    backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#ddd6fe',
+    paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 10, elevation: 9,
+  },
+  floatingSelectBarLeft: { flex: 1 },
+  selectBarCount: { fontSize: 14, fontWeight: '800', color: '#1e293b' },
+  selectBarSub: { fontSize: 11, color: '#64748b', marginTop: 1 },
+  floatingSelectBarRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  exportCsvBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff', borderWidth: 1,
+    borderColor: '#ddd6fe', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+  },
+  exportCsvText: { fontSize: 12, fontWeight: '700', color: '#7c3aed' },
+  bulkDownloadBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 2,
+  },
+  bulkDownloadBtnDisabled: { opacity: 0.5 },
+  bulkDownloadText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+
+  // Floating Mini Player
+  floatingMiniPlayer: {
+    position: 'absolute', bottom: Platform.OS === 'ios' ? 24 : 12, left: 14, right: 14,
+    backgroundColor: '#ffffff', borderRadius: 16, borderWidth: 1, borderColor: '#ede9fe',
+    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.16,
+    shadowRadius: 10, elevation: 8, overflow: 'hidden',
+  },
+  miniProgressTrack: { height: 3, backgroundColor: '#ede9fe', width: '100%' },
+  miniProgressFill: { height: '100%', backgroundColor: '#7c3aed' },
+  miniPlayerContent: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
+  miniThumb: {
+    width: 36, height: 36, borderRadius: 8, backgroundColor: '#f5f3ff',
+    alignItems: 'center', justifyContent: 'center', marginRight: 10,
+  },
+  miniDetails: { flex: 1, marginRight: 8 },
+  miniTitle: { fontSize: 13, fontWeight: '700', color: '#1e293b' },
+  miniTime: { fontSize: 11, color: '#7c3aed', fontWeight: '600', marginTop: 2 },
+  miniControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  miniSkipBtn: { padding: 4 },
+  miniPlayBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#7c3aed',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  miniCloseBtn: { padding: 4, marginLeft: 4 },
+
+  // Progress Card Modal
+  progressBackdrop: {
+    flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.65)', alignItems: 'center',
+    justifyContent: 'center', padding: 24,
+  },
+  progressCard: {
+    width: '100%', maxWidth: 340, backgroundColor: '#ffffff', borderRadius: 20,
+    padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2, shadowRadius: 12, elevation: 10,
+  },
+  progressIconCircle: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: '#f5f3ff',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+  },
+  progressTitle: { fontSize: 16, fontWeight: '800', color: '#1e293b', marginBottom: 4 },
+  progressSubtitle: { fontSize: 13, color: '#64748b', marginBottom: 10 },
+  progressCurrentFile: { fontSize: 12, fontWeight: '700', color: '#7c3aed', maxWidth: '90%', marginBottom: 14 },
+  modalProgressTrack: {
+    width: '100%', height: 8, backgroundColor: '#ede9fe', borderRadius: 4,
+    overflow: 'hidden', marginBottom: 8,
+  },
+  modalProgressFill: { height: '100%', backgroundColor: '#7c3aed', borderRadius: 4 },
+  progressPercentText: { fontSize: 12, fontWeight: '700', color: '#1e293b', marginBottom: 6 },
+  progressHint: { fontSize: 11, color: '#94a3b8', textAlign: 'center' },
+
+  // Full Audio Player Modal
+  fullPlayerOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
+  fullPlayerSheet: {
+    backgroundColor: '#ffffff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24, paddingHorizontal: 24,
+  },
+  fullPlayerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
+  fullPlayerHeaderTitle: { fontSize: 14, fontWeight: '700', color: '#64748b' },
+  closeCircleBtn: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: '#f1f5f9',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  fullPlayerBody: { alignItems: 'center', paddingVertical: 12 },
+  fullPlayerArt: {
+    width: 140, height: 140, borderRadius: 70, backgroundColor: '#f5f3ff', borderWidth: 2,
+    borderColor: '#ede9fe', alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+  },
+  fullPlayerTitle: { fontSize: 17, fontWeight: '800', color: '#1e293b', textAlign: 'center', marginBottom: 4 },
+  fullPlayerSubtitle: { fontSize: 12, color: '#7c3aed', fontWeight: '600', marginBottom: 20 },
+  scrubberContainer: { width: '100%', marginBottom: 20 },
+  scrubberTrack: { height: 6, backgroundColor: '#ede9fe', borderRadius: 3, overflow: 'hidden' },
+  scrubberFill: { height: '100%', backgroundColor: '#7c3aed', borderRadius: 3 },
+  scrubberTimeRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  scrubberTimeText: { fontSize: 11, color: '#64748b', fontWeight: '600' },
+  fullControlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28 },
+  controlSecBtn: { alignItems: 'center', justifyContent: 'center' },
+  secBtnLabel: { fontSize: 10, color: '#64748b', fontWeight: '700', marginTop: 2 },
+  controlPrimaryPlayBtn: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: '#7c3aed', alignItems: 'center',
+    justifyContent: 'center', shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+  },
+
+  // Video Player Modal
+  videoPlayerBackdrop: { flex: 1, backgroundColor: '#000000' },
+  videoPlayerSafeArea: { flex: 1 },
+  videoPlayerHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 10,
+  },
+  videoPlayerTitle: { fontSize: 15, fontWeight: '700', color: '#ffffff', flex: 1, marginRight: 12 },
+  videoCloseBtn: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  videoWrapper: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  nativeVideo: { width: '100%', height: '100%' },
+
+  // Image Lightbox Modal
+  imageLightboxBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.94)' },
+  lightboxSafeArea: { flex: 1 },
+  lightboxHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 10,
+  },
+  lightboxTitle: { fontSize: 15, fontWeight: '700', color: '#ffffff', flex: 1, marginRight: 12 },
+  lightboxActionBtn: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lightboxImageContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 10 },
+  lightboxImage: { width: '100%', height: '100%' },
+  lightboxFooter: { paddingHorizontal: 20, paddingVertical: 14, backgroundColor: 'rgba(0, 0, 0, 0.6)' },
+  lightboxDesc: { fontSize: 12, color: '#e2e8f0', textAlign: 'center', lineHeight: 18 },
+
+  // Empty State
+  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 20 },
+  emptyIconBox: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: '#f5f3ff',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: '#1e293b', marginBottom: 4 },
+  emptySubText: { fontSize: 12, color: '#64748b', textAlign: 'center', maxWidth: 260, lineHeight: 18, marginBottom: 16 },
+  emptyBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed',
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 10,
+  },
+  emptyBtnText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+
+  // Modal Common
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.45)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    maxHeight: '88%', paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+  },
+  sheetHandle: { width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, alignSelf: 'center', marginTop: 8 },
+  sheetHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+  },
+  sheetTitle: { fontSize: 16, fontWeight: '800', color: '#1e293b' },
+  sheetSub: { fontSize: 11, color: '#64748b', marginTop: 2 },
+  closeBtn: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#f1f5f9',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sheetBody: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+  sourceSelector: {
+    flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 10,
+    padding: 3, marginBottom: 14,
+  },
+  sourceBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 7, borderRadius: 8,
+  },
+  sourceBtnActive: {
+    backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08, shadowRadius: 2, elevation: 1,
+  },
+  sourceBtnText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  sourceBtnTextActive: { color: '#7c3aed', fontWeight: '700' },
+  formField: { marginBottom: 12 },
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: '#334155', marginBottom: 5 },
+  inputBox: {
+    backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: '#1e293b',
+  },
+  notesBox: { minHeight: 50, textAlignVertical: 'top' },
+  ytTag: { fontSize: 11, color: '#059669', fontWeight: '600', marginTop: 4 },
+  pickFileCard: {
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#7c3aed', borderRadius: 12,
+    backgroundColor: '#faf5ff', paddingVertical: 18, alignItems: 'center', justifyContent: 'center',
+  },
+  pickFileTitle: { fontSize: 13, fontWeight: '700', color: '#7c3aed', marginTop: 6 },
+  pickFileSub: { fontSize: 11, color: '#64748b', marginTop: 2 },
+  fileSelectedBox: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff',
+    borderWidth: 1, borderColor: '#ddd6fe', borderRadius: 10, padding: 10,
+  },
+  fileSelectedName: { fontSize: 12, fontWeight: '700', color: '#1e293b' },
+  fileSelectedSize: { fontSize: 11, color: '#64748b', marginTop: 1 },
+  changeFileBtn: { backgroundColor: '#7c3aed', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 6 },
+  changeFileText: { fontSize: 11, fontWeight: '700', color: '#ffffff' },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  catBtn: {
+    width: '48%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', paddingVertical: 9, borderRadius: 8,
+  },
+  catBtnSelected: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  catBtnText: { fontSize: 11, fontWeight: '600', color: '#475569' },
+  catBtnTextSelected: { color: '#ffffff', fontWeight: '700' },
+  sheetFooter: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
+    paddingHorizontal: 20, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9', gap: 10,
+  },
+  sheetCancelBtn: { paddingHorizontal: 14, paddingVertical: 8 },
+  sheetCancelText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  sheetSaveBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed', paddingHorizontal: 16,
+    paddingVertical: 9, borderRadius: 10, shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2, shadowRadius: 3, elevation: 2,
+  },
+  sheetSaveBtnDisabled: { opacity: 0.6 },
+  sheetSaveText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+});

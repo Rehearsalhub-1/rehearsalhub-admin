@@ -43,6 +43,7 @@ export default function CalendarScreen() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
@@ -61,12 +62,14 @@ export default function CalendarScreen() {
   const [saving, setSaving] = useState(false);
 
   const fetchEvents = useCallback(async () => {
+    setFetchError(null);
     try {
       const zoneParam = isChurchMode ? undefined : activeZone?.id;
       const res = await api.calendar.getEvents(zoneParam).catch(() => ({ data: [] }));
       setEvents(Array.isArray(res?.data) ? res.data : []);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[Calendar] fetch error:', e);
+      setFetchError(e?.message || 'Failed to load. Pull to retry.');
       setEvents([]);
     } finally {
       setLoading(false);
@@ -326,6 +329,12 @@ export default function CalendarScreen() {
           loading ? (
             <View style={styles.centerEmpty}>
               <ActivityIndicator size="large" color={Colors.accent} />
+            </View>
+          ) : fetchError ? (
+            <View style={styles.centerEmpty}>
+              <Ionicons name="cloud-offline-outline" size={44} color="#ef4444" style={{ marginBottom: 10 }} />
+              <Text style={[styles.emptyTitle, { color: '#ef4444' }]}>Failed to load events</Text>
+              <Text style={styles.emptySubtitle}>{fetchError}</Text>
             </View>
           ) : (
             <View style={styles.centerEmpty}>

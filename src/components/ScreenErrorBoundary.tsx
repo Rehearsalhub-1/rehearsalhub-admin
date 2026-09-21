@@ -37,7 +37,7 @@ export class ScreenErrorBoundary extends React.Component<Props, State> {
           <View style={styles.content}>
             <Text style={styles.icon}>⟳</Text>
             <Text style={styles.title}>Reload</Text>
-            <Text style={styles.subtitle}>Sorry, their is a hiccup somewhere</Text>
+            <Text style={styles.subtitle}>Sorry, there is a hiccup somewhere</Text>
 
             <TouchableOpacity
               style={styles.retryButton}

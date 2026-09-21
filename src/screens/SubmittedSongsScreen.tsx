@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, TextInput, Modal,
@@ -31,6 +31,19 @@ export default function SubmittedSongsScreen({ navigation }: any) {
   const [rejectingSong, setRejectingSong] = useState<SongSubmission | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+
+  // ML-1: Release audio player on unmount to prevent background audio leak
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        try {
+          soundRef.current.pause();
+          soundRef.current.remove();
+        } catch {}
+        soundRef.current = null;
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleApproveSong(song: SongSubmission) {
     showAlert('Approve Song', `Approve "${song.title}" for choir rehearsals?`, [
@@ -72,7 +85,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
 
   async function handleSendMessage(songId: string, message: string, replyTo?: any) {
     const msg: SongSubmissionMessage = {
-      id: `msg-${Date.now()}`, sender: 'admin', senderName: 'Admin Reviewer',
+      id: `msg-${Date.now()}`, sender: 'admin', senderName: 'Music Team',
       message: message.trim(), timestamp: new Date().toISOString(),
       replyTo: replyTo ? { id: replyTo.id, text: replyTo.message, senderName: replyTo.senderName } : null,
     };
@@ -96,7 +109,6 @@ export default function SubmittedSongsScreen({ navigation }: any) {
         soundRef.current.remove();
         soundRef.current = null;
       }
-      setPlayingSongId(song.id);
       const player = createAudioPlayer({ uri: url });
       (player as any).addListener('playbackStatusUpdate', (status: any) => {
         if (status.didJustFinish) {
@@ -105,6 +117,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
       });
       player.play();
       soundRef.current = player;
+      setPlayingSongId(song.id); // set AFTER player is created and playing
     } catch {
       setPlayingSongId(null);
     }
@@ -293,7 +306,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
 
       <Modal visible={rejectModalVisible} transparent animationType="fade">
         <KeyboardAvoidingView
-          behavior='padding'
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
         <View style={styles.modalBackdrop}>

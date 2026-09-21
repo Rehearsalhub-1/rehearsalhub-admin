@@ -399,7 +399,6 @@ export default function SongDetailScreen({ route, navigation }: any) {
           <View style={styles.card}>
             <View style={styles.cardTitleRow}>
               <Ionicons name="chatbubble-ellipses-outline" size={18} color={Colors.accentBright} />
-              <Text style={styles.cardTitle}>{commentTitle}</Text>
             </View>
             {isEditing ? (
               <TextInput

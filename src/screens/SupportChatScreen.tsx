@@ -41,14 +41,17 @@ export default function SupportChatScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchThreads = useCallback(async () => {
+    setFetchError(null);
     try {
       const res = await api.support.getThreads(activeZone?.id).catch(() => ({ data: [] }));
       const threadList = Array.isArray(res.data) ? res.data : [];
       setThreads(threadList);
-    } catch (e) {
+    } catch (e: any) {
       console.error('[SupportChat] fetch error:', e);
+      setFetchError(e?.message || 'Failed to load. Pull to retry.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,14 +80,14 @@ export default function SupportChatScreen() {
       const payload = {
         message: replyText.trim(),
         text: replyText.trim(),
-        senderName: adminUser?.name || adminUser?.email?.split('@')[0] || 'Coordinator',
+        senderName: adminUser?.name || adminUser?.email?.split('@')[0] || 'Music Team',
       };
       await api.support.sendMessage(selectedThread.id, payload);
       setMessages(prev => [
         ...prev,
         {
           id: String(Date.now()),
-          senderName: 'You',
+          senderName: adminUser?.name || adminUser?.email?.split('@')[0] || 'Music Team',
           text: replyText.trim(),
           createdAt: new Date().toISOString(),
           isCoordinator: true,
@@ -169,10 +172,17 @@ export default function SupportChatScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchThreads(); }} tintColor={Colors.accent} />
           }
           ListEmptyComponent={
-            <View style={styles.center}>
-              <Ionicons name="chatbubbles-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 8 }} />
-              <Text style={styles.emptyText}>No support tickets or inquiries</Text>
-            </View>
+            fetchError ? (
+              <View style={styles.center}>
+                <Ionicons name="cloud-offline-outline" size={36} color="#ef4444" style={{ marginBottom: 8 }} />
+                <Text style={[styles.emptyText, { color: '#ef4444', textAlign: 'center' }]}>{fetchError}</Text>
+              </View>
+            ) : (
+              <View style={styles.center}>
+                <Ionicons name="chatbubbles-outline" size={36} color={Colors.textMuted} style={{ marginBottom: 8 }} />
+                <Text style={styles.emptyText}>No support tickets or inquiries</Text>
+              </View>
+            )
           }
           renderItem={({ item }) => (
             <TouchableOpacity

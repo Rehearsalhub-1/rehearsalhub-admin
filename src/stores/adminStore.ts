@@ -35,12 +35,16 @@ interface AdminStore {
   isAuthenticated: boolean;
   loading: boolean;
   bootstrap: () => Promise<void>;
-  setMode: (mode: 'zone' | 'church') => void;
-  setChurch: (churchId: string) => void;
+  setMode: (mode: 'zone' | 'church') => Promise<void>;
+  setChurch: (churchId: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const SESSION_KEY = 'admin_session_v2';
+
+// Module-level Promise-based mutex: prevents concurrent bootstrap() executions.
+// If a bootstrap is already in-flight, subsequent callers await it and return.
+let _bootstrapPromise: Promise<void> | null = null;
 
 export const useAdminStore = create<AdminStore>((set, get) => ({
   session: null,
@@ -48,6 +52,14 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   loading: true,
 
   bootstrap: async () => {
+    // Mutex: if a bootstrap is already running, await it and return.
+    if (_bootstrapPromise) {
+      await _bootstrapPromise;
+      return;
+    }
+    let resolve!: () => void;
+    _bootstrapPromise = new Promise<void>(r => { resolve = r; });
+
     set({ loading: true });
     try {
       const token = await SecureStore.getItemAsync('jwt');
@@ -191,30 +203,43 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         await clearTokens();
         await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
         set({ session: null, isAuthenticated: false, loading: false });
+        _bootstrapPromise = null;
+        resolve();
         return;
       }
       console.error('[AdminStore] bootstrap error — clearing session:', err);
       await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
       set({ session: null, isAuthenticated: false, loading: false });
+    } finally {
+      _bootstrapPromise = null;
+      resolve();
     }
   },
 
-  setMode: (mode) => {
+  setMode: async (mode) => {
     const { session } = get();
     if (!session) return;
     const updated: AdminSession = { ...session, mode };
-    SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+    try {
+      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated));
+    } catch (err) {
+      console.warn('[AdminStore] setMode: SecureStore write failed:', err);
+    }
     syncScopeFromSession(updated);
     set({ session: updated });
   },
 
-  setChurch: (churchId: string) => {
+  setChurch: async (churchId: string) => {
     const { session } = get();
     if (!session) return;
     const church = session.churches.find(item => item.id === churchId);
     if (!church) return;
     const updated: AdminSession = { ...session, mode: 'church', churchId: church.id, churchName: church.name };
-    SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated)).catch(() => {});
+    try {
+      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated));
+    } catch (err) {
+      console.warn('[AdminStore] setChurch: SecureStore write failed:', err);
+    }
     syncScopeFromSession(updated);
     set({ session: updated });
   },

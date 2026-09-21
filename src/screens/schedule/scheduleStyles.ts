@@ -1,0 +1,267 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#ffffff' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  topControlBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+  },
+  topBarLeft: { flexDirection: 'row', alignItems: 'center' },
+  historyPill: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10,
+    paddingVertical: 5, borderRadius: 20, backgroundColor: '#f1f5f9',
+  },
+  historyPillActive: { backgroundColor: '#fef3c7' },
+  historyPillText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  historyPillTextActive: { color: '#b45309' },
+
+  newProgramBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed',
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
+  },
+  newProgramBtnText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+
+  programBar: {
+    paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#f8fafc',
+    borderBottomWidth: 1, borderBottomColor: '#e2e8f0', gap: 8,
+  },
+  programScroll: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  noProgramsText: { fontSize: 12, color: '#94a3b8', fontStyle: 'italic', paddingVertical: 4 },
+  programPill: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12,
+    paddingVertical: 7, borderRadius: 20, backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: '#cbd5e1',
+  },
+  programPillSelected: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  programPillText: { fontSize: 12, fontWeight: '700', color: '#334155' },
+  programPillTextSelected: { color: '#ffffff' },
+  currentTag: { backgroundColor: '#fef3c7', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4, marginLeft: 6 },
+  currentTagSelected: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  currentTagText: { fontSize: 9, fontWeight: '800', color: '#b45309' },
+  currentTagTextSelected: { color: '#ffffff' },
+
+  programActionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, paddingTop: 2 },
+  actionBtnSmall: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: '#fde68a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8,
+  },
+  actionBtnSmallText: { fontSize: 11, fontWeight: '700', color: '#b45309' },
+  iconActionBtn: {
+    width: 28, height: 28, borderRadius: 8, backgroundColor: '#ffffff',
+    borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center',
+  },
+
+  weeksDaysContainer: {
+    backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+    paddingVertical: 8, gap: 6,
+  },
+  weeksScroll: { paddingHorizontal: 16, gap: 14, flexDirection: 'row', alignItems: 'center' },
+  weekTabWrap: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  weekTab: {
+    paddingVertical: 4, borderBottomWidth: 2, borderBottomColor: 'transparent',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  weekTabActive: { borderBottomColor: '#7c3aed' },
+  weekTabText: { fontSize: 13, fontWeight: '700', color: '#64748b' },
+  weekTabTextActive: { color: '#7c3aed', fontWeight: '800' },
+  currentSubText: { fontSize: 9, fontWeight: '800', color: '#7c3aed' },
+
+  daysScroll: { paddingHorizontal: 16, gap: 6, flexDirection: 'row', alignItems: 'center' },
+  dayChipWrap: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  dayChip: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14,
+    backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 3,
+  },
+  dayChipActive: { backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#7c3aed' },
+  dayChipText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  dayChipTextActive: { color: '#7c3aed' },
+  addWeekDayBtn: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8,
+    paddingVertical: 3.5, borderRadius: 12, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe',
+  },
+  addWeekDayBtnText: { fontSize: 10, fontWeight: '700', color: '#7c3aed' },
+
+  tabsBarWrapper: { backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  tabsScroll: { paddingHorizontal: 12, gap: 2, flexDirection: 'row' },
+  tabButton: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
+    paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: 'transparent',
+  },
+  tabButtonActive: { borderBottomColor: '#7c3aed' },
+  tabButtonText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  tabButtonTextActive: { color: '#7c3aed', fontWeight: '800' },
+
+  content: { flex: 1, backgroundColor: '#f8fafc' },
+  contentInner: { padding: 16 },
+
+  emptyCenter: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
+  emptyTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
+  emptySubtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', maxWidth: 280 },
+
+  kpiRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  kpiCard: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12, borderWidth: 1 },
+  kpiVal: { fontSize: 18, fontWeight: '800' },
+  kpiLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginTop: 2 },
+
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionHeaderTitle: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
+  sectionHeaderSub: { fontSize: 11, color: '#64748b', marginTop: 1 },
+  addSlotBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+  },
+  addSlotBtnText: { fontSize: 11, fontWeight: '700', color: '#ffffff' },
+
+  emptyTabCard: {
+    backgroundColor: '#ffffff', borderRadius: 12, padding: 24,
+    alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  emptyTabText: { color: '#94a3b8', fontSize: 13, fontWeight: '500' },
+  emptyActionBtn: { marginTop: 10, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f5f3ff' },
+  emptyActionBtnText: { fontSize: 12, fontWeight: '700', color: '#7c3aed' },
+
+  timelineList: { gap: 0 },
+  timelineItem: { flexDirection: 'row' },
+  timelineTimeCol: { width: 48, alignItems: 'flex-end', paddingRight: 10, paddingTop: 10 },
+  timelineTimeText: { fontSize: 12, fontWeight: '700', color: '#64748b' },
+  timelineAxis: { alignItems: 'center', marginRight: 10 },
+  timelineDot: { width: 12, height: 12, borderRadius: 6, marginTop: 12, borderWidth: 2, borderColor: '#ffffff' },
+  dotPending: { backgroundColor: '#ef4444' },
+  dotRehearsed: { backgroundColor: '#10b981' },
+  dotBreak: { backgroundColor: '#94a3b8' },
+  timelineLine: { width: 2, flex: 1, backgroundColor: '#e2e8f0', marginVertical: 2 },
+
+  timelineCard: {
+    flex: 1, backgroundColor: '#ffffff', borderRadius: 12, padding: 12, marginBottom: 10,
+    borderWidth: 1, borderColor: '#e2e8f0', shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.02, shadowRadius: 2, elevation: 1,
+  },
+  timelineCardBreak: { backgroundColor: '#f8fafc', borderStyle: 'dashed' },
+  timelineCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  slotTitleText: { fontSize: 14, fontWeight: '700', color: '#0f172a', flex: 1 },
+  slotTitleBreak: { color: '#64748b', fontStyle: 'italic', fontWeight: '600' },
+  slotBadgeGroup: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  slotKeyBadge: { backgroundColor: '#eef2ff', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  slotKeyBadgeText: { fontSize: 10, fontWeight: '700', color: '#4f46e5' },
+  slotMinsBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  slotMinsBadgeText: { fontSize: 10, fontWeight: '700', color: '#475569' },
+
+  statusPill: { paddingHorizontal: 8, paddingVertical: 2.5, borderRadius: 6 },
+  statusPillPending: { backgroundColor: '#fee2e2' },
+  statusPillRehearsed: { backgroundColor: '#dcfce7' },
+  statusPillBreak: { backgroundColor: '#f1f5f9' },
+  statusPillText: { fontSize: 9.5, fontWeight: '800', textTransform: 'uppercase' },
+  statusPillTextPending: { color: '#b91c1c' },
+  statusPillTextRehearsed: { color: '#15803d' },
+  statusPillTextBreak: { color: '#64748b' },
+
+  slotNoteBox: {
+    marginTop: 8, backgroundColor: '#f8fafc', borderRadius: 6,
+    padding: 6, borderLeftWidth: 2, borderLeftColor: '#7c3aed',
+  },
+  slotNoteText: { fontSize: 11, color: '#475569', fontStyle: 'italic' },
+  slotFooterActions: {
+    flexDirection: 'row', justifyContent: 'flex-end', gap: 12,
+    marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#f1f5f9',
+  },
+  slotActionBtn: { flexDirection: 'row', alignItems: 'center' },
+  slotActionBtnText: { fontSize: 11, fontWeight: '600', color: '#64748b' },
+
+  standardCard: {
+    backgroundColor: '#ffffff', borderRadius: 12, padding: 12,
+    marginBottom: 8, borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  redBorderCard: { borderColor: '#fca5a5', borderLeftWidth: 3, borderLeftColor: '#ef4444' },
+  cardTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  cardMainTitle: { fontSize: 14, fontWeight: '700', color: '#0f172a', flex: 1 },
+  cardSubRole: { fontSize: 11, color: '#64748b', marginTop: 1 },
+  chipGroup: { flexDirection: 'row', gap: 4 },
+  tinyBadge: { backgroundColor: '#f1f5f9', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  tinyBadgeText: { fontSize: 10, fontWeight: '600', color: '#475569' },
+  amberBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 6, paddingVertical: 2.5, borderRadius: 6 },
+  amberBadgeText: { fontSize: 10, fontWeight: '700', color: '#b45309' },
+  redBadge: { backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2.5, borderRadius: 6 },
+  redBadgeText: { fontSize: 10, fontWeight: '700', color: '#dc2626' },
+  quotaPill: { backgroundColor: '#f8fafc', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#e2e8f0' },
+  quotaPillText: { fontSize: 11, color: '#64748b', fontWeight: '500' },
+  progressBarTrack: { height: 5, backgroundColor: '#f1f5f9', borderRadius: 2.5, overflow: 'hidden', marginTop: 8 },
+  progressBarFill: { height: 5, borderRadius: 2.5 },
+  cardMetaText: { fontSize: 11, color: '#64748b', marginTop: 4 },
+  reasonQuote: { marginTop: 6, backgroundColor: '#f8fafc', padding: 6, borderRadius: 6, borderLeftWidth: 2, borderLeftColor: '#94a3b8' },
+  reasonQuoteText: { fontSize: 11, color: '#475569', fontStyle: 'italic' },
+  cardActionsRight: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 4 },
+  cardDeleteBtn: { padding: 4 },
+
+  swapTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 },
+  swapOriginal: { fontSize: 13, color: '#ef4444', textDecorationLine: 'line-through' },
+  swapReplacement: { fontSize: 14, fontWeight: '700', color: '#059669' },
+  nameChangeOld: { fontSize: 13, color: '#64748b', fontStyle: 'italic' },
+  nameChangeNew: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
+  invalidTitle: { fontSize: 14, fontWeight: '700', color: '#ef4444', textDecorationLine: 'line-through', flex: 1 },
+
+  eligibilitySwitcher: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  eligPill: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+    backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  eligPillActive: { backgroundColor: '#f5f3ff', borderColor: '#7c3aed' },
+  eligPillDangerActive: { backgroundColor: '#fef2f2', borderColor: '#ef4444' },
+  eligPillText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  eligPillTextActive: { color: '#7c3aed', fontWeight: '800' },
+  eligPillDangerTextActive: { color: '#dc2626', fontWeight: '800' },
+
+  modalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    alignItems: 'center', justifyContent: 'center', padding: 20,
+  },
+  modalCard: {
+    width: '100%', maxWidth: 380, backgroundColor: '#ffffff',
+    borderRadius: 16, padding: 20, shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 5,
+  },
+  modalTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
+  modalSub: { fontSize: 12, color: '#64748b', marginTop: 2, marginBottom: 12 },
+  modalInput: {
+    backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 13, color: '#0f172a', marginBottom: 16,
+  },
+  modalBtnRow: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end', marginTop: 14 },
+  modalCancelBtn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, backgroundColor: '#f1f5f9' },
+  modalCancelBtnText: { fontSize: 12, fontWeight: '700', color: '#64748b' },
+  modalSubmitBtn: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 8, backgroundColor: '#7c3aed' },
+  modalSubmitBtnText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
+
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'flex-end' },
+  sheetContent: {
+    backgroundColor: '#ffffff', borderTopLeftRadius: 20,
+    borderTopRightRadius: 20, paddingHorizontal: 20, paddingTop: 10,
+  },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', alignSelf: 'center', marginBottom: 12 },
+  sheetTitle: { fontSize: 16, fontWeight: '800', color: '#0f172a' },
+  sheetSub: { fontSize: 12, color: '#7c3aed', fontWeight: '700', marginTop: 1, marginBottom: 12 },
+  inputLabel: { fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 4, marginTop: 8 },
+  sheetInput: {
+    backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8,
+    fontSize: 13, color: '#0f172a',
+  },
+  formRowSplit: { flexDirection: 'row', gap: 10 },
+  statusSelectRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  statusSelectPill: {
+    flex: 1, paddingVertical: 7, borderRadius: 8,
+    backgroundColor: '#f1f5f9', alignItems: 'center',
+  },
+  statusSelectPillActive: { backgroundColor: '#7c3aed' },
+  statusSelectPillText: { fontSize: 11, fontWeight: '700', color: '#64748b' },
+  statusSelectPillTextActive: { color: '#ffffff' },
+
+  blockToggleBtn: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 10,
+    paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#f1f5f9', marginTop: 10,
+  },
+  blockToggleBtnActive: { backgroundColor: '#fee2e2' },
+  blockToggleBtnText: { fontSize: 12, fontWeight: '700', color: '#15803d' },
+});

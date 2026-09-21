@@ -110,9 +110,18 @@ export default function NotificationsScreen() {
           return;
         }
         payload.targetUserId = matched.userId || matched.id;
+        payload.userId = matched.userId || matched.id;
       } else {
-        const resolvedOrg = activeZone?.id || 'zone-001';
+        const resolvedOrg = isChurchMode ? activeChurch?.id : activeZone?.id;
+        if (!resolvedOrg) {
+          showAlert('No Zone Selected', 'Please make sure you are logged into a zone before broadcasting.');
+          setSending(false);
+          return;
+        }
         payload.targetOrgId = resolvedOrg;
+        payload.zoneId = isChurchMode ? undefined : resolvedOrg;
+        payload.groupId = isChurchMode ? resolvedOrg : undefined;
+        payload.targetAudience = isChurchMode ? 'church' : 'zone';
       }
 
       const res = await api.notifications.send(payload);
@@ -127,7 +136,8 @@ export default function NotificationsScreen() {
       setMessage('');
       setTargetEmail('');
     } catch (e: any) {
-      showAlert('Dispatch Error', e?.message || 'Failed to send notification. Please verify connection.');
+      console.error('[NotificationsScreen] handleSend error:', e);
+      showAlert('Dispatch Error', e?.message || e?.error || 'Failed to send notification. Please verify connection.');
     } finally {
       setSending(false);
     }
