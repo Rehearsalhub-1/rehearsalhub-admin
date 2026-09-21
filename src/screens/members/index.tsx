@@ -26,7 +26,7 @@ export default function MembersScreen() {
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
   const { isChurchMode, activeChurch, activeZone } = useZoneContext();
-  const { members, loading, refreshing, refetch, saveMember } = useMembers();
+  const { members, loading, refreshing, refetch, saveMember, hasMore, loadingMore, loadMore, total } = useMembers();
 
   // Top-level View Mode: 'directory' vs 'feature_pass'
   const [viewMode, setViewMode] = useState<'directory' | 'feature_pass'>('directory');
@@ -178,7 +178,9 @@ export default function MembersScreen() {
             {isChurchMode ? `${activeChurch?.name || 'Church'} Members` : (activeZone?.name || 'Loveworld Singers HQ')}
           </Text>
           <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{filteredMembers.length}</Text>
+            <Text style={styles.countBadgeText}>
+              {search.trim() ? filteredMembers.length : (total > 0 ? total : filteredMembers.length)}
+            </Text>
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -218,6 +220,15 @@ export default function MembersScreen() {
           estimatedItemSize={72}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} colors={['#7c3aed']} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#7c3aed" />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             loading ? (
               <View style={styles.emptyContainer}>
@@ -243,6 +254,15 @@ export default function MembersScreen() {
           estimatedItemSize={72}
           contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 24 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} colors={['#7c3aed']} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#7c3aed" />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             loading ? (
               <View style={styles.emptyContainer}>

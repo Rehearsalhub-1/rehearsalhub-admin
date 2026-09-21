@@ -128,47 +128,85 @@ export function useMembers() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    if (!session) return;
+  const fetchData = useCallback(
+    async (pageToFetch = 1, isRefresh = false) => {
+      if (!session) return;
 
-    // ONE URL — scoped by mode and role
-    const url =
-      session.mode === 'church' && session.churchId
-        ? `/subgroups/${session.churchId}/members`
-        : session.role === 'hq_admin' && (!session.zoneId || session.zoneId === 'hq')
-        ? `/members/hq`
-        : session.zoneId
-        ? `/members/zone/${session.zoneId}`
-        : `/members/hq`;
+      const baseUrl =
+        session.mode === 'church' && session.churchId
+          ? `/subgroups/${session.churchId}/members`
+          : session.role === 'hq_admin' && (!session.zoneId || session.zoneId === 'hq')
+          ? `/members/hq`
+          : session.zoneId
+          ? `/members/zone/${session.zoneId}`
+          : `/members/hq`;
 
-    try {
-      const res = await apiClient.get<{ success: boolean; data: any[] }>(url).catch(() => null);
-      const raw = Array.isArray(res?.data) ? res.data : [];
-      setMembers(
-        raw.map(u =>
-          shapeRaw(u, session.mode === 'church' ? (session.churchName || '') : undefined)
-        )
-      );
-    } catch (e) {
-      console.warn('[useMembers] fetch error:', e);
-      setMembers([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [session?.zoneId, session?.churchId, session?.mode, session?.role]);
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      const url = `${baseUrl}${separator}page=${pageToFetch}&limit=50`;
+
+      if (pageToFetch === 1) {
+        if (!isRefresh) setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      try {
+        const res = await apiClient.get<{
+          success: boolean;
+          data: any[];
+          total?: number;
+          hasMore?: boolean;
+        }>(url).catch(() => null);
+
+        const raw = Array.isArray(res?.data) ? res.data : [];
+        const shaped = raw.map(u =>
+          shapeRaw(u, session.mode === 'church' ? session.churchName || '' : undefined)
+        );
+
+        setMembers(prev => {
+          if (pageToFetch === 1) return shaped;
+          const existingIds = new Set(prev.map(m => m.id));
+          const additions = shaped.filter(m => !existingIds.has(m.id));
+          return [...prev, ...additions];
+        });
+
+        setPage(pageToFetch);
+        setHasMore(res?.hasMore ?? (shaped.length === 50));
+        setTotal(res?.total ?? (pageToFetch === 1 ? shaped.length : total));
+      } catch (e) {
+        console.warn('[useMembers] fetch error:', e);
+        if (pageToFetch === 1) setMembers([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
+    },
+    [session?.zoneId, session?.churchId, session?.mode, session?.role, total]
+  );
 
   useEffect(() => {
     setMembers([]);
+    setPage(1);
+    setHasMore(false);
     setLoading(true);
-    fetchData();
-  }, [fetchData]);
+    fetchData(1);
+  }, [session?.zoneId, session?.churchId, session?.mode, session?.role]);
 
   const refetch = useCallback(() => {
     setRefreshing(true);
-    fetchData();
+    fetchData(1, true);
   }, [fetchData]);
+
+  const loadMore = useCallback(() => {
+    if (!hasMore || loading || loadingMore || refreshing) return;
+    fetchData(page + 1);
+  }, [hasMore, loading, loadingMore, refreshing, page, fetchData]);
 
   const approve = useCallback(async (member: Member) => {
     try {
@@ -250,5 +288,18 @@ export function useMembers() {
     );
   }, [members, session, refetch]);
 
-  return { members, loading, refreshing, refetch, approve, reject, saveMember, removeFromZone };
+  return {
+    members,
+    loading,
+    refreshing,
+    refetch,
+    hasMore,
+    loadingMore,
+    loadMore,
+    total,
+    approve,
+    reject,
+    saveMember,
+    removeFromZone,
+  };
 }

@@ -119,6 +119,7 @@ export default function NotificationsScreen() {
           return;
         }
         payload.targetOrgId = resolvedOrg;
+        payload.targetChurchId = isChurchMode ? resolvedOrg : undefined;
         payload.zoneId = isChurchMode ? undefined : resolvedOrg;
         payload.groupId = isChurchMode ? resolvedOrg : undefined;
         payload.targetAudience = isChurchMode ? 'church' : 'zone';
