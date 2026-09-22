@@ -3,7 +3,7 @@ import { Platform, ActionSheetIOS } from 'react-native';
 import { api } from '../../services/api';
 import { customAlert } from '../../context/AlertContext';
 import { PraiseSong, Program } from './types';
-import { getSongDisplayCategory } from './programSongsUtils';
+import { getSongDisplayCategory, getSongAllCategories } from './programSongsUtils';
 
 export function useProgramSongs(initialProgram: Program) {
   const [currentProgram, setCurrentProgram] = useState<Program>(initialProgram);
@@ -80,8 +80,7 @@ export function useProgramSongs(initialProgram: Program) {
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
     programSongs.forEach(s => {
-      const cat = getSongDisplayCategory(s);
-      if (cat) cats.add(cat);
+      getSongAllCategories(s).forEach(cat => cats.add(cat));
     });
     return Array.from(cats);
   }, [programSongs]);
@@ -98,8 +97,9 @@ export function useProgramSongs(initialProgram: Program) {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     programSongs.forEach(s => {
-      const cat = getSongDisplayCategory(s);
-      if (cat) counts[cat] = (counts[cat] || 0) + 1;
+      getSongAllCategories(s).forEach(cat => {
+        counts[cat] = (counts[cat] || 0) + 1;
+      });
     });
     return counts;
   }, [programSongs]);
@@ -289,8 +289,8 @@ export function useProgramSongs(initialProgram: Program) {
       if (statusFilter === 'unheard' && isHeard) return false;
 
       if (selectedCategory !== 'all') {
-        const displayCat = getSongDisplayCategory(song);
-        if (displayCat !== selectedCategory) return false;
+        const songCats = getSongAllCategories(song);
+        if (!songCats.includes(selectedCategory)) return false;
       }
 
       if (searchQuery.trim()) {

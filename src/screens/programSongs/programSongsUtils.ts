@@ -29,12 +29,18 @@ export function formatDisplayDate(dateStr?: string) {
   });
 }
 
-export function getSongDisplayCategory(s: PraiseSong): string | null {
-  const primary = s.category?.trim();
-  if (primary) return primary;
-  if (Array.isArray(s.categories) && s.categories.length > 0) {
-    const first = s.categories.find(c => c && c.trim());
-    if (first) return first.trim();
+/** Returns every non-empty category a song belongs to. */
+export function getSongAllCategories(s: PraiseSong): string[] {
+  const result = new Set<string>();
+  if (s.category?.trim()) result.add(s.category.trim());
+  if (Array.isArray(s.categories)) {
+    s.categories.forEach(c => { if (c?.trim()) result.add(c.trim()); });
   }
-  return null;
+  return Array.from(result);
+}
+
+/** Returns the primary display category (first non-empty value). */
+export function getSongDisplayCategory(s: PraiseSong): string | null {
+  const all = getSongAllCategories(s);
+  return all.length > 0 ? all[0] : null;
 }
