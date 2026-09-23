@@ -20,6 +20,7 @@ export interface PraiseSong {
   customParts?: Record<string, string> | string[];
   leadKeyboardist?: string;
   leadGuitarist?: string;
+  bassGuitarist?: string;
   drummer?: string;
   coordinatorComment?: string;
   coordinatorAudioUrl?: string;
