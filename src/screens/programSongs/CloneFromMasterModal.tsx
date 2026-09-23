@@ -66,19 +66,38 @@ export default function CloneFromMasterModal({
   async function handleClone(masterSong: MasterSong) {
     setCloningId(masterSong.id);
     try {
+      const masterAudioUrls = masterSong.audioUrls || {};
+      const songCategories = Array.isArray(masterSong.categories) && masterSong.categories.length > 0
+        ? masterSong.categories
+        : (masterSong.category ? [masterSong.category] : ['Standard']);
+
       const clonedSong: PraiseSong = {
         id: `song-${Date.now()}`,
         title: masterSong.title || 'Untitled',
-        category: masterSong.category || 'Standard',
-        categories: masterSong.category ? [masterSong.category] : ['Standard'],
+        category: masterSong.category || songCategories[0] || 'Standard',
+        categories: songCategories,
         writer: masterSong.writer || '',
         leadSinger: masterSong.leadSinger || '',
+        conductor: masterSong.conductor || masterSong.conductorGuide || '',
         key: masterSong.key || '',
         tempo: masterSong.tempo || '',
+        leadKeyboardist: masterSong.leadKeyboardist || '',
+        leadGuitarist: masterSong.leadGuitarist || '',
+        bassGuitarist: masterSong.bassGuitarist || '',
+        drummer: masterSong.drummer || '',
+        imageUrl: masterSong.imageUrl || masterSong.image || '',
         lyrics: masterSong.lyrics || '',
-        solfas: masterSong.solfa || '',
-        audioFile: masterSong.audioFile || '',
-        audioUrls: masterSong.audioUrls || {},
+        solfas: masterSong.solfas || masterSong.solfa || '',
+        solfa: masterSong.solfa || masterSong.solfas || '',
+        notation: masterSong.notation || '',
+        audioFile: masterSong.audioFile || masterSong.audioUrl || '',
+        audioUrl: masterSong.audioUrl || masterSong.audioFile || '',
+        audioUrls: masterAudioUrls,
+        customParts: masterSong.customParts || [],
+        comments: Array.isArray(masterSong.comments) ? masterSong.comments : (masterSong.comments ? [masterSong.comments] : []),
+        coordinatorComment: masterSong.coordinatorComment || masterSong.notes || '',
+        coordinatorAudioUrl: masterSong.coordinatorAudioUrl || '',
+        rehearsalCount: masterSong.rehearsalCount || 0,
         status: 'unheard',
         isHeard: false,
         heard: false,

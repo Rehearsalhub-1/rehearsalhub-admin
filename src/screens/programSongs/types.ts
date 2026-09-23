@@ -38,13 +38,31 @@ export interface MasterSong {
   title?: string;
   writer?: string;
   leadSinger?: string;
+  conductor?: string;
+  conductorGuide?: string;
   key?: string;
   tempo?: string;
   category?: string;
+  categories?: string[];
   audioFile?: string;
+  audioUrl?: string;
   audioUrls?: Record<string, string>;
+  customParts?: Record<string, string> | string[];
   lyrics?: string;
   solfa?: string;
+  solfas?: string;
+  notation?: string;
+  imageUrl?: string;
+  image?: string;
+  leadKeyboardist?: string;
+  leadGuitarist?: string;
+  bassGuitarist?: string;
+  drummer?: string;
+  comments?: any[] | string;
+  notes?: string;
+  coordinatorComment?: string;
+  coordinatorAudioUrl?: string;
+  rehearsalCount?: number;
 }
 
 export interface Program {

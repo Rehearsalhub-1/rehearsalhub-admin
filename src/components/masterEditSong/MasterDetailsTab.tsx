@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './masterEditSongStyles';
-import { SONG_KEYS } from './types';
 import MasterCollectionPicker from './MasterCollectionPicker';
 
 interface MasterDetailsTabProps {
@@ -130,23 +129,13 @@ export default function MasterDetailsTab({
         {/* Key and Tempo */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>MUSICAL KEY</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.keyScroll}>
-            {SONG_KEYS.map(k => {
-              const isSelected = keyVal === k;
-              return (
-                <TouchableOpacity
-                  key={k}
-                  style={[styles.keyPill, isSelected && styles.keyPillActive]}
-                  onPress={() => setKeyVal(k)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.keyPillText, isSelected && styles.keyPillTextActive]}>
-                    {k}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. C, C to D#, F#"
+            placeholderTextColor="#94a3b8"
+            value={keyVal}
+            onChangeText={setKeyVal}
+          />
         </View>
 
         <View style={styles.inputRow}>
