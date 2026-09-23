@@ -49,15 +49,59 @@ export async function getRefreshToken(): Promise<string | null> {
 }
 
 export async function getUserId(): Promise<string | null> {
-  return SecureStore.getItemAsync('userId');
+  const direct = await SecureStore.getItemAsync('userId');
+  if (direct) return direct;
+  try {
+    const sessionStr = await SecureStore.getItemAsync('admin_session_v2');
+    if (sessionStr) {
+      const parsed = JSON.parse(sessionStr);
+      if (parsed?.userId) return parsed.userId;
+    }
+  } catch {}
+  try {
+    const jwt = await SecureStore.getItemAsync('jwt');
+    if (jwt && jwt.includes('.')) {
+      const payloadPart = jwt.split('.')[1];
+      const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const parsed = JSON.parse(jsonPayload);
+      return parsed.sub || parsed.userId || null;
+    }
+  } catch {}
+  return null;
 }
 
-export async function storeTokens(accessToken: string, refreshToken: string, userId: string): Promise<void> {
-  await Promise.all([
+export async function storeTokens(accessToken: string, refreshToken: string, userId?: string): Promise<void> {
+  let resolvedUserId = userId;
+  if (!resolvedUserId) {
+    try {
+      if (accessToken && accessToken.includes('.')) {
+        const payloadPart = accessToken.split('.')[1];
+        const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const parsed = JSON.parse(jsonPayload);
+        resolvedUserId = parsed.sub || parsed.userId || '';
+      }
+    } catch {}
+  }
+  const ops: Promise<any>[] = [
     SecureStore.setItemAsync('jwt', accessToken),
     SecureStore.setItemAsync('refreshToken', refreshToken),
-    SecureStore.setItemAsync('userId', userId),
-  ]);
+  ];
+  if (resolvedUserId) {
+    ops.push(SecureStore.setItemAsync('userId', resolvedUserId));
+  }
+  await Promise.all(ops);
 }
 
 export async function clearTokens(): Promise<void> {
@@ -101,7 +145,8 @@ async function refreshSession(): Promise<string> {
     try {
       const [refreshToken, userId] = await Promise.all([getRefreshToken(), getUserId()]);
 
-      if (!refreshToken || !userId) {
+      if (!refreshToken) {
+        notifySessionExpired();
         throw new SessionExpiredError();
       }
 
@@ -111,11 +156,12 @@ async function refreshSession(): Promise<string> {
           'Content-Type': 'application/json',
           'x-api-key': API_KEY,
         },
-        body: JSON.stringify({ refreshToken, userId }),
+        body: JSON.stringify({ refreshToken, userId: userId || undefined }),
       });
 
       if (res.status === 401 || res.status === 403) {
         await clearTokens();
+        notifySessionExpired();
         throw new SessionExpiredError();
       }
 
@@ -125,7 +171,8 @@ async function refreshSession(): Promise<string> {
 
       const body = await res.json();
       if (body?.data?.accessToken) {
-        await storeTokens(body.data.accessToken, body.data.refreshToken || refreshToken, userId);
+        const effectiveUserId = body.data?.user?.id || userId || '';
+        await storeTokens(body.data.accessToken, body.data.refreshToken || refreshToken, effectiveUserId);
         return body.data.accessToken;
       }
       throw new Error('Invalid refresh response');

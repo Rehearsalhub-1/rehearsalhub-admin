@@ -63,13 +63,15 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     set({ loading: true });
     try {
       const token = await SecureStore.getItemAsync('jwt');
-      if (!token) {
+      const refreshToken = await SecureStore.getItemAsync('refreshToken');
+      if (!token && !refreshToken) {
         syncScopeFromSession(null);
         set({ session: null, isAuthenticated: false, loading: false });
         return;
       }
 
       // Fast restore from cache for instant UI
+      let hasCachedSession = false;
       try {
         const cached = await SecureStore.getItemAsync(SESSION_KEY);
         if (cached) {
@@ -77,139 +79,160 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
           const restored: AdminSession = { ...s, churches: s.churches || (s.churchId ? [{ id: s.churchId, name: s.churchName || 'Church' }] : []) };
           syncScopeFromSession(restored);
           set({ session: restored, isAuthenticated: true, loading: false });
+          hasCachedSession = true;
         }
       } catch {}
 
       // Live fetch from /auth/me
-      const meRes = await apiClient.get<{ success: boolean; data: any }>('/auth/me');
-      if (!meRes?.data) {
-        syncScopeFromSession(null);
-        set({ session: null, isAuthenticated: false, loading: false });
-        return;
-      }
+      try {
+        const meRes = await apiClient.get<{ success: boolean; data: any }>('/auth/me');
+        if (!meRes?.data) {
+          if (!hasCachedSession) {
+            syncScopeFromSession(null);
+            set({ session: null, isAuthenticated: false, loading: false });
+          }
+          return;
+        }
 
-      const raw = meRes.data;
-      const rawRole = (raw.role || '').toLowerCase().trim();
+        const raw = meRes.data;
+        const rawRole = (raw.role || '').toLowerCase().trim();
 
-      const isHQ =
-        rawRole === 'hq_admin' ||
-        rawRole === 'super_admin' ||
-        Boolean(raw.hasHqAccess) ||
-        Boolean(raw.has_hq_access);
+        const isHQ =
+          rawRole === 'hq_admin' ||
+          rawRole === 'super_admin' ||
+          Boolean(raw.hasHqAccess) ||
+          Boolean(raw.has_hq_access);
 
-      const isChurchOnly =
-        rawRole === 'church_coordinator' ||
-        rawRole === 'church_admin' ||
-        rawRole === 'subgroup_admin' ||
-        rawRole === 'subgroup_coordinator';
+        const isChurchOnly =
+          rawRole === 'church_coordinator' ||
+          rawRole === 'church_admin' ||
+          rawRole === 'subgroup_admin' ||
+          rawRole === 'subgroup_coordinator';
 
-      let role: AdminSession['role'];
-      if (isHQ) role = 'hq_admin';
-      else if (isChurchOnly) role = 'church_admin';
-      else role = 'zone_admin';
+        let role: AdminSession['role'];
+        if (isHQ) role = 'hq_admin';
+        else if (isChurchOnly) role = 'church_admin';
+        else role = 'zone_admin';
 
-      // Extract memberships from /auth/me response
-      const memberships: any[] = [];
-      if (Array.isArray(raw.memberships)) {
-        memberships.push(...raw.memberships);
-      } else if (raw.legacyMemberships) {
-        memberships.push(
-          ...(raw.legacyMemberships.zoneMembers || []),
-          ...(raw.legacyMemberships.hqMembers || [])
+        // Extract memberships from /auth/me response
+        const memberships: any[] = [];
+        if (Array.isArray(raw.memberships)) {
+          memberships.push(...raw.memberships);
+        } else if (raw.legacyMemberships) {
+          memberships.push(
+            ...(raw.legacyMemberships.zoneMembers || []),
+            ...(raw.legacyMemberships.hqMembers || [])
+          );
+        }
+
+        // Primary zone from first active membership
+        const primaryMem =
+          memberships.find(m => m.status !== 'INACTIVE' && m.status !== 'inactive') ||
+          memberships[0];
+        const zoneId =
+          primaryMem?.organizationId ||
+          primaryMem?.zoneId ||
+          raw.zoneId;
+
+        if (!zoneId) {
+          if (!hasCachedSession) {
+            console.error('[AdminStore] No zoneId resolved — cannot build session');
+            syncScopeFromSession(null);
+            set({ session: null, isAuthenticated: false, loading: false });
+          }
+          return;
+        }
+        const zoneName =
+          primaryMem?.organization?.name ||
+          primaryMem?.zoneName ||
+          raw.zoneName ||
+          'Your Zone';
+
+        // Only memberships with church-management roles can become admin workspaces.
+        const churchAdminRoles = new Set([
+          'church_admin', 'church_coordinator', 'subgroup_admin', 'subgroup_coordinator',
+          'group_admin', 'group_coordinator', 'coordinator',
+        ]);
+        const adminChurchMemberships = memberships.filter(m =>
+          churchAdminRoles.has(String(m.role || '').toLowerCase())
         );
+        const churches = adminChurchMemberships
+          .map(m => ({
+            id: String(m.groupId || m.group?.id || ''),
+            name: m.group?.name || m.groupName || 'Church',
+          }))
+          .filter((church, index, list) => church.id && list.findIndex(item => item.id === church.id) === index);
+        const churchMem = churches.find(church => church.id === get().session?.churchId) || churches[0];
+        const churchId =
+          churchMem?.id ||
+          raw.churchId ||
+          null;
+        const churchName =
+          churchMem?.name ||
+          raw.churchName ||
+          null;
+
+        const hasZoneRole = role === 'hq_admin' || role === 'zone_admin';
+        const hasChurchRole = role === 'church_admin' || churches.length > 0;
+        const isDualRole = hasZoneRole && hasChurchRole;
+
+        // Preserve previously picked mode for dual-role accounts
+        const currentMode = get().session?.mode;
+        let mode: AdminSession['mode'];
+        if (isDualRole && currentMode) {
+          mode = currentMode;
+        } else if (!hasZoneRole && role === 'church_admin') {
+          mode = 'church';
+        } else {
+          mode = 'zone';
+        }
+
+        const session: AdminSession = {
+          userId: raw.id,
+          email: raw.email || '',
+          name: raw.name || raw.firstName || raw.email?.split('@')[0] || 'Admin',
+          role,
+          mode,
+          zoneId,
+          zoneName,
+          churchId,
+          churchName,
+          churches,
+          isHQ,
+          isDualRole,
+        };
+
+        await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
+        syncScopeFromSession(session);
+        set({ session, isAuthenticated: true, loading: false });
+      } catch (meErr: any) {
+        if (meErr instanceof SessionExpiredError) {
+          console.warn('[AdminStore] Session confirmed expired by server');
+          await clearTokens();
+          await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
+          syncScopeFromSession(null);
+          set({ session: null, isAuthenticated: false, loading: false });
+          return;
+        }
+        if (!hasCachedSession) {
+          console.error('[AdminStore] /auth/me failed with no cached session:', meErr);
+          syncScopeFromSession(null);
+          set({ session: null, isAuthenticated: false, loading: false });
+        } else {
+          console.warn('[AdminStore] /auth/me failed; keeping cached admin session:', meErr?.message || meErr);
+          set({ loading: false });
+        }
       }
-
-      // Primary zone from first active membership
-      const primaryMem =
-        memberships.find(m => m.status !== 'INACTIVE' && m.status !== 'inactive') ||
-        memberships[0];
-      const zoneId =
-        primaryMem?.organizationId ||
-        primaryMem?.zoneId ||
-        raw.zoneId;
-
-      if (!zoneId) {
-        console.error('[AdminStore] No zoneId resolved — cannot build session');
-        syncScopeFromSession(null);
-        set({ session: null, isAuthenticated: false, loading: false });
-        return;
-      }
-      const zoneName =
-        primaryMem?.organization?.name ||
-        primaryMem?.zoneName ||
-        raw.zoneName ||
-        'Your Zone';
-
-      // Only memberships with church-management roles can become admin workspaces.
-      const churchAdminRoles = new Set([
-        'church_admin', 'church_coordinator', 'subgroup_admin', 'subgroup_coordinator',
-        'group_admin', 'group_coordinator', 'coordinator',
-      ]);
-      const adminChurchMemberships = memberships.filter(m =>
-        churchAdminRoles.has(String(m.role || '').toLowerCase())
-      );
-      const churches = adminChurchMemberships
-        .map(m => ({
-          id: String(m.groupId || m.group?.id || ''),
-          name: m.group?.name || m.groupName || 'Church',
-        }))
-        .filter((church, index, list) => church.id && list.findIndex(item => item.id === church.id) === index);
-      const churchMem = churches.find(church => church.id === get().session?.churchId) || churches[0];
-      const churchId =
-        churchMem?.id ||
-        raw.churchId ||
-        null;
-      const churchName =
-        churchMem?.name ||
-        raw.churchName ||
-        null;
-
-      const hasZoneRole = role === 'hq_admin' || role === 'zone_admin';
-      const hasChurchRole = role === 'church_admin' || churches.length > 0;
-      const isDualRole = hasZoneRole && hasChurchRole;
-
-      // Preserve previously picked mode for dual-role accounts
-      const currentMode = get().session?.mode;
-      let mode: AdminSession['mode'];
-      if (isDualRole && currentMode) {
-        mode = currentMode;
-      } else if (!hasZoneRole && role === 'church_admin') {
-        mode = 'church';
-      } else {
-        mode = 'zone';
-      }
-
-      const session: AdminSession = {
-        userId: raw.id,
-        email: raw.email || '',
-        name: raw.name || raw.firstName || raw.email?.split('@')[0] || 'Admin',
-        role,
-        mode,
-        zoneId,
-        zoneName,
-        churchId,
-        churchName,
-        churches,
-        isHQ,
-        isDualRole,
-      };
-
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
-      syncScopeFromSession(session);
-      set({ session, isAuthenticated: true, loading: false });
     } catch (err: any) {
-      syncScopeFromSession(null);
       if (err instanceof SessionExpiredError) {
         await clearTokens();
         await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
+        syncScopeFromSession(null);
         set({ session: null, isAuthenticated: false, loading: false });
-        _bootstrapPromise = null;
-        resolve();
-        return;
+      } else {
+        console.warn('[AdminStore] Unexpected bootstrap error, retaining state:', err);
+        set({ loading: false });
       }
-      console.error('[AdminStore] bootstrap error — clearing session:', err);
-      await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
-      set({ session: null, isAuthenticated: false, loading: false });
     } finally {
       _bootstrapPromise = null;
       resolve();
