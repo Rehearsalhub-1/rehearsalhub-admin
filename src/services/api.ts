@@ -61,8 +61,11 @@ export const api = {
       apiClient.delete<{ success: boolean; message?: string }>(`/songs/history/${encodeURIComponent(historyId)}`),
     setActiveSong: (songId: string) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isActive: true }),
-    toggleActive: (songId: string, isActive: boolean) =>
-      apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isActive }),
+    toggleActive: (songId: string, isActive: boolean, isHeard?: boolean) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, {
+        isActive,
+        ...(isHeard !== undefined ? { isHeard } : {}),
+      }),
     toggleHeard: (songId: string, isHeard: boolean) =>
       apiClient.patch<{ success: boolean; data?: any }>(`/songs/praise-night/${songId}`, { isHeard, status: isHeard ? 'heard' : 'unheard' }),
     create: (data: Record<string, any>) =>

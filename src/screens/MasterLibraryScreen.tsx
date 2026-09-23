@@ -67,19 +67,27 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    // Fetch canonical 46 Master Collections / Programs
+    // Only fetch programs/categories when the edit modal is opened, not on screen mount.
+    // These are only needed for the edit form dropdowns.
+  }, []);
+
+  const [programsLoaded, setProgramsLoaded] = useState(false);
+
+  const loadEditFormData = useCallback(() => {
+    if (programsLoaded) return;
+    setProgramsLoaded(true);
     api.programs.getMasterPrograms().then(res => {
       const progs = Array.isArray(res?.data) ? res.data : [];
-      setAvailablePrograms(progs.map(p => ({ id: p.id, name: p.name || p.title || 'Master Program' })));
+      setAvailablePrograms(progs.map((p: any) => ({ id: p.id, name: p.name || p.title || 'Master Program' })));
     }).catch(() => {});
 
     api.categories.getAll().then(res => {
       const cats = Array.isArray(res?.data) ? res.data : [];
       if (cats.length > 0) {
-        setAvailableCategories(cats.map(c => c.name || c.title || String(c)).filter(Boolean));
+        setAvailableCategories(cats.map((c: any) => c.name || c.title || String(c)).filter(Boolean));
       }
     }).catch(() => {});
-  }, []);
+  }, [programsLoaded]);
 
   // Master Stats Calculations
   const masterStats = useMemo(() => {
@@ -173,12 +181,14 @@ export default function MasterLibraryScreen({ navigation }: any) {
 
   // Handlers for Master Songs
   function handleOpenCreateModal() {
+    loadEditFormData();
     setEditingOriginalMaster(null);
     setEditModalSong(null);
     setEditModalVisible(true);
   }
 
   function handleOpenEditModal(song: MasterSong) {
+    loadEditFormData();
     setEditingOriginalMaster(song);
     setEditModalSong(song);
     setEditModalVisible(true);

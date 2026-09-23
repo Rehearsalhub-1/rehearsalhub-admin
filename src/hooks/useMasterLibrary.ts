@@ -80,10 +80,34 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
     fetchMasterSongs(false);
   }, [fetchMasterSongs]);
 
-  useWebSocket('songs', 'all', () => {
-    fetchMasterSongs(true);
-    if (activeDomainTab === 'zone') fetchZoneSongs();
-  }, true);
+  useWebSocket('songs', 'all', useCallback((rawData: any) => {
+    // Apply the WebSocket update in-place instead of re-fetching all 50 songs.
+    // Only trigger a full refetch if it's a bulk/programmatic reload signal
+    // (no id = broadcast signal, not a single song update).
+    const update = (rawData as any)?.data || rawData;
+    if (!update || typeof update !== 'object' || !update.id) {
+      // Bulk signal — do a background refetch
+      fetchMasterSongs(true);
+      if (activeDomainTab === 'zone') fetchZoneSongs();
+      return;
+    }
+
+    // Single song update — patch in-place
+    if (update.deleted || update.isDeleted) {
+      setMasterSongs(prev => prev.filter(s => s.id !== String(update.id)));
+      return;
+    }
+    setMasterSongs(prev => {
+      const idx = prev.findIndex(s => s.id === String(update.id));
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...update };
+        return next;
+      }
+      // New song added — prepend
+      return [update as MasterSong, ...prev];
+    });
+  }, [fetchMasterSongs, fetchZoneSongs, activeDomainTab]), true);
 
   // ── Optimistic mutators (used by screen action handlers) ──────────────────
   const upsertMasterSong = useCallback((song: MasterSong) => {

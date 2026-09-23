@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { MasterSong } from '../MasterSongDetailModal';
 import { api } from '../../services/api';
 import { customAlert } from '../../context/AlertContext';
-import { stripHtml } from '../../lib/stripHtml';
+import { htmlToEditorText, editorTextToHtml } from '../../lib/lyricsFormat';
 import { DEFAULT_COLLECTIONS } from './types';
 
 interface UseMasterEditSongStateProps {
@@ -79,13 +79,29 @@ export function useMasterEditSongState({
     }
   }, [visible, player]);
 
+  const lastLoadedSongIdRef = useRef<string | null | undefined>(undefined);
+  const lastVisibleRef = useRef<boolean>(false);
+
   useEffect(() => {
+    const songId = song?.id ?? null;
+    const songChanged = songId !== lastLoadedSongIdRef.current;
+    const modalJustOpened = visible && !lastVisibleRef.current;
+
+    lastVisibleRef.current = visible;
+
+    // Only reset form fields when a genuinely different song is loaded or the
+    // modal just opened — prevents parent re-renders from wiping in-progress edits.
+    if (visible && !songChanged && !modalJustOpened) return;
+
     if (visible) {
-      setActiveTab('details');
-      setShowNewCatInput(false);
-      setNewCatName('');
-      setShowAddPart(false);
-      setNewPartName('');
+      if (songChanged || modalJustOpened) {
+        lastLoadedSongIdRef.current = songId;
+        setActiveTab('details');
+        setShowNewCatInput(false);
+        setNewCatName('');
+        setShowAddPart(false);
+        setNewPartName('');
+      }
 
       // Fetch the 46 canonical Master Programs / Collections
       api.programs
@@ -124,9 +140,9 @@ export function useMasterEditSongState({
         setCategory(existingColl);
         setImageUrl(song.imageUrl || '');
         setIsHQOnly(Boolean(song.isHQOnly || song.isHqOnly));
-        setLyrics(stripHtml(song.lyrics || ''));
-        setSolfa(stripHtml(song.solfas || song.solfa || song.conductorGuide || ''));
-        setHistory(stripHtml(song.history || song.coordinatorComment || song.coordinatorNotes || ''));
+        setLyrics(htmlToEditorText(song.lyrics || ''));
+        setSolfa(htmlToEditorText(song.solfas || song.solfa || song.conductorGuide || ''));
+        setHistory(htmlToEditorText(song.history || song.coordinatorComment || song.coordinatorNotes || ''));
 
         if (existingColl && !collectionsList.includes(existingColl)) {
           setCollectionsList(prev => [existingColl, ...prev]);
@@ -314,11 +330,11 @@ export function useMasterEditSongState({
         audioUrl: audioUrls.full || '',
         audioUrls,
         customParts,
-        lyrics: lyrics.trim(),
-        solfas: solfa.trim(),
-        solfa: solfa.trim(),
-        conductorGuide: solfa.trim(),
-        history: history.trim(),
+        lyrics: editorTextToHtml(lyrics.trim()),
+        solfas: editorTextToHtml(solfa.trim()),
+        solfa: editorTextToHtml(solfa.trim()),
+        conductorGuide: editorTextToHtml(solfa.trim()),
+        history: editorTextToHtml(history.trim()),
         imageUrl: normalizedImageUrl,
         isHQOnly,
         isHqOnly: isHQOnly,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { api } from '../../services/api';
 import { htmlToEditorText, editorTextToHtml } from '../../lib/lyricsFormat';
@@ -129,7 +129,32 @@ export function useEditSongState({
     setAudioUrls,
   });
 
+  const lastLoadedSongIdRef = useRef<string | null | undefined>(undefined);
+  const lastVisibleRef = useRef<boolean>(false);
+
   useEffect(() => {
+    const songId = song?.id ?? null;
+    const songChanged = songId !== lastLoadedSongIdRef.current;
+    const modalJustOpened = visible && !lastVisibleRef.current;
+
+    lastVisibleRef.current = visible;
+
+    // Only reset form when a genuinely different song is loaded, or the modal
+    // just opened. This prevents parent re-renders from wiping the admin's
+    // in-progress edits (e.g. after applying bold formatting).
+    if (!songChanged && !modalJustOpened) {
+      if (!visible) {
+        historyManager.setShowHistoryList(false);
+        historyManager.setShowHistoryForm(false);
+        setShowStatusPicker(false);
+        setShowProgramPicker(false);
+        historyManager.setEditingHistoryEntryId(null);
+      }
+      return;
+    }
+
+    lastLoadedSongIdRef.current = songId;
+
     if (song) {
       setSongTitle(song.title || '');
       const cats = Array.isArray(song.categories)

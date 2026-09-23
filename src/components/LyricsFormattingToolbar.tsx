@@ -80,7 +80,7 @@ export default function LyricsFormattingToolbar({
         {/* Bold Button */}
         <TouchableOpacity
           style={styles.formatBtn}
-          onPress={() => applyFormat('bold')}
+          onPressIn={() => applyFormat('bold')}
           activeOpacity={0.7}
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
@@ -90,7 +90,7 @@ export default function LyricsFormattingToolbar({
         {/* Italic Button */}
         <TouchableOpacity
           style={styles.formatBtn}
-          onPress={() => applyFormat('italic')}
+          onPressIn={() => applyFormat('italic')}
           activeOpacity={0.7}
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
@@ -102,7 +102,7 @@ export default function LyricsFormattingToolbar({
         {/* Section Tags */}
         <TouchableOpacity
           style={styles.chipBtn}
-          onPress={() => applyFormat('verse')}
+          onPressIn={() => applyFormat('verse')}
           activeOpacity={0.75}
         >
           <Text style={styles.chipBtnText}>+ Verse</Text>
@@ -110,7 +110,7 @@ export default function LyricsFormattingToolbar({
 
         <TouchableOpacity
           style={styles.chipBtn}
-          onPress={() => applyFormat('chorus')}
+          onPressIn={() => applyFormat('chorus')}
           activeOpacity={0.75}
         >
           <Text style={styles.chipBtnText}>+ Chorus</Text>
@@ -118,7 +118,7 @@ export default function LyricsFormattingToolbar({
 
         <TouchableOpacity
           style={styles.chipBtn}
-          onPress={() => applyFormat('bridge')}
+          onPressIn={() => applyFormat('bridge')}
           activeOpacity={0.75}
         >
           <Text style={styles.chipBtnText}>+ Bridge</Text>
@@ -126,7 +126,7 @@ export default function LyricsFormattingToolbar({
 
         <TouchableOpacity
           style={styles.chipBtn}
-          onPress={() => applyFormat('vamp')}
+          onPressIn={() => applyFormat('vamp')}
           activeOpacity={0.75}
         >
           <Text style={styles.chipBtnText}>+ Vamp</Text>

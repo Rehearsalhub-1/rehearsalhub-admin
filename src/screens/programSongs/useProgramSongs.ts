@@ -184,10 +184,17 @@ export function useProgramSongs(initialProgram: Program) {
   const handleToggleSongActive = (song: PraiseSong) => {
     const isCurrentlyLive = song.status === 'live' || Boolean(song.isLive);
     const nextLive = !isCurrentlyLive;
+    const songIsHeard = Boolean(song.isHeard ?? song.heard ?? song.status === 'heard');
     setProgramSongs(prev =>
-      prev.map(s => (s.id === song.id ? { ...s, isLive: nextLive, status: nextLive ? 'live' : (s.isHeard ? 'heard' : 'unheard') } : s))
+      prev.map(s => (s.id === song.id ? {
+        ...s,
+        isLive: nextLive,
+        isHeard: songIsHeard,
+        heard: songIsHeard,
+        status: nextLive ? 'live' : (songIsHeard ? 'heard' : 'unheard'),
+      } : s))
     );
-    api.songs.toggleActive(song.id, nextLive).catch(() => {});
+    api.songs.toggleActive(song.id, nextLive, songIsHeard).catch(() => {});
   };
 
   const handleToggleHeard = (song: PraiseSong) => {
