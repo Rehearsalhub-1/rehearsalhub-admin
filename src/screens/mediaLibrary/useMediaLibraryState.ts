@@ -46,6 +46,8 @@ export function useMediaLibraryState({
   // Add & Rename Modals
   const [modalVisible, setModalVisible] = useState(false), [inputSource, setInputSource] = useState<'device' | 'url'>('device');
   const [selectedFile, setSelectedFile] = useState<{ uri: string; name: string; type: string; size?: number } | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Array<{ uri: string; name: string; type: string; size?: number }>>([]);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number; currentName: string } | null>(null);
   const [formTitle, setFormTitle] = useState(''), [formUrl, setFormUrl] = useState('');
   const [formCategory, setFormCategory] = useState<MediaType>('audio'), [formNotes, setFormNotes] = useState(''), [saving, setSaving] = useState(false);
   const [renamingItem, setRenamingItem] = useState<MediaItem | null>(null), [renameTitle, setRenameTitle] = useState('');
@@ -321,34 +323,146 @@ export function useMediaLibraryState({
   const handlePickDocument = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({
-        type: ['audio/*', 'video/*', 'application/pdf', 'image/*'], copyToCacheDirectory: true,
+        type: ['audio/*', 'video/*', 'application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+        multiple: true,
       });
       if (res.canceled || !res.assets?.length) return;
-      const file = res.assets[0];
-      setSelectedFile({ uri: file.uri, name: file.name, type: file.mimeType ?? 'application/octet-stream', size: file.size });
-      if (!formTitle.trim()) {
+      const picked = res.assets.map(f => ({
+        uri: f.uri,
+        name: f.name,
+        type: f.mimeType ?? 'application/octet-stream',
+        size: f.size,
+      }));
+      setSelectedFiles(picked);
+      const file = picked[0];
+      setSelectedFile(file);
+      if (picked.length === 1 && !formTitle.trim()) {
         const cleanName = file.name.replace(/\.[a-zA-Z0-9]+$/, '').replace(/[-_]/g, ' ');
         setFormTitle(cleanName);
       }
-      if (file.mimeType) setFormCategory(inferMediaType(file.mimeType));
-    } catch (e: any) { customAlert('Notice', e?.message || 'Could not pick file from device.'); }
+      if (file.type) setFormCategory(inferMediaType(file.type));
+    } catch (e: any) { customAlert('Notice', e?.message || 'Could not pick file(s) from device.'); }
+  };
+
+  const handleRemoveSelectedFile = (idx: number) => {
+    setSelectedFiles(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      setSelectedFile(next[0] || null);
+      return next;
+    });
   };
 
   // ── Save New Media Asset ───────────────────────────────────────────────────
   const resetForm = () => {
-    setSelectedFile(null); setFormTitle(''); setFormUrl(''); setFormNotes(''); setFormCategory('audio'); setInputSource('device');
+    setSelectedFile(null);
+    setSelectedFiles([]);
+    setBulkUploadProgress(null);
+    setFormTitle('');
+    setFormUrl('');
+    setFormNotes('');
+    setFormCategory('audio');
+    setInputSource('device');
   };
 
   const handleSaveAsset = async () => {
+    if (inputSource === 'device' && (!selectedFiles.length && !selectedFile)) {
+      customAlert('Select Files', 'Please choose file(s) from your device to upload.');
+      return;
+    }
+    if (inputSource === 'url' && !formUrl.trim()) {
+      customAlert('Link Required', 'Please enter a valid web or video link.');
+      return;
+    }
+
+    const targetZoneId = (activeZone?.id && activeZone.id !== 'all' && activeZone.id !== 'global') ? activeZone.id : 'zone-001';
+
+    // ── Bulk Upload Handler ──────────────────────────────────────────────────
+    if (inputSource === 'device' && selectedFiles.length > 1) {
+      setSaving(true);
+      const total = selectedFiles.length;
+      const createdAssets: MediaItem[] = [];
+      let successCount = 0;
+
+      try {
+        for (let i = 0; i < total; i++) {
+          const file = selectedFiles[i];
+          const cleanTitle = file.name.replace(/\.[a-zA-Z0-9]+$/, '').replace(/[-_]/g, ' ');
+          setBulkUploadProgress({ current: i + 1, total, currentName: file.name });
+
+          try {
+            const uploadRes = await api.media.upload(
+              { uri: file.uri, name: file.name, type: file.type },
+              'rehearsals', targetZoneId
+            );
+            const finalUrl = uploadRes.data?.url || (uploadRes as any).url || file.uri;
+            if (!finalUrl || finalUrl === file.uri) throw new Error('R2 upload failed.');
+
+            const detectedCat = inferMediaType(file.type);
+            const ytId = getYouTubeId(finalUrl);
+            const thumbnail = ytId ? getYouTubeThumbnail(finalUrl) : null;
+            const detectedType = ytId ? 'video' : detectedCat;
+            const sizeLabel = file.size ? formatFileSize(file.size) : 'File';
+
+            const newAsset: MediaItem = {
+              id: `media_${Date.now()}_${i}`,
+              name: cleanTitle,
+              url: finalUrl,
+              videoUrl: detectedType === 'video' ? finalUrl : undefined,
+              type: detectedType,
+              size: sizeLabel,
+              thumbnail: thumbnail || (detectedType === 'image' ? finalUrl : null),
+              description: formNotes.trim() || undefined,
+              uploadedAt: new Date().toISOString(),
+              forHq: true,
+              zoneId: targetZoneId,
+            };
+
+            const createRes = await api.media.create({
+              title: newAsset.name,
+              name: newAsset.name,
+              url: newAsset.url,
+              type: newAsset.type,
+              folder: 'rehearsals',
+              description: newAsset.description,
+              zoneId: targetZoneId,
+              organizationId: targetZoneId,
+            });
+
+            if (createRes?.data?.id) {
+              newAsset.id = createRes.data.id;
+            }
+            createdAssets.push(newAsset);
+            successCount++;
+          } catch (fileErr) {
+            console.warn(`Failed to upload ${file.name}:`, fileErr);
+          }
+        }
+
+        if (createdAssets.length > 0) {
+          setMediaList(prev => [...createdAssets, ...prev]);
+          setModalVisible(false);
+          resetForm();
+          showToast(`Successfully uploaded ${successCount} of ${total} files!`);
+        } else {
+          throw new Error('All file uploads failed. Please check connection and try again.');
+        }
+      } catch (e: any) {
+        customAlert('Upload Error', e?.message || 'Bulk upload encountered errors.');
+      } finally {
+        setSaving(false);
+        setBulkUploadProgress(null);
+      }
+      return;
+    }
+
+    // ── Single Upload Handler ────────────────────────────────────────────────
     if (!formTitle.trim()) { customAlert('Title Required', 'Please enter a name for this media item.'); return; }
-    if (inputSource === 'device' && !selectedFile) { customAlert('Select a File', 'Please choose a file from your device to upload.'); return; }
-    if (inputSource === 'url' && !formUrl.trim()) { customAlert('Link Required', 'Please enter a valid web or video link.'); return; }
     setSaving(true);
     try {
       let finalUrl = formUrl.trim();
       let detectedType = formCategory;
       const sizeLabel = selectedFile?.size ? formatFileSize(selectedFile.size) : 'Online Stream';
-      const targetZoneId = (activeZone?.id && activeZone.id !== 'all' && activeZone.id !== 'global') ? activeZone.id : 'zone-001';
 
       if (inputSource === 'device' && selectedFile) {
         try {
@@ -395,6 +509,7 @@ export function useMediaLibraryState({
     bulkDownloading, bulkProgress, handleBulkDownload, handleExportCSV,
     activeVideoItem, setActiveVideoItem, activeImageItem, setActiveImageItem,
     modalVisible, setModalVisible, inputSource, setInputSource, selectedFile, setSelectedFile,
+    selectedFiles, setSelectedFiles, handleRemoveSelectedFile, bulkUploadProgress,
     formTitle, setFormTitle, formUrl, setFormUrl, formCategory, setFormCategory, formNotes, setFormNotes,
     saving, handlePickDocument, handleSaveAsset, resetForm,
     renamingItem, setRenamingItem, renameTitle, setRenameTitle, renameCategory, setRenameCategory,

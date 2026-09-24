@@ -329,4 +329,13 @@ export const styles = StyleSheet.create({
   },
   sheetSaveBtnDisabled: { opacity: 0.6 },
   sheetSaveText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+  bulkBadgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  bulkBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3e8ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  bulkBadgeText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
+  bulkFilesScroll: { maxHeight: 180, marginBottom: 8 },
+  bulkFileRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 6 },
+  bulkFileName: { flex: 1, fontSize: 12, fontWeight: '600', color: '#334155' },
+  bulkFileSize: { fontSize: 11, color: '#94a3b8', marginHorizontal: 8 },
+  bulkRemoveFileBtn: { padding: 4 },
+  bulkUploadNotice: { fontSize: 11, color: '#64748b', fontStyle: 'italic', marginTop: 4 },
 });

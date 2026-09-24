@@ -209,6 +209,8 @@ export const styles = StyleSheet.create({
   // ── Header Quick Save Button ──────────────────────────────────────────────
   headerQuickSaveBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: '#7c3aed', },
   headerQuickSaveBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff', },
+  headerImportBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe', },
+  headerImportBtnText: { fontSize: 12, fontWeight: '700', color: '#7c3aed', },
   // ── Full Screen Expand Button (in Lyrics card header) ────────────────────
   fullscreenBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#f5f3ff', borderRadius: 6, borderWidth: 1, borderColor: '#c4b5fd', },
   fullscreenBtnText: { fontSize: 11, fontWeight: '600', color: '#7c3aed', },

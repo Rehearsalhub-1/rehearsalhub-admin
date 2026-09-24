@@ -25,6 +25,8 @@ import MasterEditSongModal from '../components/MasterEditSongModal';
 import { useAuth } from '../context/AuthContext';
 import { customAlert } from '../context/AlertContext';
 import { useMasterLibrary } from '../hooks/useMasterLibrary';
+import ReorderCategoriesModal from './programSongs/ReorderCategoriesModal';
+import ImportToMasterModal from '../components/ImportToMasterModal';
 
 const FlashListAny = FlashList as any;
 
@@ -63,6 +65,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const [editModalSong, setEditModalSong] = useState<MasterSong | null>(null);
   const [editingOriginalMaster, setEditingOriginalMaster] = useState<MasterSong | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
   const [availablePrograms, setAvailablePrograms] = useState<{ id: string; name: string }[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
 
@@ -99,6 +102,23 @@ export default function MasterLibraryScreen({ navigation }: any) {
     return { total, active, history, hidden, hqOnly };
   }, [masterSongs]);
 
+  // Reorder Collections State
+  const [reorderModalVisible, setReorderModalVisible] = useState(false);
+  const [reorderCollectionsList, setReorderCollectionsList] = useState<string[]>([]);
+  const [isSavingCollectionsOrder, setIsSavingCollectionsOrder] = useState(false);
+  const [savedCollectionOrder, setSavedCollectionOrder] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.settings.get('master_collections_order')
+      .then(res => {
+        const order = res?.data?.order || res?.data?.value?.order;
+        if (Array.isArray(order) && order.length > 0) {
+          setSavedCollectionOrder(order);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Distinct Master Collections for Filter Bar
   const masterCollectionsList = useMemo(() => {
     const set = new Set<string>();
@@ -106,11 +126,71 @@ export default function MasterLibraryScreen({ navigation }: any) {
       if (p.name?.trim()) set.add(p.name.trim());
     });
     masterSongs.forEach(s => {
+      if (Array.isArray(s.categories) && s.categories.length > 0) {
+        s.categories.forEach(c => { if (c?.trim()) set.add(c.trim()); });
+      }
       const coll = (s as any).program || (s as any).programName || s.category;
       if (coll?.trim()) set.add(coll.trim());
     });
-    return Array.from(set).sort();
-  }, [availablePrograms, masterSongs]);
+    const allList = Array.from(set);
+    if (savedCollectionOrder && savedCollectionOrder.length > 0) {
+      const orderMap = new Map<string, number>();
+      savedCollectionOrder.forEach((name, i) => orderMap.set(name.toLowerCase(), i));
+      return allList.sort((a, b) => {
+        const idxA = orderMap.has(a.toLowerCase()) ? orderMap.get(a.toLowerCase())! : 9999;
+        const idxB = orderMap.has(b.toLowerCase()) ? orderMap.get(b.toLowerCase())! : 9999;
+        if (idxA !== idxB) return idxA - idxB;
+        return a.localeCompare(b);
+      });
+    }
+    return allList.sort();
+  }, [availablePrograms, masterSongs, savedCollectionOrder]);
+
+  const collectionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    masterSongs.forEach(s => {
+      const songColl = ((s as any).program || (s as any).programName || s.category || '').trim();
+      const songCats = Array.isArray(s.categories) && s.categories.length > 0 ? s.categories : (songColl ? [songColl] : []);
+      songCats.forEach(c => {
+        if (c) counts[c] = (counts[c] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [masterSongs]);
+
+  const handleOpenReorderModal = () => {
+    setReorderCollectionsList([...masterCollectionsList]);
+    setReorderModalVisible(true);
+  };
+
+  const handleMoveCollection = (index: number, direction: 'up' | 'down') => {
+    const list = [...reorderCollectionsList];
+    if (direction === 'up' && index > 0) {
+      [list[index - 1], list[index]] = [list[index], list[index - 1]];
+    } else if (direction === 'down' && index < list.length - 1) {
+      [list[index + 1], list[index]] = [list[index], list[index + 1]];
+    }
+    setReorderCollectionsList(list);
+  };
+
+  const handleResetCollectionReorder = () => {
+    const list = [...masterCollectionsList].sort();
+    setReorderCollectionsList(list);
+  };
+
+  const handleSaveCollectionOrder = async () => {
+    setIsSavingCollectionsOrder(true);
+    try {
+      await api.settings.update('master_collections_order', { order: reorderCollectionsList });
+      setSavedCollectionOrder(reorderCollectionsList);
+      setReorderModalVisible(false);
+      customAlert('Collections Reordered', 'Collection order saved successfully.');
+    } catch (e: any) {
+      customAlert('Error', e?.message || 'Failed to save collection order.');
+    } finally {
+      setIsSavingCollectionsOrder(false);
+    }
+  };
 
   // Distinct Lead Singers for Filter Bar
   const leadSingersList = useMemo(() => {
@@ -134,8 +214,12 @@ export default function MasterLibraryScreen({ navigation }: any) {
 
       // 2. Collection filter
       if (selectedCollection !== 'all') {
+        const target = selectedCollection.toLowerCase();
         const songColl = ((song as any).program || (song as any).programName || song.category || '').toLowerCase();
-        if (songColl !== selectedCollection.toLowerCase()) {
+        const songCats = Array.isArray(song.categories)
+          ? song.categories.map(c => (c || '').toLowerCase())
+          : [];
+        if (songColl !== target && !songCats.includes(target)) {
           return false;
         }
       }
@@ -152,9 +236,10 @@ export default function MasterLibraryScreen({ navigation }: any) {
         const matchesSinger = (song.leadSinger || '').toLowerCase().includes(q);
         const matchesWriter = (song.writer || song.publishedByName || '').toLowerCase().includes(q);
         const matchesCategory = (song.category || '').toLowerCase().includes(q);
+        const matchesCategories = Array.isArray(song.categories) && song.categories.some(c => (c || '').toLowerCase().includes(q));
         const matchesProgram = (((song as any).program || (song as any).programName) || '').toLowerCase().includes(q);
         const matchesKey = (song.key || '').toLowerCase().includes(q);
-        if (!matchesTitle && !matchesSinger && !matchesWriter && !matchesCategory && !matchesProgram && !matchesKey) {
+        if (!matchesTitle && !matchesSinger && !matchesWriter && !matchesCategory && !matchesCategories && !matchesProgram && !matchesKey) {
           return false;
         }
       }
@@ -257,6 +342,15 @@ export default function MasterLibraryScreen({ navigation }: any) {
           ) : null}
         </View>
 
+        <TouchableOpacity
+          style={styles.cleanImportBtn}
+          onPress={() => setImportModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="download-outline" size={16} color="#7c3aed" style={{ marginRight: 4 }} />
+          <Text style={styles.cleanImportBtnText}>Import</Text>
+        </TouchableOpacity>
+
         {adminUser?.isHQAdmin && (
           <TouchableOpacity
             style={styles.cleanAddBtn}
@@ -317,7 +411,11 @@ export default function MasterLibraryScreen({ navigation }: any) {
           </TouchableOpacity>
           {masterCollectionsList.map(coll => {
             const isSelected = selectedCollection.toLowerCase() === coll.toLowerCase();
-            const count = masterSongs.filter(s => ((s as any).program || (s as any).programName || s.category || '').toLowerCase() === coll.toLowerCase()).length;
+            const count = masterSongs.filter(s => {
+              const songColl = ((s as any).program || (s as any).programName || s.category || '').toLowerCase();
+              const songCats = Array.isArray(s.categories) ? s.categories.map(c => (c || '').toLowerCase()) : [];
+              return songColl === coll.toLowerCase() || songCats.includes(coll.toLowerCase());
+            }).length;
             return (
               <TouchableOpacity
                 key={coll}
@@ -331,6 +429,16 @@ export default function MasterLibraryScreen({ navigation }: any) {
               </TouchableOpacity>
             );
           })}
+          {adminUser?.isHQAdmin && (
+            <TouchableOpacity
+              style={styles.reorderChipBtn}
+              onPress={handleOpenReorderModal}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="swap-vertical" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
+              <Text style={styles.reorderChipText}>Reorder</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </View>
 
@@ -441,14 +549,19 @@ export default function MasterLibraryScreen({ navigation }: any) {
               {/* Card Footer: Tags & Action Icons */}
               <View style={styles.cardFooterRow}>
                 <View style={styles.cardTagsRow}>
-                  {(item.program || (item as any).programName || item.category) ? (
-                    <View style={styles.categoryPill}>
-                      <Ionicons name="albums-outline" size={10} color="#64748b" style={{ marginRight: 3 }} />
-                      <Text style={styles.categoryPillText}>
-                        {item.program || (item as any).programName || item.category}
-                      </Text>
-                    </View>
-                  ) : null}
+                  {(() => {
+                    const songCats: string[] = Array.isArray(item.categories) && item.categories.length > 0
+                      ? item.categories
+                      : [item.program || (item as any).programName || item.category].filter(Boolean) as string[];
+                    return songCats.map(catName => (
+                      <View key={catName} style={styles.categoryPill}>
+                        <Ionicons name="albums-outline" size={10} color="#64748b" style={{ marginRight: 3 }} />
+                        <Text style={styles.categoryPillText} numberOfLines={1}>
+                          {catName}
+                        </Text>
+                      </View>
+                    ));
+                  })()}
 
                   {hasStems && (
                     <View style={styles.stemsPill}>
@@ -566,6 +679,29 @@ export default function MasterLibraryScreen({ navigation }: any) {
           editSong={editingZoneSong}
         />
       )}
+      {/* ── REORDER MASTER COLLECTIONS MODAL ─────────────────────────────── */}
+      <ReorderCategoriesModal
+        visible={reorderModalVisible}
+        onClose={() => setReorderModalVisible(false)}
+        categoriesList={reorderCollectionsList}
+        categoryCounts={collectionCounts}
+        onMoveCategory={handleMoveCollection}
+        onReset={handleResetCollectionReorder}
+        onSave={handleSaveCollectionOrder}
+        isSaving={isSavingCollectionsOrder}
+      />
+
+      {/* ── IMPORT FROM PROGRAM MODAL ─────────────────────────────────────── */}
+      <ImportToMasterModal
+        visible={importModalVisible}
+        onClose={() => setImportModalVisible(false)}
+        onImportSuccess={(newSongs) => {
+          if (Array.isArray(newSongs)) {
+            newSongs.forEach(s => upsertMasterSong(s));
+          }
+          refetch();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -664,6 +800,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
+  },
+  cleanImportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f3ff',
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    paddingHorizontal: 12,
+    height: 42,
+    borderRadius: 12,
+  },
+  cleanImportBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#7c3aed',
   },
   cleanTabsRow: {
     flexDirection: 'row',
@@ -885,5 +1036,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  reorderChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#f5f3ff',
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+  },
+  reorderChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7c3aed',
   },
 });

@@ -358,6 +358,9 @@ export default function MediaLibraryScreen() {
         inputSource={state.inputSource}
         setInputSource={state.setInputSource}
         selectedFile={state.selectedFile}
+        selectedFiles={state.selectedFiles}
+        onRemoveSelectedFile={state.handleRemoveSelectedFile}
+        bulkUploadProgress={state.bulkUploadProgress}
         formTitle={state.formTitle}
         setFormTitle={state.setFormTitle}
         formUrl={state.formUrl}

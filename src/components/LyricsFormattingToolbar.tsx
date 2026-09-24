@@ -32,12 +32,39 @@ export default function LyricsFormattingToolbar({
     let replacement = '';
 
     switch (type) {
-      case 'bold':
-        replacement = hasSelection ? `**${selectedText}**` : '**Bold text**';
+      case 'bold': {
+        if (!hasSelection) {
+          replacement = '**Bold text**';
+        } else {
+          // Extract leading and trailing whitespace so delimiters (**...**)
+          // enclose ONLY the word/letters. Trailing spaces (common when double-tapping
+          // a word on mobile/web) remain outside the asterisks, preventing space collapse.
+          const leadingSpace = selectedText.match(/^\s*/)?.[0] || '';
+          const trailingSpace = selectedText.match(/\s*$/)?.[0] || '';
+          const core = selectedText.slice(leadingSpace.length, selectedText.length - trailingSpace.length);
+          if (!core) {
+            replacement = selectedText;
+          } else {
+            replacement = `${leadingSpace}**${core}**${trailingSpace}`;
+          }
+        }
         break;
-      case 'italic':
-        replacement = hasSelection ? `*${selectedText}*` : '*Italic text*';
+      }
+      case 'italic': {
+        if (!hasSelection) {
+          replacement = '*Italic text*';
+        } else {
+          const leadingSpace = selectedText.match(/^\s*/)?.[0] || '';
+          const trailingSpace = selectedText.match(/\s*$/)?.[0] || '';
+          const core = selectedText.slice(leadingSpace.length, selectedText.length - trailingSpace.length);
+          if (!core) {
+            replacement = selectedText;
+          } else {
+            replacement = `${leadingSpace}*${core}*${trailingSpace}`;
+          }
+        }
         break;
+      }
       case 'verse': {
         const needsNewlineBefore = start > 0 && current[start - 1] !== '\n';
         const prefix = needsNewlineBefore ? '\n\n' : (start > 0 ? '\n' : '');

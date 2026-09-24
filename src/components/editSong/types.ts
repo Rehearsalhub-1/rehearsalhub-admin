@@ -20,10 +20,12 @@ export interface PraiseNightSong {
   customParts?: string[] | Record<string, string>;
   leadKeyboardist?: string;
   leadGuitarist?: string;
+  bassGuitarist?: string;
   drummer?: string;
   coordinatorComment?: string;
   coordinatorAudioUrl?: string;
   isActive?: boolean;
+  isLive?: boolean;
   isHeard?: boolean;
   heard?: boolean;
   status?: 'heard' | 'unheard' | string;

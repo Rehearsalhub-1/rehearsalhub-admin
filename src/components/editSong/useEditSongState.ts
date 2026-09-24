@@ -85,6 +85,7 @@ export function useEditSongState({
   const [songConductor, setSongConductor] = useState('');
   const [songLeadKeyboardist, setSongLeadKeyboardist] = useState('');
   const [songLeadGuitarist, setSongLeadGuitarist] = useState('');
+  const [songBassGuitarist, setSongBassGuitarist] = useState('');
   const [songDrummer, setSongDrummer] = useState('');
 
   // Lyrics, Notation & Directives
@@ -114,6 +115,7 @@ export function useEditSongState({
     songConductor,
     songLeadKeyboardist,
     songLeadGuitarist,
+    songBassGuitarist,
     songDrummer,
     songLyrics,
     songSolfas,
@@ -164,8 +166,10 @@ export function useEditSongState({
         : [];
       setSongCategories(cats);
       setAvailableCategories(prev => Array.from(new Set([...categories, ...prev, ...cats])));
-      setSongStatus(song.status === 'heard' || song.isHeard || song.heard ? 'heard' : 'unheard');
-      setIsSongActive(Boolean(song.isActive));
+      const songIsLive = Boolean(song.isActive || song.status === 'live' || (song as any).isLive || (song as any).live);
+      const underlyingHeard = song.isHeard || song.heard || song.status === 'heard' || (song as any)?.audioUrls?._isHeard === true || (song as any)?.audioUrls?._preLiveStatus === 'heard';
+      setSongStatus(underlyingHeard ? 'heard' : 'unheard');
+      setIsSongActive(songIsLive);
       setIsHQOnly(Boolean(song.isHQOnly || song.is_hq_only || song.isHqOnly || song.scope === 'hq' || song.status === 'hq_only' || (song as any)?.audioUrls?._isHQOnly));
       setSongProgram(song.programName || song.praiseNightName || programName);
       setSongImageUrl(song.imageUrl || '');
@@ -188,6 +192,7 @@ export function useEditSongState({
       setSongConductor(song.conductor || '');
       setSongLeadKeyboardist(song.leadKeyboardist || '');
       setSongLeadGuitarist(song.leadGuitarist || '');
+      setSongBassGuitarist(song.bassGuitarist || (song as any).bass_guitarist || (song as any).bass || '');
       setSongDrummer(song.drummer || '');
 
       setSongLyrics(htmlToEditorText(song.lyrics));
@@ -212,7 +217,14 @@ export function useEditSongState({
             // Guard: ignore stale responses if the user already opened a different song
             if (!fetchedForSongId) return;
             const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-            historyManager.setHistoryEntries(list);
+            const seen = new Set();
+            const deduplicated = list.filter((item: any) => {
+              if (!item?.id) return true;
+              if (seen.has(item.id)) return false;
+              seen.add(item.id);
+              return true;
+            });
+            historyManager.setHistoryEntries(deduplicated);
             if (!commentText) {
               const latestComment = list.find((e: any) => {
                 const t = (e.type || '').toLowerCase();
@@ -247,6 +259,7 @@ export function useEditSongState({
       setSongConductor('');
       setSongLeadKeyboardist('');
       setSongLeadGuitarist('');
+      setSongBassGuitarist('');
       setSongDrummer('');
       setSongLyrics('');
       setSongSolfas('');
@@ -346,10 +359,11 @@ export function useEditSongState({
     const payload: PraiseNightSong = {
       id: song?.id || `song-${Date.now()}`,
       title: songTitle.trim(),
-      status: songStatus,
+      status: isSongActive ? 'live' : songStatus,
       isHeard: songStatus === 'heard',
       heard: songStatus === 'heard',
       isActive: isSongActive,
+      isLive: isSongActive,
       isHQOnly: isHQOnly,
       is_hq_only: isHQOnly,
       isHqOnly: isHQOnly,
@@ -368,6 +382,7 @@ export function useEditSongState({
       tempo: songTempo.trim(),
       leadKeyboardist: songLeadKeyboardist.trim(),
       leadGuitarist: songLeadGuitarist.trim(),
+      bassGuitarist: songBassGuitarist.trim(),
       drummer: songDrummer.trim(),
       solfas: editorTextToHtml(songSolfas),
       solfa: editorTextToHtml(songSolfas),
@@ -409,6 +424,20 @@ export function useEditSongState({
     );
   };
 
+  const handleImportToMaster = async () => {
+    if (!song?.id) return;
+    try {
+      const res = await api.songs.importToMaster(song.id);
+      if (res?.success) {
+        customAlert('Success', `"${songTitle || song.title}" was successfully imported into All Ministered.`);
+      } else {
+        throw new Error((res as any)?.error || 'Failed to import song.');
+      }
+    } catch (err: any) {
+      customAlert('Import Error', err?.message || 'Could not import song into All Ministered.');
+    }
+  };
+
   const handleClose = () => {
     audioPlayer.stopAudio();
     historyManager.setShowHistoryList(false);
@@ -444,6 +473,7 @@ export function useEditSongState({
     songConductor, setSongConductor,
     songLeadKeyboardist, setSongLeadKeyboardist,
     songLeadGuitarist, setSongLeadGuitarist,
+    songBassGuitarist, setSongBassGuitarist,
     songDrummer, setSongDrummer,
     songLyrics, setSongLyrics,
     lyricsSelection, setLyricsSelection,
@@ -455,6 +485,6 @@ export function useEditSongState({
     activeTab, setActiveTab,
     ...historyManager,
     ...audioPlayer,
-    handleSubmit, handleDelete, handleClose,
+    handleSubmit, handleDelete, handleClose, handleImportToMaster,
   };
 }

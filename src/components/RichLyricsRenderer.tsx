@@ -74,18 +74,23 @@ export const RichLyricsRenderer: React.FC<RichLyricsRendererProps> = ({
 
     while ((match = regex.exec(line)) !== null) {
       if (match.index > lastIndex) {
-        const plainText = line.substring(lastIndex, match.index).replace(/<[^>]+>/g, '');
+        let plainText = line.substring(lastIndex, match.index).replace(/<[^>]+>/g, '');
         if (plainText) {
+          // Preserve trailing space at boundary with styled text
+          if (plainText.endsWith(' ')) plainText = plainText.slice(0, -1) + '\u00A0';
           tokens.push(<Text key={`t-${lineIdx}-${lastIndex}`}>{plainText}</Text>);
         }
       }
 
       const matchStr = match[0];
       const isItalic = /^<i|^<em|^\*[^*]/i.test(matchStr);
-      const innerText = matchStr
+      let innerText = matchStr
         .replace(/<[^>]+>/g, '')
         .replace(/\*\*/g, '')
         .replace(/^\*|\*$/g, '');
+
+      if (innerText.startsWith(' ')) innerText = '\u00A0' + innerText.slice(1);
+      if (innerText.endsWith(' ')) innerText = innerText.slice(0, -1) + '\u00A0';
 
       if (isItalic) {
         tokens.push(
@@ -106,8 +111,9 @@ export const RichLyricsRenderer: React.FC<RichLyricsRendererProps> = ({
     }
 
     if (lastIndex < line.length) {
-      const remaining = line.substring(lastIndex).replace(/<[^>]+>/g, '');
+      let remaining = line.substring(lastIndex).replace(/<[^>]+>/g, '');
       if (remaining) {
+        if (remaining.startsWith(' ')) remaining = '\u00A0' + remaining.slice(1);
         tokens.push(<Text key={`t-${lineIdx}-${lastIndex}`}>{remaining}</Text>);
       }
     }

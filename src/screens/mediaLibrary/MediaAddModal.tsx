@@ -19,6 +19,9 @@ interface MediaAddModalProps {
   inputSource: 'device' | 'url';
   setInputSource: (val: 'device' | 'url') => void;
   selectedFile: { uri: string; name: string; type: string; size?: number } | null;
+  selectedFiles?: Array<{ uri: string; name: string; type: string; size?: number }>;
+  onRemoveSelectedFile?: (index: number) => void;
+  bulkUploadProgress?: { current: number; total: number; currentName: string } | null;
   formTitle: string;
   setFormTitle: (val: string) => void;
   formUrl: string;
@@ -45,6 +48,9 @@ export default function MediaAddModal({
   inputSource,
   setInputSource,
   selectedFile,
+  selectedFiles = [],
+  onRemoveSelectedFile,
+  bulkUploadProgress,
   formTitle,
   setFormTitle,
   formUrl,
@@ -131,8 +137,58 @@ export default function MediaAddModal({
               {/* Source Option 1: File from Device */}
               {inputSource === 'device' ? (
                 <View style={styles.formField}>
-                  <Text style={styles.fieldLabel}>Selected File</Text>
-                  {selectedFile ? (
+                  <Text style={styles.fieldLabel}>Selected File{selectedFiles.length > 1 ? 's' : ''}</Text>
+                  {selectedFiles.length > 1 ? (
+                    <View>
+                      <View style={styles.bulkBadgeRow}>
+                        <View style={styles.bulkBadge}>
+                          <Ionicons name="documents" size={13} color="#7c3aed" style={{ marginRight: 5 }} />
+                          <Text style={styles.bulkBadgeText}>Bulk Upload: {selectedFiles.length} files selected</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.changeFileBtn}
+                          onPress={onPickDocument}
+                          disabled={saving}
+                        >
+                          <Text style={styles.changeFileText}>+ Add More</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      <ScrollView style={styles.bulkFilesScroll} nestedScrollEnabled={true}>
+                        {selectedFiles.map((file, idx) => (
+                          <View key={`${file.name}-${idx}`} style={styles.bulkFileRow}>
+                            <Ionicons
+                              name={
+                                file.type.includes('audio') ? 'musical-notes' :
+                                file.type.includes('video') ? 'videocam' :
+                                file.type.includes('image') ? 'image' : 'document-text'
+                              }
+                              size={17}
+                              color="#7c3aed"
+                              style={{ marginRight: 8 }}
+                            />
+                            <Text style={styles.bulkFileName} numberOfLines={1}>
+                              {file.name}
+                            </Text>
+                            <Text style={styles.bulkFileSize}>
+                              {file.size ? formatFileSize(file.size) : ''}
+                            </Text>
+                            {!saving && onRemoveSelectedFile && (
+                              <TouchableOpacity
+                                onPress={() => onRemoveSelectedFile(idx)}
+                                style={styles.bulkRemoveFileBtn}
+                              >
+                                <Ionicons name="close-circle" size={17} color="#ef4444" />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        ))}
+                      </ScrollView>
+                      <Text style={styles.bulkUploadNotice}>
+                        Files will be uploaded with their filenames as display titles and categorized automatically.
+                      </Text>
+                    </View>
+                  ) : selectedFile ? (
                     <View style={styles.fileSelectedBox}>
                       <Ionicons name="document-text" size={22} color="#7c3aed" style={{ marginRight: 10 }} />
                       <View style={{ flex: 1 }}>
@@ -159,8 +215,8 @@ export default function MediaAddModal({
                       disabled={saving}
                     >
                       <Ionicons name="cloud-upload-outline" size={28} color="#7c3aed" />
-                      <Text style={styles.pickFileTitle}>Tap to Select File</Text>
-                      <Text style={styles.pickFileSub}>Audio Stems, Photos, PDF Scores, or Videos</Text>
+                      <Text style={styles.pickFileTitle}>Tap to Select File(s)</Text>
+                      <Text style={styles.pickFileSub}>Bulk upload audio stems, photos, PDF scores, or videos</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -183,23 +239,25 @@ export default function MediaAddModal({
                 </View>
               )}
 
-              {/* Title Field with Renaming Guidance */}
-              <View style={styles.formField}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                  <Text style={styles.fieldLabel}>File Name / Display Title *</Text>
-                  <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: '700' }}>Rename freely</Text>
+              {/* Title Field with Renaming Guidance (Hidden when multi-file bulk upload) */}
+              {!(inputSource === 'device' && selectedFiles.length > 1) && (
+                <View style={styles.formField}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                    <Text style={styles.fieldLabel}>File Name / Display Title *</Text>
+                    <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: '700' }}>Rename freely</Text>
+                  </View>
+                  <TextInput
+                    style={styles.inputBox}
+                    placeholder="e.g. Grace & Peace - Soprano Lead Stem"
+                    placeholderTextColor="#94a3b8"
+                    value={formTitle}
+                    onChangeText={setFormTitle}
+                  />
+                  <Text style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>
+                    You can rename this file as desired before uploading.
+                  </Text>
                 </View>
-                <TextInput
-                  style={styles.inputBox}
-                  placeholder="e.g. Grace & Peace - Soprano Lead Stem"
-                  placeholderTextColor="#94a3b8"
-                  value={formTitle}
-                  onChangeText={setFormTitle}
-                />
-                <Text style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>
-                  You can rename this file as desired before uploading.
-                </Text>
-              </View>
+              )}
 
               {/* Category Options */}
               <View style={styles.formField}>
@@ -263,12 +321,20 @@ export default function MediaAddModal({
                 {saving ? (
                   <>
                     <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
-                    <Text style={styles.sheetSaveText}>Saving...</Text>
+                    <Text style={styles.sheetSaveText}>
+                      {bulkUploadProgress
+                        ? `Uploading ${bulkUploadProgress.current} of ${bulkUploadProgress.total}...`
+                        : 'Saving...'}
+                    </Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name="checkmark" size={17} color="#ffffff" style={{ marginRight: 6 }} />
-                    <Text style={styles.sheetSaveText}>Save Media</Text>
+                    <Text style={styles.sheetSaveText}>
+                      {inputSource === 'device' && selectedFiles.length > 1
+                        ? `Upload ${selectedFiles.length} Files`
+                        : 'Save Media'}
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>

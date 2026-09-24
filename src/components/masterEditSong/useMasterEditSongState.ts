@@ -29,8 +29,18 @@ export function useMasterEditSongState({
   const [key, setKey] = useState(''), [tempo, setTempo] = useState(''), [conductor, setConductor] = useState('');
   const [leadKeyboardist, setLeadKeyboardist] = useState(''), [bassGuitarist, setBassGuitarist] = useState(''), [drummer, setDrummer] = useState('');
   const [category, setCategory] = useState(''), [imageUrl, setImageUrl] = useState(''), [isHQOnly, setIsHQOnly] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
 
-  // Master Programs / Collections & Inline Creation
+  function toggleCategory(cat: string) {
+    const trimmed = (cat || '').trim();
+    if (!trimmed) return;
+    setCategories(prev => {
+      const exists = prev.includes(trimmed);
+      const next = exists ? prev.filter(c => c !== trimmed) : [...prev, trimmed];
+      setCategory(next[0] || '');
+      return next;
+    });
+  }
   const [collectionsList, setCollectionsList] = useState<string[]>(DEFAULT_COLLECTIONS);
   const [collectionToIdMap, setCollectionToIdMap] = useState<Record<string, string>>({});
   const [showNewCatInput, setShowNewCatInput] = useState(false);
@@ -136,16 +146,20 @@ export function useMasterEditSongState({
         setLeadKeyboardist(song.leadKeyboardist || '');
         setBassGuitarist(song.bassGuitarist || '');
         setDrummer(song.drummer || '');
-        const existingColl = (song as any).program || (song as any).programName || song.category || '';
-        setCategory(existingColl);
+        const songCats: string[] = Array.isArray(song.categories) && song.categories.length > 0
+          ? song.categories
+          : ([(song as any).program, (song as any).programName, song.category].filter(Boolean) as string[]);
+        const dedupedCats = Array.from(new Set(songCats.map(c => c.trim()).filter(Boolean)));
+        setCategories(dedupedCats);
+        setCategory(dedupedCats[0] || '');
         setImageUrl(song.imageUrl || '');
         setIsHQOnly(Boolean(song.isHQOnly || song.isHqOnly));
         setLyrics(htmlToEditorText(song.lyrics || ''));
         setSolfa(htmlToEditorText(song.solfas || song.solfa || song.conductorGuide || ''));
         setHistory(htmlToEditorText(song.history || song.coordinatorComment || song.coordinatorNotes || ''));
 
-        if (existingColl && !collectionsList.includes(existingColl)) {
-          setCollectionsList(prev => [existingColl, ...prev]);
+        if (dedupedCats.length > 0) {
+          setCollectionsList(prev => Array.from(new Set([...dedupedCats, ...prev])));
         }
 
         const urls: Record<string, string> = {
@@ -183,6 +197,7 @@ export function useMasterEditSongState({
         setBassGuitarist('');
         setDrummer('');
         setCategory('');
+        setCategories([]);
         setImageUrl('');
         setIsHQOnly(false);
         setLyrics('');
@@ -208,6 +223,7 @@ export function useMasterEditSongState({
     if (!collectionsList.includes(trimmed)) {
       setCollectionsList(prev => [trimmed, ...prev]);
     }
+    setCategories(prev => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
     setCategory(trimmed);
     setNewCatName('');
     setShowNewCatInput(false);
@@ -294,8 +310,9 @@ export function useMasterEditSongState({
 
     setSaving(true);
     try {
+      const primaryCategory = categories[0] || category.trim() || undefined;
       const resolvedProgramId =
-        collectionToIdMap[category.trim()] ||
+        (primaryCategory ? collectionToIdMap[primaryCategory] : undefined) ||
         (song as any)?.programId ||
         (song as any)?.praiseNightId ||
         undefined;
@@ -314,12 +331,12 @@ export function useMasterEditSongState({
         writer: writer.trim(),
         publishedByName: writer.trim(),
         leadSinger: leadSinger.trim(),
-        category: category.trim() || undefined,
-        categories: category.trim() ? [category.trim()] : [],
-        program: category.trim() || undefined,
-        programName: category.trim() || undefined,
-        programId: category.trim() ? resolvedProgramId : undefined,
-        praiseNightId: category.trim() ? resolvedProgramId : undefined,
+        category: primaryCategory,
+        categories: categories.length > 0 ? categories : (primaryCategory ? [primaryCategory] : []),
+        program: primaryCategory,
+        programName: primaryCategory,
+        programId: primaryCategory ? resolvedProgramId : undefined,
+        praiseNightId: primaryCategory ? resolvedProgramId : undefined,
         key: key.trim(),
         tempo: tempo.trim(),
         conductor: conductor.trim(),
@@ -391,6 +408,9 @@ export function useMasterEditSongState({
     setDrummer,
     category,
     setCategory,
+    categories,
+    setCategories,
+    toggleCategory,
     imageUrl,
     setImageUrl,
     isHQOnly,

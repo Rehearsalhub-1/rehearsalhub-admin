@@ -74,6 +74,10 @@ export const api = {
       apiClient.patch<{ success: boolean; data?: any }>(`/songs/${songId}`, data),
     delete: (songId: string) =>
       apiClient.delete<{ success: boolean }>(`/songs/${songId}`),
+    importToMaster: (songIds: string | string[]) =>
+      apiClient.post<{ success: boolean; message?: string; error?: string; data?: any[] }>('/songs/import-to-master', {
+        songIds: Array.isArray(songIds) ? songIds : [songIds],
+      }),
     createSubgroupSong: (data: Record<string, any>) =>
       apiClient.post<{ success: boolean; data?: any }>('/subgroups/songs', data),
     updateSubgroupSong: (songId: string, data: Record<string, any>) =>

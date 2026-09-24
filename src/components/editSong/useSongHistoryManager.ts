@@ -16,6 +16,7 @@ interface UseSongHistoryManagerProps {
   songConductor: string;
   songLeadKeyboardist: string;
   songLeadGuitarist: string;
+  songBassGuitarist: string;
   songDrummer: string;
   songLyrics: string;
   songSolfas: string;
@@ -37,6 +38,7 @@ export function useSongHistoryManager({
   songConductor,
   songLeadKeyboardist,
   songLeadGuitarist,
+  songBassGuitarist,
   songDrummer,
   songLyrics,
   songSolfas,
@@ -96,6 +98,7 @@ export function useSongHistoryManager({
           songConductor ? `Conductor: ${songConductor}` : '',
           songLeadKeyboardist ? `Lead Keyboard: ${songLeadKeyboardist}` : '',
           songLeadGuitarist ? `Lead Guitar: ${songLeadGuitarist}` : '',
+          songBassGuitarist ? `Bass Guitar: ${songBassGuitarist}` : '',
           songDrummer ? `Drummer: ${songDrummer}` : '',
         ].filter(Boolean).join('\n');
         break;
@@ -221,7 +224,7 @@ export function useSongHistoryManager({
           created_by: 'Coordinator',
           ...res.data,
         };
-        const newList = [newEntry, ...historyEntries];
+        const newList = [newEntry, ...historyEntries.filter(e => e.id !== newEntry.id)];
         setHistoryEntries(newList);
         if (song && Array.isArray(song.history)) {
           song.history = newList;

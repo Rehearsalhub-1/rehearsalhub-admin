@@ -73,6 +73,8 @@ export interface BaseSongFormProps {
   setSongLeadKeyboardist: (val: string) => void;
   songLeadGuitarist: string;
   setSongLeadGuitarist: (val: string) => void;
+  songBassGuitarist: string;
+  setSongBassGuitarist: (val: string) => void;
   songDrummer: string;
   setSongDrummer: (val: string) => void;
 

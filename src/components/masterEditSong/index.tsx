@@ -119,6 +119,9 @@ export default function MasterEditSongModal({
                 collectionsList={state.collectionsList}
                 category={state.category}
                 setCategory={state.setCategory}
+                categories={state.categories}
+                setCategories={state.setCategories}
+                toggleCategory={state.toggleCategory}
                 showNewCatInput={state.showNewCatInput}
                 setShowNewCatInput={state.setShowNewCatInput}
                 newCatName={state.newCatName}

@@ -14,11 +14,31 @@ export function htmlToEditorText(raw: string | undefined | null): string {
 
   return raw
     // Convert bold tags to markdown BEFORE stripping tags.
-    // Use non-greedy match but avoid crossing tag boundaries with [^<]*
-    .replace(/<b[^>]*>([^<]*)<\/b>/gi, '**$1**')
-    .replace(/<strong[^>]*>([^<]*)<\/strong>/gi, '**$1**')
-    .replace(/<i[^>]*>([^<]*)<\/i>/gi, '*$1*')
-    .replace(/<em[^>]*>([^<]*)<\/em>/gi, '*$1*')
+    // Preserve any leading/trailing whitespace outside delimiters to prevent spacing collapse.
+    .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, (_, p1) => {
+      const leading = p1.match(/^\s*/)?.[0] || '';
+      const trailing = p1.match(/\s*$/)?.[0] || '';
+      const core = p1.trim();
+      return core ? `${leading}**${core}**${trailing}` : p1;
+    })
+    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, (_, p1) => {
+      const leading = p1.match(/^\s*/)?.[0] || '';
+      const trailing = p1.match(/\s*$/)?.[0] || '';
+      const core = p1.trim();
+      return core ? `${leading}**${core}**${trailing}` : p1;
+    })
+    .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, (_, p1) => {
+      const leading = p1.match(/^\s*/)?.[0] || '';
+      const trailing = p1.match(/\s*$/)?.[0] || '';
+      const core = p1.trim();
+      return core ? `${leading}*${core}*${trailing}` : p1;
+    })
+    .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, (_, p1) => {
+      const leading = p1.match(/^\s*/)?.[0] || '';
+      const trailing = p1.match(/\s*$/)?.[0] || '';
+      const core = p1.trim();
+      return core ? `${leading}*${core}*${trailing}` : p1;
+    })
     // div blocks → content + newline
     .replace(/<div[^>]*>([\s\S]*?)<\/div>/gi, '$1\n')
     // closing p → double newline
@@ -59,11 +79,21 @@ export function editorTextToHtml(text: string | undefined | null): string {
   }
 
   // Convert markdown markers to HTML tags first
-  // Bold MUST run before italic. Use negative lookahead/lookbehind to prevent
-  // italic regex from accidentally matching the * inside ** markers.
+  // Bold MUST run before italic. Keep leading/trailing spaces outside the HTML tag
+  // so browser and mobile HTML parsers do not collapse or eat the spaces.
   let html = trimmed
-    .replace(/\*\*([\s\S]*?)\*\*/g, '<b>$1</b>')
-    .replace(/(?<!\*)\*(?!\*)([\s\S]*?)(?<!\*)\*(?!\*)/g, '<i>$1</i>');
+    .replace(/\*\*([\s\S]*?)\*\*/g, (_, p1) => {
+      const leading = p1.match(/^\s*/)?.[0] || '';
+      const trailing = p1.match(/\s*$/)?.[0] || '';
+      const core = p1.trim();
+      return core ? `${leading}<b>${core}</b>${trailing}` : p1;
+    })
+    .replace(/(?<!\*)\*(?!\*)([\s\S]*?)(?<!\*)\*(?!\*)/g, (_, p1) => {
+      const leading = p1.match(/^\s*/)?.[0] || '';
+      const trailing = p1.match(/\s*$/)?.[0] || '';
+      const core = p1.trim();
+      return core ? `${leading}<i>${core}</i>${trailing}` : p1;
+    });
 
   // Split by double newline into paragraph divs, preserving single newlines as <br>
   const paragraphs = html.split(/\n\n+/);

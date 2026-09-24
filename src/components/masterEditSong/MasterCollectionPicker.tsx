@@ -11,8 +11,11 @@ import { styles } from './masterEditSongStyles';
 
 interface MasterCollectionPickerProps {
   collectionsList: string[];
-  category: string;
-  setCategory: (cat: string) => void;
+  category?: string;
+  setCategory?: (cat: string) => void;
+  categories: string[];
+  setCategories: (cats: string[]) => void;
+  toggleCategory: (cat: string) => void;
   showNewCatInput: boolean;
   setShowNewCatInput: (val: boolean) => void;
   newCatName: string;
@@ -22,28 +25,51 @@ interface MasterCollectionPickerProps {
 
 export default function MasterCollectionPicker({
   collectionsList,
-  category,
+  category = '',
   setCategory,
+  categories = [],
+  setCategories,
+  toggleCategory,
   showNewCatInput,
   setShowNewCatInput,
   newCatName,
   setNewCatName,
   onAddNewCategory,
 }: MasterCollectionPickerProps) {
+  // Use categories array, fallback to single category if empty
+  const activeCategories = categories.length > 0 ? categories : (category ? [category] : []);
+
+  const handleClear = () => {
+    setCategories([]);
+    if (setCategory) setCategory('');
+  };
+
   return (
     <View style={styles.inputGroup}>
       <View style={styles.labelWithAction}>
-        <Text style={styles.label}>MASTER PROGRAM / COLLECTION</Text>
-        {!showNewCatInput && (
-          <TouchableOpacity
-            style={styles.addCategoryPill}
-            onPress={() => setShowNewCatInput(true)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={12} color="#7c3aed" style={{ marginRight: 2 }} />
-            <Text style={styles.addCategoryPillText}>+ New Collection</Text>
-          </TouchableOpacity>
-        )}
+        <Text style={styles.label}>MASTER PROGRAMS / COLLECTIONS</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {activeCategories.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearCategoriesPill}
+              onPress={handleClear}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close-circle-outline" size={12} color="#ef4444" style={{ marginRight: 2 }} />
+              <Text style={styles.clearCategoriesPillText}>Clear</Text>
+            </TouchableOpacity>
+          )}
+          {!showNewCatInput && (
+            <TouchableOpacity
+              style={styles.addCategoryPill}
+              onPress={() => setShowNewCatInput(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={12} color="#7c3aed" style={{ marginRight: 2 }} />
+              <Text style={styles.addCategoryPillText}>+ New Collection</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {showNewCatInput && (
@@ -75,45 +101,76 @@ export default function MasterCollectionPicker({
         </View>
       )}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-        <TouchableOpacity
-          style={[styles.categoryChip, !category && styles.categoryChipActive]}
-          onPress={() => setCategory('')}
-          activeOpacity={0.8}
+      {/* Scrollable Checkbox List for Collections */}
+      <View style={styles.categoriesCheckboxContainer}>
+        <ScrollView
+          nestedScrollEnabled={true}
+          showsVerticalScrollIndicator={true}
+          style={{ maxHeight: 160 }}
+          contentContainerStyle={{ paddingVertical: 2 }}
+          keyboardShouldPersistTaps="handled"
         >
-          <Ionicons
-            name="close-circle-outline"
-            size={12}
-            color={!category ? '#7c3aed' : '#64748b'}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.categoryChipText, !category && styles.categoryChipTextActive]}>
-            None (Uncategorized)
-          </Text>
-        </TouchableOpacity>
-
-        {collectionsList.map(cat => {
-          const isSelected = category === cat;
-          return (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
-              onPress={() => setCategory(isSelected ? '' : cat)}
-              activeOpacity={0.8}
+          {/* None / Uncategorized Option */}
+          <TouchableOpacity
+            style={[
+              styles.categoryCheckboxRow,
+              activeCategories.length === 0 && styles.categoryCheckboxRowActive,
+            ]}
+            onPress={handleClear}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={activeCategories.length === 0 ? 'checkmark-circle' : 'ellipse-outline'}
+              size={18}
+              color={activeCategories.length === 0 ? '#10b981' : '#94a3b8'}
+              style={{ marginRight: 10 }}
+            />
+            <Text
+              style={[
+                styles.categoryCheckboxText,
+                activeCategories.length === 0 && { color: '#059669', fontWeight: '700' },
+              ]}
             >
-              <Ionicons
-                name="albums-outline"
-                size={12}
-                color={isSelected ? '#7c3aed' : '#64748b'}
-                style={{ marginRight: 4 }}
-              />
-              <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+              None (Uncategorized)
+            </Text>
+          </TouchableOpacity>
+
+          {/* All Available Master Collections */}
+          {collectionsList.map(cat => {
+            const isChecked = activeCategories.includes(cat);
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[
+                  styles.categoryCheckboxRow,
+                  isChecked && styles.categoryCheckboxRowActive,
+                ]}
+                onPress={() => toggleCategory(cat)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={isChecked ? 'checkbox' : 'square-outline'}
+                  size={18}
+                  color={isChecked ? '#7c3aed' : '#94a3b8'}
+                  style={{ marginRight: 10 }}
+                />
+                <Text
+                  style={[
+                    styles.categoryCheckboxText,
+                    isChecked && styles.categoryCheckboxTextActive,
+                  ]}
+                >
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      <Text style={styles.selectedCategoriesSummary}>
+        Selected: {activeCategories.length > 0 ? activeCategories.join(', ') : 'None (Uncategorized)'}
+      </Text>
     </View>
   );
 }

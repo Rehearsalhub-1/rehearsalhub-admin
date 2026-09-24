@@ -20,6 +20,9 @@ interface MasterDetailsTabProps {
   collectionsList: string[];
   category: string;
   setCategory: (val: string) => void;
+  categories: string[];
+  setCategories: (cats: string[]) => void;
+  toggleCategory: (cat: string) => void;
   showNewCatInput: boolean;
   setShowNewCatInput: (val: boolean) => void;
   newCatName: string;
@@ -52,6 +55,9 @@ export default function MasterDetailsTab({
   collectionsList,
   category,
   setCategory,
+  categories,
+  setCategories,
+  toggleCategory,
   showNewCatInput,
   setShowNewCatInput,
   newCatName,
@@ -119,6 +125,9 @@ export default function MasterDetailsTab({
           collectionsList={collectionsList}
           category={category}
           setCategory={setCategory}
+          categories={categories}
+          setCategories={setCategories}
+          toggleCategory={toggleCategory}
           showNewCatInput={showNewCatInput}
           setShowNewCatInput={setShowNewCatInput}
           newCatName={newCatName}

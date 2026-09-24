@@ -72,6 +72,17 @@ export default function EditSongModal(props: EditSongModalProps) {
               </TouchableOpacity>
             )}
 
+            {!props.isMaster && isEditing && (
+              <TouchableOpacity
+                onPress={state.handleImportToMaster}
+                style={styles.headerImportBtn}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="cloud-upload-outline" size={14} color="#7c3aed" style={{ marginRight: 3 }} />
+                <Text style={styles.headerImportBtnText}>To All Ministered</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               onPress={state.handleSubmit}
               style={styles.headerQuickSaveBtn}

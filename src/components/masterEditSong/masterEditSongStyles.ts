@@ -74,6 +74,27 @@ export const styles = StyleSheet.create({
   inlineAddCatBtnText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
   inlineCancelCatBtn: { padding: 6 },
 
+  clearCategoriesPill: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef2f2',
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+    borderWidth: 1, borderColor: '#fecaca',
+  },
+  clearCategoriesPillText: { fontSize: 10.5, fontWeight: '700', color: '#ef4444' },
+
+  categoriesCheckboxContainer: {
+    backgroundColor: '#f8fafc', borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0',
+    padding: 6, maxHeight: 180,
+  },
+  categoryCheckboxRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 8, borderRadius: 8,
+  },
+  categoryCheckboxRowActive: {
+    backgroundColor: '#f5f3ff',
+  },
+  categoryCheckboxText: { fontSize: 12.5, color: '#334155', fontWeight: '500' },
+  categoryCheckboxTextActive: { color: '#7c3aed', fontWeight: '700' },
+  selectedCategoriesSummary: { fontSize: 11, color: '#64748b', fontStyle: 'italic', marginTop: 4 },
+
   categoryScroll: { flexDirection: 'row', gap: 6, paddingVertical: 4 },
   categoryChip: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc',

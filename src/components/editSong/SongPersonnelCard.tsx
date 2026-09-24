@@ -20,6 +20,8 @@ export interface SongPersonnelCardProps {
   setSongLeadKeyboardist: (val: string) => void;
   songLeadGuitarist: string;
   setSongLeadGuitarist: (val: string) => void;
+  songBassGuitarist: string;
+  setSongBassGuitarist: (val: string) => void;
   songDrummer: string;
   setSongDrummer: (val: string) => void;
   handleAddHistory: (type: string) => void;
@@ -37,6 +39,8 @@ export default function SongPersonnelCard({
   setSongLeadKeyboardist,
   songLeadGuitarist,
   setSongLeadGuitarist,
+  songBassGuitarist,
+  setSongBassGuitarist,
   songDrummer,
   setSongDrummer,
   handleAddHistory,
@@ -101,11 +105,22 @@ export default function SongPersonnelCard({
         </View>
 
         <View style={[styles.fieldGroup, isMedium && { width: '48.5%' }]}>
-          <Text style={styles.fieldLabel}>Bass Guitarist</Text>
+          <Text style={styles.fieldLabel}>Lead Guitarist</Text>
           <TextInput
             style={styles.inputPrimary}
             value={songLeadGuitarist}
             onChangeText={setSongLeadGuitarist}
+            placeholder="Enter lead guitarist"
+            placeholderTextColor="#94a3b8"
+          />
+        </View>
+
+        <View style={[styles.fieldGroup, isMedium && { width: '48.5%' }]}>
+          <Text style={styles.fieldLabel}>Bass Guitarist</Text>
+          <TextInput
+            style={styles.inputPrimary}
+            value={songBassGuitarist}
+            onChangeText={setSongBassGuitarist}
             placeholder="Enter bass guitarist"
             placeholderTextColor="#94a3b8"
           />

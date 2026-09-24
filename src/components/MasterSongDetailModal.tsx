@@ -294,14 +294,19 @@ export default function MasterSongDetailModal({
                 </View>
               ) : null}
 
-              {(song.program || song.programName || song.category) ? (
-                <View style={[styles.heroChip, { backgroundColor: '#f1f5f9' }]}>
-                  <Ionicons name="albums-outline" size={11} color="#475569" style={{ marginRight: 3 }} />
-                  <Text style={[styles.heroChipText, { color: '#475569' }]}>
-                    {song.program || song.programName || song.category}
-                  </Text>
-                </View>
-              ) : null}
+              {(() => {
+                const cats: string[] = Array.isArray(song.categories) && song.categories.length > 0
+                  ? song.categories
+                  : [song.program || song.programName || song.category].filter(Boolean) as string[];
+                return cats.map((catName: string) => (
+                  <View key={catName} style={[styles.heroChip, { backgroundColor: '#f1f5f9' }]}>
+                    <Ionicons name="albums-outline" size={11} color="#475569" style={{ marginRight: 3 }} />
+                    <Text style={[styles.heroChipText, { color: '#475569' }]}>
+                      {catName}
+                    </Text>
+                  </View>
+                ));
+              })()}
 
               {isHq && (
                 <View style={[styles.heroChip, { backgroundColor: '#f5f3ff', borderColor: '#ddd6fe', borderWidth: 1 }]}>
