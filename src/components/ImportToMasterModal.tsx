@@ -186,15 +186,15 @@ export default function ImportToMasterModal({
         <View style={[styles.dialogCard, isDesktop && styles.dialogCardDesktop]}>
           {/* Header */}
           <View style={styles.header}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
               <View style={styles.headerTitleRow}>
                 <View style={styles.headerIconCircle}>
-                  <Ionicons name="download-outline" size={20} color="#7c3aed" />
+                  <Ionicons name="download-outline" size={18} color="#7c3aed" />
                 </View>
                 <Text style={styles.headerTitle}>Import Songs to All Ministered</Text>
               </View>
               <Text style={styles.headerSub}>
-                Select a program (Loveworld Singers HQ / Zones) to import songs into All Ministered
+                Select a program to import songs into the All Ministered master catalog
               </Text>
             </View>
             <TouchableOpacity
@@ -203,6 +203,7 @@ export default function ImportToMasterModal({
               }}
               disabled={importing}
               style={styles.closeBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons name="close" size={22} color="#64748b" />
             </TouchableOpacity>
@@ -219,6 +220,7 @@ export default function ImportToMasterModal({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.programsScrollContainer}
               contentContainerStyle={styles.programsScroll}
             >
               {programs.map(prog => {
@@ -254,11 +256,9 @@ export default function ImportToMasterModal({
             {selectedProgram && (
               <View style={styles.songsSection}>
                 <View style={styles.songsHeaderRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={styles.sectionLabel}>
-                      SONGS IN "{selectedProgram.name.toUpperCase()}" ({filteredSongs.length})
-                    </Text>
-                  </View>
+                  <Text style={styles.sectionLabel} numberOfLines={1}>
+                    SONGS IN "{selectedProgram.name.toUpperCase()}" ({filteredSongs.length})
+                  </Text>
                   {filteredSongs.length > 0 && (
                     <TouchableOpacity onPress={selectAll} style={styles.selectAllBtn}>
                       <Text style={styles.selectAllBtnText}>
@@ -270,7 +270,7 @@ export default function ImportToMasterModal({
 
                 {/* Search */}
                 <View style={styles.searchBox}>
-                  <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
+                  <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 8 }} />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Filter songs by title or lead singer..."
@@ -279,7 +279,7 @@ export default function ImportToMasterModal({
                     onChangeText={setSongSearch}
                   />
                   {songSearch ? (
-                    <TouchableOpacity onPress={() => setSongSearch('')}>
+                    <TouchableOpacity onPress={() => setSongSearch('')} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
                       <Ionicons name="close-circle" size={16} color="#94a3b8" />
                     </TouchableOpacity>
                   ) : null}
@@ -299,9 +299,10 @@ export default function ImportToMasterModal({
                 ) : (
                   <ScrollView
                     style={styles.songsListScroll}
+                    contentContainerStyle={styles.songsListContent}
                     showsVerticalScrollIndicator={true}
                   >
-                    {filteredSongs.map((song, idx) => {
+                    {filteredSongs.map(song => {
                       const isChecked = selectedSongIds.has(song.id);
                       return (
                         <TouchableOpacity
@@ -310,14 +311,11 @@ export default function ImportToMasterModal({
                           onPress={() => toggleSelectSong(song.id)}
                           activeOpacity={0.75}
                         >
-                          <TouchableOpacity
-                            onPress={() => toggleSelectSong(song.id)}
-                            style={[styles.checkCircle, isChecked && styles.checkCircleActive]}
-                          >
+                          <View style={[styles.checkCircle, isChecked && styles.checkCircleActive]}>
                             {isChecked && <Ionicons name="checkmark" size={13} color="#ffffff" />}
-                          </TouchableOpacity>
+                          </View>
 
-                          <View style={{ flex: 1, marginHorizontal: 10 }}>
+                          <View style={{ flex: 1, marginHorizontal: 10, minWidth: 0 }}>
                             <Text style={styles.songTitle} numberOfLines={1}>
                               {song.title || 'Untitled Song'}
                             </Text>
@@ -333,7 +331,11 @@ export default function ImportToMasterModal({
                                 </View>
                               ) : null}
                               {song.tempo ? (
-                                <Text style={styles.tempoText}>{song.tempo} BPM</Text>
+                                <Text style={styles.tempoText}>
+                                  {String(song.tempo).toUpperCase().includes('BPM')
+                                    ? song.tempo
+                                    : `${song.tempo} BPM`}
+                                </Text>
                               ) : null}
                             </View>
                           </View>
@@ -403,14 +405,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
   },
   dialogCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
     width: '100%',
-    height: '88%',
-    maxHeight: '92%',
+    height: '90%',
+    maxHeight: 700,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -422,57 +424,65 @@ const styles = StyleSheet.create({
   },
   dialogCardDesktop: {
     maxWidth: 680,
-    height: 680,
+    height: '85%',
+    maxHeight: 720,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
+    flexShrink: 0,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 7,
     backgroundColor: '#f3e8ff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: '#0f172a',
   },
   headerSub: {
     fontSize: 12,
     color: '#64748b',
-    marginTop: 2,
+    lineHeight: 16,
   },
   closeBtn: {
     padding: 4,
     borderRadius: 8,
   },
   body: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
     flex: 1,
     minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+    flexShrink: 0,
   },
   sectionLabel: {
     fontSize: 11,
@@ -480,11 +490,18 @@ const styles = StyleSheet.create({
     color: '#64748b',
     letterSpacing: 0.5,
   },
+  programsScrollContainer: {
+    flexGrow: 0,
+    flexShrink: 0,
+    maxHeight: 44,
+    marginBottom: 12,
+  },
   programsScroll: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingBottom: 10,
+    paddingVertical: 2,
+    paddingRight: 8,
   },
   programChip: {
     flexDirection: 'row',
@@ -514,19 +531,21 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   songsSection: {
-    marginTop: 8,
     flex: 1,
     minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
   },
   songsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+    flexShrink: 0,
   },
   selectAllBtn: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
   },
   selectAllBtnText: {
     fontSize: 11,
@@ -541,8 +560,9 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 8,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 8,
+    height: 38,
+    marginBottom: 10,
+    flexShrink: 0,
   },
   searchInput: {
     flex: 1,
@@ -551,7 +571,7 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   loadingBox: {
-    paddingVertical: 30,
+    paddingVertical: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -561,7 +581,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   emptySongsBox: {
-    paddingVertical: 30,
+    paddingVertical: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -572,11 +592,15 @@ const styles = StyleSheet.create({
   },
   songsListScroll: {
     flex: 1,
+    minHeight: 0,
+  },
+  songsListContent: {
+    paddingBottom: 8,
   },
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
@@ -597,6 +621,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff',
+    flexShrink: 0,
   },
   checkCircleActive: {
     backgroundColor: '#7c3aed',
@@ -611,7 +636,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 2,
+    marginTop: 3,
   },
   songLeadSinger: {
     fontSize: 11,
@@ -637,11 +662,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 6,
     backgroundColor: '#f3e8ff',
     borderWidth: 1,
     borderColor: '#e9d5ff',
+    flexShrink: 0,
   },
   singleImportBtnText: {
     fontSize: 11,
@@ -652,11 +678,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
+    backgroundColor: '#ffffff',
     gap: 10,
+    flexShrink: 0,
   },
   cancelBtn: {
     paddingHorizontal: 16,
