@@ -5,22 +5,25 @@
 /**
  * Normalizes and heals lyrics markdown, repairing scattered headers, excessive asterisks,
  * and glued section markers like **VERSE 1****You’re the King of glory or CHORUS(x2)****Lord.
+ * Preserves all blank lines and intentional section spacing.
  */
 export function normalizeLyricsMarkdown(text: string): string {
   if (!text) return '';
   let res = text.replace(/\r\n/g, '\n');
 
-  // 1. Separate section headers glued to lyrics lines (e.g. **VERSE 1****You're or CHORUS(x2)****Lord or (x2)****Of all things)
+  // 1. Separate section headers glued to lyrics lines on the SAME line
+  // Use [ \t]* so we NEVER consume or collapse newlines before section headers!
   res = res.replace(
-    /(^|\n)\s*(?:\*\*)?\s*(VERSE\s*\d*|CHORUS\s*\d*(?:\s*\(.*?\))?|BRIDGE|INTRO|OUTRO|VAMP|PRE-CHORUS\s*\d*|REFRAIN|PAN|CODA|\(x\d+\)|Solo:|All:|Duet:|Call:|Resp:)\s*(?:\*\*)?\s*(\*{2,4}|:)\s*([A-Za-z0-9"“'‘])/gi,
+    /(^|\n)[ \t]*(?:\*\*)?[ \t]*(VERSE\s*\d*|CHORUS\s*\d*(?:\s*\(.*?\))?|BRIDGE|INTRO|OUTRO|VAMP|PRE-CHORUS\s*\d*|REFRAIN|PAN|CODA|\(x\d+\)|Solo:|All:|Duet:|Call:|Resp:)[ \t]*(?:\*\*)?[ \t]*(\*{2,4}|:)[ \t]*([A-Za-z0-9"“'‘])/gi,
     '$1**$2**\n$4'
   );
 
   // 2. Collapse runaway asterisks (**** or ****** -> **)
   res = res.replace(/\*{4,}/g, '**');
 
-  // 3. Ensure closing bold followed immediately by a word on the same line has a newline
-  res = res.replace(/(\*\*[^\n*]+\*\*)\s*([A-Za-z0-9])/g, '$1\n$2');
+  // 3. Ensure closing bold followed immediately by a word on the SAME line has a newline
+  // Use [ \t]+ so we NEVER collapse blank lines or multi-newlines!
+  res = res.replace(/(\*\*[^\n*]+\*\*)[ \t]+([A-Za-z0-9])/g, '$1\n$2');
 
   return res;
 }
@@ -34,16 +37,17 @@ export function htmlToEditorText(raw: string | undefined | null): string {
   // If the text is already plain (no HTML tags), return normalized as-is
   if (!/<[a-z]/i.test(raw)) return normalizeLyricsMarkdown(raw.trim());
 
-  let text = raw
-    .replace(/\r\n/g, '\n')
-    // Convert block structural tags to newlines before inline tag parsing
-    // so linebreaks are never trapped inside bold delimiters
+  let text = raw.replace(/\r\n/g, '\n');
+
+  // Convert empty/spacer divs or paragraphs (<div><br></div>, <p><br></p>, <div></div>)
+  // to double newlines (\n\n) so section gaps are strictly preserved!
+  text = text
+    .replace(/<(div|p)[^>]*>\s*(?:<br\s*\/?>)?\s*<\/\1>/gi, '\n\n')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/div>\s*<div>/gi, '\n')
-    .replace(/<div[^>]*>/gi, '')
-    .replace(/<\/div>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<p[^>]*>/gi, '')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<div[^>]*>/gi, '')
     // Convert bold tags to markdown line-by-line
     .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, (_, p1) => {
       const lines = p1.split('\n');
@@ -130,14 +134,14 @@ export function editorTextToHtml(text: string | undefined | null): string {
       return core ? `${leading}<i>${core}</i>${trailing}` : p1;
     });
 
-  // Split by double newline into paragraph divs, preserving single newlines as <br>
-  const paragraphs = html.split(/\n\n+/);
+  // Split by blank lines (2 or more newlines) into stanzas/paragraphs
+  const paragraphs = html.split(/\n\s*\n+/);
   const formattedParagraphs = paragraphs.map(p => {
-    // Preserve blank/empty paragraphs as spacer divs
-    if (!p.trim()) return '<div><br></div>';
+    if (!p.trim()) return '';
     const lines = p.split('\n');
     return `<div>${lines.join('<br>')}</div>`;
-  });
+  }).filter(Boolean);
 
-  return formattedParagraphs.join('');
+  // Join paragraphs with spacer <div><br></div> to preserve spacing across ALL viewers/renderers!
+  return formattedParagraphs.join('<div><br></div>');
 }

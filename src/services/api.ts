@@ -93,10 +93,10 @@ export const api = {
       let hasChurch = false;
 
       if (typeof paramsOrZoneId === 'string') {
-        const cleanZone = paramsOrZoneId && paramsOrZoneId !== 'all' && paramsOrZoneId !== 'global' ? paramsOrZoneId : undefined;
+        const cleanZone = paramsOrZoneId && paramsOrZoneId !== 'global' ? paramsOrZoneId : undefined;
         if (cleanZone) params.append('zoneId', cleanZone);
       } else if (paramsOrZoneId) {
-        if (paramsOrZoneId.zoneId && paramsOrZoneId.zoneId !== 'all' && paramsOrZoneId.zoneId !== 'global') {
+        if (paramsOrZoneId.zoneId && paramsOrZoneId.zoneId !== 'global') {
           params.append('zoneId', paramsOrZoneId.zoneId);
         }
         if (paramsOrZoneId.groupId) {

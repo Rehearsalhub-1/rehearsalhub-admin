@@ -43,24 +43,26 @@ export const RichLyricsRenderer: React.FC<RichLyricsRendererProps> = ({
   }
 
   // Normalize newlines and convert block tags (<div>, <p>, <br>) to standard line breaks
+  // Convert empty spacer divs (<div><br></div>, <p><br></p>) to double newlines (\n\n)
   let normalized = content
     .replace(/\r\n/g, '\n')
-    .replace(/<\/div>\s*<div>/gi, '\n')
-    .replace(/<div[^>]*>/gi, '')
-    .replace(/<\/div>/gi, '\n')
+    .replace(/<(div|p)[^>]*>\s*(?:<br\s*\/?>)?\s*<\/\1>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<p[^>]*>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n');
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<div[^>]*>/gi, '');
 
   normalized = decodeEntities(normalized);
 
   // Normalize glued section headers (e.g. **VERSE 1****You're or CHORUS(x2)****Lord)
+  // Use [ \t]* so we never strip blank lines preceding section headers!
   normalized = normalized.replace(
-    /(^|\n)\s*(?:\*\*)?\s*(VERSE\s*\d*|CHORUS\s*\d*(?:\s*\(.*?\))?|BRIDGE|INTRO|OUTRO|VAMP|PRE-CHORUS\s*\d*|REFRAIN|PAN|CODA|\(x\d+\)|Solo:|All:|Duet:|Call:|Resp:)\s*(?:\*\*)?\s*(\*{2,4}|:)\s*([A-Za-z0-9"“'‘])/gi,
+    /(^|\n)[ \t]*(?:\*\*)?[ \t]*(VERSE\s*\d*|CHORUS\s*\d*(?:\s*\(.*?\))?|BRIDGE|INTRO|OUTRO|VAMP|PRE-CHORUS\s*\d*|REFRAIN|PAN|CODA|\(x\d+\)|Solo:|All:|Duet:|Call:|Resp:)[ \t]*(?:\*\*)?[ \t]*(\*{2,4}|:)[ \t]*([A-Za-z0-9"“'‘])/gi,
     '$1**$2**\n$4'
   );
   normalized = normalized.replace(/\*{4,}/g, '**');
-  normalized = normalized.replace(/(\*\*[^\n*]+\*\*)\s*([A-Za-z0-9])/g, '$1\n$2');
+  normalized = normalized.replace(/(\*\*[^\n*]+\*\*)[ \t]+([A-Za-z0-9])/g, '$1\n$2');
 
   // Split into lines
   const rawLines = normalized.split('\n');

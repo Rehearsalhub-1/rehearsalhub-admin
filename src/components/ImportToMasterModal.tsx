@@ -50,7 +50,7 @@ export default function ImportToMasterModal({
     }
 
     setLoadingPrograms(true);
-    api.programs.getAll()
+    api.programs.getAll({ category: 'all', includeChurch: true, zoneId: 'all' })
       .then(res => {
         const rows = Array.isArray(res?.data) ? res.data : [];
         const valid = rows
@@ -409,7 +409,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     width: '100%',
-    maxHeight: '90%',
+    height: '88%',
+    maxHeight: '92%',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -421,6 +422,7 @@ const styles = StyleSheet.create({
   },
   dialogCardDesktop: {
     maxWidth: 680,
+    height: 680,
   },
   header: {
     flexDirection: 'row',
@@ -464,6 +466,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     flex: 1,
+    minHeight: 0,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -513,6 +516,7 @@ const styles = StyleSheet.create({
   songsSection: {
     marginTop: 8,
     flex: 1,
+    minHeight: 0,
   },
   songsHeaderRow: {
     flexDirection: 'row',
@@ -567,7 +571,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   songsListScroll: {
-    maxHeight: 280,
+    flex: 1,
   },
   songRow: {
     flexDirection: 'row',
