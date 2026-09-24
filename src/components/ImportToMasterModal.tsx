@@ -76,9 +76,45 @@ export default function ImportToMasterModal({
     setSelectedSongIds(new Set());
     setLoadingSongs(true);
     try {
-      const res = await api.songs.getProgramSongs(prog.id);
-      const list = Array.isArray(res?.data) ? res.data : [];
-      setProgramSongs(list);
+      const [progRes, songsRes] = await Promise.allSettled([
+        api.programs.getById(prog.id),
+        api.songs.getPraiseNightSongs(prog.id),
+      ]);
+
+      const progData = progRes.status === 'fulfilled'
+        ? (progRes.value?.data || progRes.value)
+        : null;
+      const junctionSongs = progData && Array.isArray(progData.songs)
+        ? progData.songs
+        : (Array.isArray(progData?.programSongs) ? progData.programSongs : []);
+
+      const directSongs = songsRes.status === 'fulfilled'
+        ? (Array.isArray(songsRes.value?.data) ? songsRes.value.data : (Array.isArray(songsRes.value) ? songsRes.value : []))
+        : [];
+
+      const seenIds = new Set<string>();
+      const combined: any[] = [];
+      [...junctionSongs, ...directSongs].forEach((item: any) => {
+        const s = item.song || item;
+        const id = s.id || item.songId || item.id;
+        if (id && !seenIds.has(String(id))) {
+          seenIds.add(String(id));
+          combined.push({
+            ...s,
+            id: String(id),
+            title: s.title || item.title || 'Untitled Song',
+            leadSinger: s.leadSinger || item.leadSinger || '',
+            writer: s.writer || item.writer || '',
+            category: s.category || item.category || '',
+            key: s.key || item.key || '',
+            tempo: s.tempo || item.tempo || '',
+            audioUrl: s.audioUrl || item.audioUrl || '',
+            isMaster: Boolean(s.isMaster || item.isMaster),
+          });
+        }
+      });
+
+      setProgramSongs(combined);
     } catch {
       setProgramSongs([]);
     } finally {
@@ -155,10 +191,10 @@ export default function ImportToMasterModal({
                 <View style={styles.headerIconCircle}>
                   <Ionicons name="download-outline" size={20} color="#7c3aed" />
                 </View>
-                <Text style={styles.headerTitle}>Import from Zone Program</Text>
+                <Text style={styles.headerTitle}>Import Songs to All Ministered</Text>
               </View>
               <Text style={styles.headerSub}>
-                Select a program to import songs directly into the All Ministered catalog
+                Select a program (Loveworld Singers HQ / Zones) to import songs into All Ministered
               </Text>
             </View>
             <TouchableOpacity

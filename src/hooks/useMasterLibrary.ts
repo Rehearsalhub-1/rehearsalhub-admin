@@ -11,7 +11,7 @@ export type { MasterSong };
 
 const PAGE_SIZE = 50;
 
-export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
+export function useMasterLibrary(activeDomainTab: 'master' | 'zone', searchQuery: string = '') {
   const { activeZone } = useZoneContext();
 
   const [masterSongs, setMasterSongs] = useState<MasterSong[]>([]);
@@ -38,8 +38,12 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
       setLoadingMore(true);
     }
 
+    const currentSearch = searchQuery.trim();
+
     try {
-      const result = await api.songs.getMasterSongs(`limit=${PAGE_SIZE}&page=${targetPage}`);
+      const searchParam = currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : '';
+      const limit = currentSearch ? 100 : PAGE_SIZE;
+      const result = await api.songs.getMasterSongs(`limit=${limit}&page=${targetPage}${searchParam}`);
       const newSongs: MasterSong[] = Array.isArray(result?.data) ? result.data : [];
 
       if (reset) {
@@ -54,7 +58,7 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
         pageRef.current += 1;
       }
 
-      setHasMore(newSongs.length === PAGE_SIZE);
+      setHasMore(newSongs.length === (currentSearch ? 100 : PAGE_SIZE));
     } catch (e) {
       console.warn('[useMasterLibrary] fetchMasterSongs:', e);
       if (reset) setMasterSongs([]);
@@ -64,11 +68,11 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchMasterSongs(true);
-  }, [fetchMasterSongs]);
+  }, [searchQuery, fetchMasterSongs]);
 
   // ── Fetch zone songs (lazy — only when zone tab is active) ─────────────────
   const fetchZoneSongs = useCallback(async () => {

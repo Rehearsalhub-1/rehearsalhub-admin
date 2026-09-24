@@ -38,19 +38,28 @@ export default function MasterLibraryScreen({ navigation }: any) {
   // Primary Tab: Master Repertoire vs Zonal Repertoire
   const [activeDomainTab, setActiveDomainTab] = useState<'master' | 'zone'>('master');
 
+  // Search & Filter State
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const {
     masterSongs, masterLoading, loadingMore, refreshing,
     zoneSongs, zoneSongsLoading,
     refetch, fetchZoneSongs,
     hasMore, loadMore,
     upsertMasterSong, removeMasterSong, toggleHideMasterSong, removeZoneSong,
-  } = useMasterLibrary(activeDomainTab);
+  } = useMasterLibrary(activeDomainTab, debouncedSearch);
 
   // Master Tab Status Filters
   const [masterStatusTab, setMasterStatusTab] = useState<'active' | 'history' | 'hidden' | 'all'>('active');
 
-  // Search & Filter State
-  const [search, setSearch] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string>('all');
   const [selectedLeadSinger, setSelectedLeadSinger] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -324,67 +333,71 @@ export default function MasterLibraryScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ZoneHeader title="All Ministered" showBack={true} />
 
-      {/* ── CLEAN TOP CONTROLS BAR (Search + +Song) ──────────────────────── */}
-      <View style={styles.cleanControlBar}>
+      {/* ── TOP SEARCH BAR (Dedicated Full Width) ────────────────────────── */}
+      <View style={styles.cleanSearchRow}>
         <View style={styles.cleanSearchBox}>
-          <Ionicons name="search" size={16} color="#94a3b8" style={{ marginRight: 8 }} />
+          <Ionicons name="search" size={17} color="#94a3b8" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.cleanSearchInput}
-            placeholder={`Search ${filteredMasterSongs.length} songs by title, singer, key...`}
+            placeholder="Search all songs by title, singer, lyrics, key..."
             placeholderTextColor="#94a3b8"
             value={search}
             onChangeText={setSearch}
           />
           {search ? (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={16} color="#94a3b8" />
+            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Ionicons name="close-circle" size={18} color="#94a3b8" />
             </TouchableOpacity>
           ) : null}
         </View>
-
-        <TouchableOpacity
-          style={styles.cleanImportBtn}
-          onPress={() => setImportModalVisible(true)}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="download-outline" size={16} color="#7c3aed" style={{ marginRight: 4 }} />
-          <Text style={styles.cleanImportBtnText}>Import</Text>
-        </TouchableOpacity>
-
-        {adminUser?.isHQAdmin && (
-          <TouchableOpacity
-            style={styles.cleanAddBtn}
-            onPress={handleOpenCreateModal}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={18} color="#ffffff" style={{ marginRight: 3 }} />
-            <Text style={styles.cleanAddBtnText}>+ Song</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* ── CLEAN STATUS FILTER TABS ─────────────────────────────────────── */}
-      <View style={styles.cleanTabsRow}>
-        {[
-          { id: 'all', label: 'All', count: masterStats.total },
-          { id: 'active', label: 'Active', count: masterStats.active },
-          { id: 'history', label: 'History', count: masterStats.history },
-          ...(adminUser?.isHQAdmin ? [{ id: 'hidden', label: 'Hidden', count: masterStats.hidden }] : []),
-        ].map(t => {
-          const isActive = masterStatusTab === t.id;
-          return (
+      {/* ── STATUS TABS & ACTIONS ROW ─────────────────────────────────────── */}
+      <View style={styles.cleanActionsAndTabsRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cleanTabsScroll}>
+          {[
+            { id: 'all', label: 'All', count: masterStats.total },
+            { id: 'active', label: 'Active', count: masterStats.active },
+            { id: 'history', label: 'History', count: masterStats.history },
+            ...(adminUser?.isHQAdmin ? [{ id: 'hidden', label: 'Hidden', count: masterStats.hidden }] : []),
+          ].map(t => {
+            const isActive = masterStatusTab === t.id;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                style={[styles.cleanTabBtn, isActive && styles.cleanTabBtnActive]}
+                onPress={() => setMasterStatusTab(t.id as any)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.cleanTabBtnText, isActive && styles.cleanTabBtnTextActive]}>
+                  {t.label} ({t.count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {adminUser?.isHQAdmin && (
+          <View style={styles.cleanActionButtonsGroup}>
             <TouchableOpacity
-              key={t.id}
-              style={[styles.cleanTabBtn, isActive && styles.cleanTabBtnActive]}
-              onPress={() => setMasterStatusTab(t.id as any)}
-              activeOpacity={0.8}
+              style={styles.cleanImportBtn}
+              onPress={() => setImportModalVisible(true)}
+              activeOpacity={0.85}
             >
-              <Text style={[styles.cleanTabBtnText, isActive && styles.cleanTabBtnTextActive]}>
-                {t.label} ({t.count})
-              </Text>
+              <Ionicons name="download-outline" size={15} color="#7c3aed" style={{ marginRight: 4 }} />
+              <Text style={styles.cleanImportBtnText}>Import</Text>
             </TouchableOpacity>
-          );
-        })}
+
+            <TouchableOpacity
+              style={styles.cleanAddBtn}
+              onPress={handleOpenCreateModal}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={17} color="#ffffff" style={{ marginRight: 2 }} />
+              <Text style={styles.cleanAddBtnText}>+ Song</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* ── MASTER PROGRAM / COLLECTION FILTER PILLS ──────────────────────── */}
@@ -759,16 +772,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
   },
-  cleanControlBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cleanSearchRow: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    gap: 10,
   },
   cleanSearchBox: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
@@ -780,16 +789,34 @@ const styles = StyleSheet.create({
   },
   cleanSearchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 13.5,
     color: '#0f172a',
+  },
+  cleanActionsAndTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    gap: 8,
+  },
+  cleanTabsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cleanActionButtonsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   cleanAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#7c3aed',
-    paddingHorizontal: 14,
-    height: 42,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 10,
     shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -797,7 +824,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cleanAddBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#ffffff',
   },
@@ -807,24 +834,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f3ff',
     borderWidth: 1,
     borderColor: '#ddd6fe',
-    paddingHorizontal: 12,
-    height: 42,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    height: 36,
+    borderRadius: 10,
   },
   cleanImportBtnText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#7c3aed',
   },
-  cleanTabsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    gap: 8,
-  },
   cleanTabBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 10,
     backgroundColor: '#ffffff',
     borderWidth: 1,

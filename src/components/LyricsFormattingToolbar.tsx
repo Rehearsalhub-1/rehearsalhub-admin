@@ -36,16 +36,25 @@ export default function LyricsFormattingToolbar({
         if (!hasSelection) {
           replacement = '**Bold text**';
         } else {
-          // Extract leading and trailing whitespace so delimiters (**...**)
-          // enclose ONLY the word/letters. Trailing spaces (common when double-tapping
-          // a word on mobile/web) remain outside the asterisks, preventing space collapse.
           const leadingSpace = selectedText.match(/^\s*/)?.[0] || '';
           const trailingSpace = selectedText.match(/\s*$/)?.[0] || '';
           const core = selectedText.slice(leadingSpace.length, selectedText.length - trailingSpace.length);
           if (!core) {
             replacement = selectedText;
+          } else if (core.startsWith('**') && core.endsWith('**') && core.length >= 4) {
+            // Toggle OFF bold (unwrap)
+            replacement = `${leadingSpace}${core.slice(2, -2)}${trailingSpace}`;
           } else {
-            replacement = `${leadingSpace}**${core}**${trailingSpace}`;
+            // Format line-by-line so bold never spans across newlines
+            const formatted = core.split('\n').map(line => {
+              const lTrim = line.trim();
+              if (!lTrim) return line;
+              if (lTrim.startsWith('**') && lTrim.endsWith('**') && lTrim.length >= 4) {
+                return line.replace(lTrim, lTrim.slice(2, -2));
+              }
+              return line.replace(lTrim, `**${lTrim}**`);
+            }).join('\n');
+            replacement = `${leadingSpace}${formatted}${trailingSpace}`;
           }
         }
         break;
@@ -59,8 +68,19 @@ export default function LyricsFormattingToolbar({
           const core = selectedText.slice(leadingSpace.length, selectedText.length - trailingSpace.length);
           if (!core) {
             replacement = selectedText;
+          } else if (core.startsWith('*') && core.endsWith('*') && !core.startsWith('**') && core.length >= 2) {
+            // Toggle OFF italic (unwrap)
+            replacement = `${leadingSpace}${core.slice(1, -1)}${trailingSpace}`;
           } else {
-            replacement = `${leadingSpace}*${core}*${trailingSpace}`;
+            const formatted = core.split('\n').map(line => {
+              const lTrim = line.trim();
+              if (!lTrim) return line;
+              if (lTrim.startsWith('*') && lTrim.endsWith('*') && !lTrim.startsWith('**') && lTrim.length >= 2) {
+                return line.replace(lTrim, lTrim.slice(1, -1));
+              }
+              return line.replace(lTrim, `*${lTrim}*`);
+            }).join('\n');
+            replacement = `${leadingSpace}${formatted}${trailingSpace}`;
           }
         }
         break;
@@ -68,25 +88,25 @@ export default function LyricsFormattingToolbar({
       case 'verse': {
         const needsNewlineBefore = start > 0 && current[start - 1] !== '\n';
         const prefix = needsNewlineBefore ? '\n\n' : (start > 0 ? '\n' : '');
-        replacement = `${prefix}[Verse 1]\n`;
+        replacement = `${prefix}**[Verse 1]**\n`;
         break;
       }
       case 'chorus': {
         const needsNewlineBefore = start > 0 && current[start - 1] !== '\n';
         const prefix = needsNewlineBefore ? '\n\n' : (start > 0 ? '\n' : '');
-        replacement = `${prefix}[Chorus]\n`;
+        replacement = `${prefix}**[Chorus]**\n`;
         break;
       }
       case 'bridge': {
         const needsNewlineBefore = start > 0 && current[start - 1] !== '\n';
         const prefix = needsNewlineBefore ? '\n\n' : (start > 0 ? '\n' : '');
-        replacement = `${prefix}[Bridge]\n`;
+        replacement = `${prefix}**[Bridge]**\n`;
         break;
       }
       case 'vamp': {
         const needsNewlineBefore = start > 0 && current[start - 1] !== '\n';
         const prefix = needsNewlineBefore ? '\n\n' : (start > 0 ? '\n' : '');
-        replacement = `${prefix}[Vamp]\n`;
+        replacement = `${prefix}**[Vamp]**\n`;
         break;
       }
     }

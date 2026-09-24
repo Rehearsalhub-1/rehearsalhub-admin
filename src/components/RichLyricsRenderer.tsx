@@ -54,6 +54,14 @@ export const RichLyricsRenderer: React.FC<RichLyricsRendererProps> = ({
 
   normalized = decodeEntities(normalized);
 
+  // Normalize glued section headers (e.g. **VERSE 1****You're or CHORUS(x2)****Lord)
+  normalized = normalized.replace(
+    /(^|\n)\s*(?:\*\*)?\s*(VERSE\s*\d*|CHORUS\s*\d*(?:\s*\(.*?\))?|BRIDGE|INTRO|OUTRO|VAMP|PRE-CHORUS\s*\d*|REFRAIN|PAN|CODA|\(x\d+\)|Solo:|All:|Duet:|Call:|Resp:)\s*(?:\*\*)?\s*(\*{2,4}|:)\s*([A-Za-z0-9"“'‘])/gi,
+    '$1**$2**\n$4'
+  );
+  normalized = normalized.replace(/\*{4,}/g, '**');
+  normalized = normalized.replace(/(\*\*[^\n*]+\*\*)\s*([A-Za-z0-9])/g, '$1\n$2');
+
   // Split into lines
   const rawLines = normalized.split('\n');
 
