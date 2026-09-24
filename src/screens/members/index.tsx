@@ -26,7 +26,7 @@ export default function MembersScreen() {
   const insets = useSafeAreaInsets();
   const { showAlert } = useAlert();
   const { isChurchMode, activeChurch, activeZone } = useZoneContext();
-  const { members, loading, refreshing, refetch, saveMember, hasMore, loadingMore, loadMore, total } = useMembers();
+  const { members, loading, refreshing, refetch, saveMember, hasMore, loadingMore, loadMore, total, removeFromZone } = useMembers();
 
   // Top-level View Mode: 'directory' vs 'feature_pass'
   const [viewMode, setViewMode] = useState<'directory' | 'feature_pass'>('directory');
@@ -242,7 +242,9 @@ export default function MembersScreen() {
               </View>
             )
           }
-          renderItem={({ item }: { item: Member }) => <MemberListItem item={item} />}
+          renderItem={({ item }: { item: Member }) => (
+            <MemberListItem item={item} onRemove={removeFromZone} />
+          )}
         />
       )}
 

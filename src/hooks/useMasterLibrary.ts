@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useZoneContext } from '../context/ZoneContext';
 import { api } from '../services/api';
@@ -16,26 +16,42 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
 
   const [masterSongs, setMasterSongs] = useState<MasterSong[]>([]);
   const [masterLoading, setMasterLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  const pageRef = useRef(1);
+  const inFlightRef = useRef(false);
 
   const [zoneSongs, setZoneSongs] = useState<ZoneSong[]>([]);
   const [zoneSongsLoading, setZoneSongsLoading] = useState(false);
 
   // ── Fetch master songs ─────────────────────────────────────────────────────
   const fetchMasterSongs = useCallback(async (reset: boolean = false) => {
+    if (inFlightRef.current && !reset) return;
+    inFlightRef.current = true;
+
+    const targetPage = reset ? 1 : pageRef.current;
+    if (reset) {
+      pageRef.current = 1;
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const currentPage = reset ? 1 : page;
-      const result = await api.songs.getMasterSongs(`limit=${PAGE_SIZE}&page=${currentPage}`);
+      const result = await api.songs.getMasterSongs(`limit=${PAGE_SIZE}&page=${targetPage}`);
       const newSongs: MasterSong[] = Array.isArray(result?.data) ? result.data : [];
 
       if (reset) {
         setMasterSongs(newSongs);
-        setPage(1);
+        pageRef.current = 2;
       } else {
-        setMasterSongs(prev => [...prev, ...newSongs]);
-        setPage(prev => prev + 1);
+        setMasterSongs(prev => {
+          const existingIds = new Set(prev.map(s => String(s.id)));
+          const uniqueNew = newSongs.filter(s => !existingIds.has(String(s.id)));
+          return [...prev, ...uniqueNew];
+        });
+        pageRef.current += 1;
       }
 
       setHasMore(newSongs.length === PAGE_SIZE);
@@ -43,14 +59,16 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
       console.warn('[useMasterLibrary] fetchMasterSongs:', e);
       if (reset) setMasterSongs([]);
     } finally {
+      inFlightRef.current = false;
       setMasterLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [page]);
+  }, []);
 
   useEffect(() => {
     fetchMasterSongs(true);
-  }, []);
+  }, [fetchMasterSongs]);
 
   // ── Fetch zone songs (lazy — only when zone tab is active) ─────────────────
   const fetchZoneSongs = useCallback(async () => {
@@ -77,8 +95,9 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
   }, [fetchMasterSongs]);
 
   const loadMore = useCallback(() => {
+    if (!hasMore || inFlightRef.current || masterLoading || loadingMore) return;
     fetchMasterSongs(false);
-  }, [fetchMasterSongs]);
+  }, [hasMore, masterLoading, loadingMore, fetchMasterSongs]);
 
   useWebSocket('songs', 'all', useCallback((rawData: any) => {
     // Apply the WebSocket update in-place instead of re-fetching all 50 songs.
@@ -162,6 +181,7 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone') {
   return {
     masterSongs,
     masterLoading,
+    loadingMore,
     refreshing,
     hasMore,
     loadMore,

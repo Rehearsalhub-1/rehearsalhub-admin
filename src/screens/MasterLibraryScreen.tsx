@@ -37,7 +37,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const [activeDomainTab, setActiveDomainTab] = useState<'master' | 'zone'>('master');
 
   const {
-    masterSongs, masterLoading, refreshing,
+    masterSongs, masterLoading, loadingMore, refreshing,
     zoneSongs, zoneSongsLoading,
     refetch, fetchZoneSongs,
     hasMore, loadMore,
@@ -339,8 +339,15 @@ export default function MasterLibraryScreen({ navigation }: any) {
         data={filteredMasterSongs}
         keyExtractor={(i: MasterSong) => i.id}
         estimatedItemSize={68}
-        onEndReached={() => { if (hasMore && !masterLoading) loadMore(); }}
+        onEndReached={() => { if (hasMore && !masterLoading && !loadingMore) loadMore(); }}
         onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color="#7c3aed" size="small" />
+            </View>
+          ) : null
+        }
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: Math.max(insets.bottom, 24) + 30 }

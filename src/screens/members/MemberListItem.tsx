@@ -1,13 +1,15 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { styles } from './membersStyles';
 import type { Member } from '../../hooks/useMembers';
 
 interface MemberListItemProps {
   item: Member;
+  onRemove?: (id: string) => void;
 }
 
-export default function MemberListItem({ item }: MemberListItemProps) {
+export default function MemberListItem({ item, onRemove }: MemberListItemProps) {
   const fullName = `${item.first_name} ${item.last_name}`.trim();
   const initial = `${item.first_name[0] || 'S'}${item.last_name[0] || ''}`.toUpperCase();
 
@@ -63,6 +65,24 @@ export default function MemberListItem({ item }: MemberListItemProps) {
           {[item.church || item.zoneName, item.designation].filter(Boolean).join(' • ') || 'Loveworld Singers Member'}
         </Text>
       </View>
+
+      {onRemove && !isHQ && (
+        <TouchableOpacity
+          onPress={() => onRemove(item.id)}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{
+            padding: 8,
+            borderRadius: 8,
+            backgroundColor: '#fef2f2',
+            marginLeft: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="trash-outline" size={16} color="#ef4444" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
