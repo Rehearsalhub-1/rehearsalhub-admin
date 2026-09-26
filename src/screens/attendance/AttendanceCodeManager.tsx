@@ -22,7 +22,7 @@ export default function AttendanceCodeManager({
   onCodeChange,
 }: AttendanceCodeManagerProps) {
   const [code, setCode] = useState(initialCode);
-  const [secondsRemaining, setSecondsRemaining] = useState(300);
+  const [secondsRemaining, setSecondsRemaining] = useState(4);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -31,7 +31,7 @@ export default function AttendanceCodeManager({
           const next = generateAttendanceCode();
           setCode(next);
           onCodeChange?.(next);
-          return 300;
+          return 4;
         }
         return prev - 1;
       });
@@ -43,13 +43,11 @@ export default function AttendanceCodeManager({
   const handleRotate = () => {
     const next = generateAttendanceCode();
     setCode(next);
-    setSecondsRemaining(300);
+    setSecondsRemaining(4);
     onCodeChange?.(next);
   };
 
-  const minutes = Math.floor(secondsRemaining / 60);
-  const seconds = secondsRemaining % 60;
-  const timerDisplay = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  const timerDisplay = `${secondsRemaining}s`;
 
   return (
     <View style={styles.dateFilterStrip}>

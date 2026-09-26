@@ -13,6 +13,7 @@ import AttendanceRecordList from './AttendanceRecordList';
 import AttendanceCheckInModal from './AttendanceCheckInModal';
 import AttendanceActionMenuModal from './AttendanceActionMenuModal';
 import AttendanceScannerModal from './AttendanceScannerModal';
+import AttendanceLiveQrModal from './AttendanceLiveQrModal';
 import type { AttendanceRecord } from './types';
 
 export type { AttendanceRecord };
@@ -38,7 +39,8 @@ export default function AttendanceScreen({ navigation }: any) {
   const [search, setSearch] = useState('');
   const [selectedDate, setSelectedDate] = useState<string>(TODAY_STR);
 
-  // Scanner State & Camera Permissions
+  // Live QR & Scanner State
+  const [liveQrVisible, setLiveQrVisible] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [scannerVisible, setScannerVisible] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -287,6 +289,14 @@ export default function AttendanceScreen({ navigation }: any) {
         </View>
 
         <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={[styles.scanActionPill, { backgroundColor: '#7c3aed', marginRight: 6 }]} 
+            onPress={() => setLiveQrVisible(true)} 
+            activeOpacity={0.8}
+          >
+            <Ionicons name="qr-code" size={15} color="#ffffff" style={{ marginRight: 5 }} />
+            <Text style={styles.scanActionPillText}>Live QR</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.scanActionPill} onPress={handleOpenScanner} activeOpacity={0.8}>
             <Ionicons name="scan" size={15} color="#ffffff" style={{ marginRight: 5 }} />
             <Text style={styles.scanActionPillText}>Scan QR</Text>
@@ -320,6 +330,7 @@ export default function AttendanceScreen({ navigation }: any) {
       <AttendanceActionMenuModal
         visible={actionMenuVisible}
         onClose={() => setActionMenuVisible(false)}
+        onOpenLiveQr={() => { setActionMenuVisible(false); setTimeout(() => setLiveQrVisible(true), 350); }}
         onNavigateGeofence={() => { setActionMenuVisible(false); navigation?.navigate?.('Geofence'); }}
         onOpenManual={() => { setActionMenuVisible(false); setTimeout(() => setManualModalVisible(true), 350); }}
         onExportCSV={() => { setActionMenuVisible(false); setTimeout(handleExportCSV, 350); }}
@@ -344,6 +355,13 @@ export default function AttendanceScreen({ navigation }: any) {
         onBarcodeScanned={handleBarcodeScanned}
         scanFeedback={scanFeedback}
         isProcessing={isProcessingScan.current}
+      />
+
+      <AttendanceLiveQrModal
+        visible={liveQrVisible}
+        onClose={() => setLiveQrVisible(false)}
+        zoneId={isChurchMode ? activeChurch?.id : activeZone?.id}
+        eventName="Your Loveworld Rehearsal"
       />
     </SafeAreaView>
   );

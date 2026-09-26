@@ -7,6 +7,7 @@ import { styles } from './attendanceStyles';
 interface AttendanceActionMenuModalProps {
   visible: boolean;
   onClose: () => void;
+  onOpenLiveQr: () => void;
   onNavigateGeofence: () => void;
   onOpenManual: () => void;
   onExportCSV: () => void;
@@ -16,6 +17,7 @@ interface AttendanceActionMenuModalProps {
 export default function AttendanceActionMenuModal({
   visible,
   onClose,
+  onOpenLiveQr,
   onNavigateGeofence,
   onOpenManual,
   onExportCSV,
@@ -36,6 +38,22 @@ export default function AttendanceActionMenuModal({
               <Ionicons name="close" size={20} color="#64748b" />
             </TouchableOpacity>
           </View>
+
+          {/* Option 0: Live 4s Rotating QR Code */}
+          <TouchableOpacity
+            style={styles.sheetItem}
+            onPress={onOpenLiveQr}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.sheetItemIconWrap, { backgroundColor: '#f5f3ff' }]}>
+              <Ionicons name="qr-code" size={18} color="#7c3aed" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sheetItemTitle}>Project Live QR Code (4s)</Text>
+              <Text style={styles.sheetItemSub}>Display 4-second rotating QR on screen</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+          </TouchableOpacity>
 
           {/* Option 1: Geofence Settings */}
           <TouchableOpacity
