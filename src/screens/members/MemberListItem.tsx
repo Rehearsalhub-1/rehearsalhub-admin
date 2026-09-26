@@ -7,9 +7,10 @@ import type { Member } from '../../hooks/useMembers';
 interface MemberListItemProps {
   item: Member;
   onRemove?: (id: string) => void;
+  onShowBadge?: (member: Member) => void;
 }
 
-export default function MemberListItem({ item, onRemove }: MemberListItemProps) {
+export default function MemberListItem({ item, onRemove, onShowBadge }: MemberListItemProps) {
   const fullName = `${item.first_name} ${item.last_name}`.trim();
   const initial = `${item.first_name[0] || 'S'}${item.last_name[0] || ''}`.toUpperCase();
 
@@ -65,6 +66,25 @@ export default function MemberListItem({ item, onRemove }: MemberListItemProps) 
           {[item.church || item.zoneName, item.designation].filter(Boolean).join(' • ') || 'Loveworld Singers Member'}
         </Text>
       </View>
+
+      {/* View Attendance QR Badge Button */}
+      {onShowBadge && (
+        <TouchableOpacity
+          onPress={() => onShowBadge(item)}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{
+            padding: 8,
+            borderRadius: 8,
+            backgroundColor: '#f5f3ff',
+            marginLeft: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="qr-code-outline" size={17} color="#7c3aed" />
+        </TouchableOpacity>
+      )}
 
       {onRemove && !isHQ && (
         <TouchableOpacity

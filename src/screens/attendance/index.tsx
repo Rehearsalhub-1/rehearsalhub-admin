@@ -14,6 +14,7 @@ import AttendanceCheckInModal from './AttendanceCheckInModal';
 import AttendanceActionMenuModal from './AttendanceActionMenuModal';
 import AttendanceScannerModal from './AttendanceScannerModal';
 import AttendanceLiveQrModal from './AttendanceLiveQrModal';
+import SingerAttendanceBadgeModal from '../../components/SingerAttendanceBadgeModal';
 import type { AttendanceRecord } from './types';
 
 export type { AttendanceRecord };
@@ -41,6 +42,7 @@ export default function AttendanceScreen({ navigation }: any) {
 
   // Live QR & Scanner State
   const [liveQrVisible, setLiveQrVisible] = useState(false);
+  const [selectedRecordForBadge, setSelectedRecordForBadge] = useState<AttendanceRecord | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [scannerVisible, setScannerVisible] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -325,6 +327,7 @@ export default function AttendanceScreen({ navigation }: any) {
         refreshing={refreshing}
         refetch={refetch}
         insetsBottom={insets.bottom}
+        onSelectRecord={(rec) => setSelectedRecordForBadge(rec)}
       />
 
       <AttendanceActionMenuModal
@@ -362,6 +365,17 @@ export default function AttendanceScreen({ navigation }: any) {
         onClose={() => setLiveQrVisible(false)}
         zoneId={isChurchMode ? activeChurch?.id : activeZone?.id}
         eventName="Your Loveworld Rehearsal"
+      />
+
+      {/* Singer Attendance QR Badge Modal */}
+      <SingerAttendanceBadgeModal
+        visible={Boolean(selectedRecordForBadge)}
+        onClose={() => setSelectedRecordForBadge(null)}
+        member={selectedRecordForBadge ? {
+          id: selectedRecordForBadge.userId || selectedRecordForBadge.id,
+          name: selectedRecordForBadge.userName || selectedRecordForBadge.user_name,
+          designation: selectedRecordForBadge.eventName,
+        } : null}
       />
     </SafeAreaView>
   );

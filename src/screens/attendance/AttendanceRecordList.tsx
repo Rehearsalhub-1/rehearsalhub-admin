@@ -25,6 +25,7 @@ interface AttendanceRecordListProps {
   refreshing: boolean;
   refetch: () => void;
   insetsBottom: number;
+  onSelectRecord?: (record: AttendanceRecord) => void;
 }
 
 export default function AttendanceRecordList({
@@ -39,6 +40,7 @@ export default function AttendanceRecordList({
   refreshing,
   refetch,
   insetsBottom,
+  onSelectRecord,
 }: AttendanceRecordListProps) {
   return (
     <>
@@ -127,7 +129,7 @@ export default function AttendanceRecordList({
             </View>
           )
         }
-        renderItem={({ item }) => <AttendanceRecordCard item={item} />}
+        renderItem={({ item }) => <AttendanceRecordCard item={item} onPress={onSelectRecord} />}
       />
     </>
   );

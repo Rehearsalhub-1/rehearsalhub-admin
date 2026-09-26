@@ -19,6 +19,7 @@ import MemberSearchBar from './MemberSearchBar';
 import MemberListItem from './MemberListItem';
 import MemberFeaturePassItem from './MemberFeaturePassItem';
 import AddEmailPassModal from './AddEmailPassModal';
+import SingerAttendanceBadgeModal from '../../components/SingerAttendanceBadgeModal';
 
 const FlashListAny = FlashList as any;
 
@@ -27,6 +28,9 @@ export default function MembersScreen() {
   const { showAlert } = useAlert();
   const { isChurchMode, activeChurch, activeZone } = useZoneContext();
   const { members, loading, refreshing, refetch, saveMember, hasMore, loadingMore, loadMore, total, removeFromZone } = useMembers();
+
+  // Selected Member for Attendance QR Badge Modal
+  const [selectedBadgeMember, setSelectedBadgeMember] = useState<Member | null>(null);
 
   // Top-level View Mode: 'directory' vs 'feature_pass'
   const [viewMode, setViewMode] = useState<'directory' | 'feature_pass'>('directory');
@@ -243,7 +247,11 @@ export default function MembersScreen() {
             )
           }
           renderItem={({ item }: { item: Member }) => (
-            <MemberListItem item={item} onRemove={removeFromZone} />
+            <MemberListItem
+              item={item}
+              onRemove={removeFromZone}
+              onShowBadge={(m) => setSelectedBadgeMember(m)}
+            />
           )}
         />
       )}
@@ -292,6 +300,13 @@ export default function MembersScreen() {
         onChangeEmail={setTargetEmailInput}
         onSubmit={handleGrantEmailPass}
         loading={addingEmailLoading}
+      />
+
+      {/* ─── SINGER ATTENDANCE QR BADGE MODAL ────────────────────────────── */}
+      <SingerAttendanceBadgeModal
+        visible={Boolean(selectedBadgeMember)}
+        member={selectedBadgeMember}
+        onClose={() => setSelectedBadgeMember(null)}
       />
     </SafeAreaView>
   );

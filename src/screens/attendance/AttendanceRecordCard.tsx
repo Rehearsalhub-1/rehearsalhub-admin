@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './attendanceStyles';
 import type { AttendanceRecord } from './types';
 
 interface AttendanceRecordCardProps {
   item: AttendanceRecord;
+  onPress?: (item: AttendanceRecord) => void;
 }
 
-export default function AttendanceRecordCard({ item }: AttendanceRecordCardProps) {
+export default function AttendanceRecordCard({ item, onPress }: AttendanceRecordCardProps) {
   const name = item.userName || item.user_name || 'Choir Singer';
   const initial = name.charAt(0).toUpperCase();
   const event = item.eventName || item.event_name || 'Rehearsal Session';
@@ -17,7 +18,11 @@ export default function AttendanceRecordCard({ item }: AttendanceRecordCardProps
     : 'Present';
 
   return (
-    <View style={styles.recordCard}>
+    <TouchableOpacity
+      style={styles.recordCard}
+      onPress={() => onPress?.(item)}
+      activeOpacity={0.7}
+    >
       <View style={styles.avatarWrap}>
         <View style={styles.avatarInitialWrap}>
           <Text style={styles.avatarInitialText}>{initial}</Text>
@@ -46,9 +51,12 @@ export default function AttendanceRecordCard({ item }: AttendanceRecordCardProps
         </Text>
       </View>
 
-      <View style={styles.statusBadge}>
-        <Text style={styles.statusBadgeText}>Present</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusBadgeText}>Present</Text>
+        </View>
+        <Ionicons name="qr-code-outline" size={16} color="#7c3aed" />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
