@@ -67,15 +67,33 @@ function shapeRaw(u: any, churchName?: string): Member {
     (u.name ? u.name.split(' ').slice(1).join(' ') : '') ||
     (userObj.name ? userObj.name.split(' ').slice(1).join(' ') : '');
 
-  const email =
+  const rawEmail =
     u.email ||
     u.userEmail ||
     userObj.email ||
     userObj.userEmail ||
     '';
+  const email = rawEmail.includes('placeholder.rehearsalhub.com') ? '' : rawEmail;
 
-  const first_name = rawFirstName || (email ? email.split('@')[0] : 'Singer');
-  const last_name = rawLastName || '';
+  let first_name = (rawFirstName || '').trim();
+  let last_name = (rawLastName || '').trim();
+
+  if (!first_name && !last_name) {
+    if (email) {
+      const handle = email.split('@')[0];
+      const cleaned = handle.replace(/[._-]+/g, ' ').replace(/\d+$/, '').trim();
+      const formatted = cleaned
+        ? cleaned.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+        : handle;
+      const parts = formatted.split(' ');
+      first_name = parts[0] || formatted;
+      last_name = parts.slice(1).join(' ');
+    } else {
+      const shortId = (u.userId || userObj.id || u.id || '').slice(-4).toUpperCase();
+      first_name = 'Choir';
+      last_name = `Member (${shortId})`;
+    }
+  }
 
   return {
     id: u.userId || userObj.id || u.id,

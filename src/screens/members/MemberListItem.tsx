@@ -8,9 +8,10 @@ interface MemberListItemProps {
   item: Member;
   onRemove?: (id: string) => void;
   onShowBadge?: (member: Member) => void;
+  onEdit?: (member: Member) => void;
 }
 
-export default function MemberListItem({ item, onRemove, onShowBadge }: MemberListItemProps) {
+export default function MemberListItem({ item, onRemove, onShowBadge, onEdit }: MemberListItemProps) {
   const fullName = `${item.first_name} ${item.last_name}`.trim();
   const initial = `${item.first_name[0] || 'S'}${item.last_name[0] || ''}`.toUpperCase();
 
@@ -66,6 +67,25 @@ export default function MemberListItem({ item, onRemove, onShowBadge }: MemberLi
           {[item.church || item.zoneName, item.designation].filter(Boolean).join(' • ') || 'Loveworld Singers Member'}
         </Text>
       </View>
+
+      {/* Edit Member Profile Button */}
+      {onEdit && (
+        <TouchableOpacity
+          onPress={() => onEdit(item)}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{
+            padding: 8,
+            borderRadius: 8,
+            backgroundColor: '#ede9fe',
+            marginLeft: 8,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="pencil-outline" size={16} color="#7c3aed" />
+        </TouchableOpacity>
+      )}
 
       {/* View Attendance QR Badge Button */}
       {onShowBadge && (

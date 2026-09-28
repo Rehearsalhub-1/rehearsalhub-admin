@@ -19,6 +19,7 @@ import MemberSearchBar from './MemberSearchBar';
 import MemberListItem from './MemberListItem';
 import MemberFeaturePassItem from './MemberFeaturePassItem';
 import AddEmailPassModal from './AddEmailPassModal';
+import EditMemberModal from './EditMemberModal';
 import SingerAttendanceBadgeModal from '../../components/SingerAttendanceBadgeModal';
 
 const FlashListAny = FlashList as any;
@@ -31,6 +32,10 @@ export default function MembersScreen() {
 
   // Selected Member for Attendance QR Badge Modal
   const [selectedBadgeMember, setSelectedBadgeMember] = useState<Member | null>(null);
+
+  // Selected Member for Edit Profile Modal
+  const [selectedEditMember, setSelectedEditMember] = useState<Member | null>(null);
+  const [editMemberLoading, setEditMemberLoading] = useState(false);
 
   // Top-level View Mode: 'directory' vs 'feature_pass'
   const [viewMode, setViewMode] = useState<'directory' | 'feature_pass'>('directory');
@@ -173,6 +178,42 @@ export default function MembersScreen() {
     }
   };
 
+  // Save edited member profile details
+  const handleSaveMemberDetails = async (updated: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    designation: string;
+  }) => {
+    if (!selectedEditMember) return;
+    setEditMemberLoading(true);
+    try {
+      saveMember({
+        ...selectedEditMember,
+        first_name: updated.firstName,
+        last_name: updated.lastName,
+        phone: updated.phone,
+        designation: updated.designation,
+      });
+
+      await api.members.updateProfile(selectedEditMember.id, {
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        phone: updated.phone,
+        voicePart: updated.designation,
+        designation: updated.designation,
+      });
+
+      setSelectedEditMember(null);
+      showAlert('Profile Updated', 'Member details have been updated successfully.');
+    } catch (err: any) {
+      showAlert('Update Failed', err?.message || 'Could not update member profile.');
+      refetch();
+    } finally {
+      setEditMemberLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       {/* Header */}
@@ -251,6 +292,7 @@ export default function MembersScreen() {
               item={item}
               onRemove={removeFromZone}
               onShowBadge={(m) => setSelectedBadgeMember(m)}
+              onEdit={(m) => setSelectedEditMember(m)}
             />
           )}
         />
@@ -307,6 +349,15 @@ export default function MembersScreen() {
         visible={Boolean(selectedBadgeMember)}
         member={selectedBadgeMember}
         onClose={() => setSelectedBadgeMember(null)}
+      />
+
+      {/* ─── EDIT MEMBER DETAILS MODAL ────────────────────────────────────── */}
+      <EditMemberModal
+        visible={Boolean(selectedEditMember)}
+        member={selectedEditMember}
+        onClose={() => setSelectedEditMember(null)}
+        onSave={handleSaveMemberDetails}
+        loading={editMemberLoading}
       />
     </SafeAreaView>
   );
