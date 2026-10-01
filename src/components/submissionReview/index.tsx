@@ -14,6 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createAudioPlayer, AudioPlayer } from 'expo-audio';
+import { copyToClipboard } from '../../lib/clipboard';
 import { stripHtml } from '../../lib/stripHtml';
 import { customAlert } from '../../context/AlertContext';
 import { styles } from './submissionReviewStyles';
@@ -65,6 +66,7 @@ export default function SubmissionReviewModal({
 
   // Copy Feedback
   const [copied, setCopied] = useState(false);
+  const [copiedSolfa, setCopiedSolfa] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -310,9 +312,14 @@ export default function SubmissionReviewModal({
                   <Text style={styles.cardHeaderTitle}>Submitted Lyrics</Text>
                   <TouchableOpacity
                     style={styles.copyBtn}
-                    onPress={() => {
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
+                    onPress={async () => {
+                      const rawLyrics = song.lyrics || song.rawData?.lyrics || '';
+                      const text = rawLyrics ? stripHtml(rawLyrics) : '';
+                      if (text) {
+                        await copyToClipboard(text);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }
                     }}
                     activeOpacity={0.8}
                   >
@@ -321,7 +328,7 @@ export default function SubmissionReviewModal({
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.lyricsText}>
-                  {song.lyrics ? stripHtml(song.lyrics) : 'No lyrics submitted.'}
+                  {song.lyrics ? stripHtml(song.lyrics) : (song.rawData?.lyrics ? stripHtml(song.rawData.lyrics) : 'No lyrics submitted.')}
                 </Text>
               </View>
             </ScrollView>
@@ -330,9 +337,27 @@ export default function SubmissionReviewModal({
           {activeTab === 'solfas' && (
             <ScrollView style={styles.bodyScroll} contentContainerStyle={styles.bodyContent}>
               <View style={styles.contentCard}>
-                <Text style={styles.cardHeaderTitle}>Tonic Solfa Notation</Text>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.cardHeaderTitle}>Tonic Solfa Notation</Text>
+                  <TouchableOpacity
+                    style={styles.copyBtn}
+                    onPress={async () => {
+                      const rawSolfa = song.solfas || song.rawData?.solfas || '';
+                      const text = rawSolfa ? stripHtml(rawSolfa) : '';
+                      if (text) {
+                        await copyToClipboard(text);
+                        setCopiedSolfa(true);
+                        setTimeout(() => setCopiedSolfa(false), 2000);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name={copiedSolfa ? 'checkmark' : 'copy-outline'} size={12} color="#7c3aed" style={{ marginRight: 3 }} />
+                    <Text style={styles.copyBtnText}>{copiedSolfa ? 'Copied' : 'Copy'}</Text>
+                  </TouchableOpacity>
+                </View>
                 <Text style={styles.solfaText}>
-                  {song.solfas ? stripHtml(song.solfas) : 'No solfa notation available.'}
+                  {song.solfas ? stripHtml(song.solfas) : (song.rawData?.solfas ? stripHtml(song.rawData.solfas) : 'No solfa notation available.')}
                 </Text>
               </View>
             </ScrollView>

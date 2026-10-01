@@ -8,6 +8,7 @@ import { api } from '../../services/api';
 import { customAlert } from '../../context/AlertContext';
 import { MediaItem, MediaType, CategoryFilter } from './types';
 import { getYouTubeId, getYouTubeThumbnail, formatFileSize, inferMediaType } from './mediaLibraryUtils';
+import { copyToClipboard } from '../../lib/clipboard';
 
 interface UseMediaLibraryStateProps {
   stopCurrentAudio: () => Promise<void>;
@@ -296,8 +297,10 @@ export function useMediaLibraryState({
   const handleShare = async (item: MediaItem) => {
     const url = item.url || item.videoUrl;
     if (!url) return;
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
-      try { await navigator.clipboard.writeText(url); showToast('Link copied to clipboard!'); return; } catch {}
+    const copied = await copyToClipboard(url);
+    if (copied) {
+      showToast('Link copied to clipboard!');
+      return;
     }
     try { await Share.share({ title: item.name, message: `${item.name}\n${url}`, url }); } catch {}
   };

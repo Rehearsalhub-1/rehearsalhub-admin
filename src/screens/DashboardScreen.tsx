@@ -19,6 +19,7 @@ import ZoneHeader from '../components/ZoneHeader';
 import { StatTile, Badge } from '../components/ui';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { customAlert } from '../context/AlertContext';
+import { copyToClipboard } from '../lib/clipboard';
 
 export default function DashboardScreen({ navigation }: any) {
   const { adminUser } = useAuth();
@@ -31,11 +32,12 @@ export default function DashboardScreen({ navigation }: any) {
   const invitationCode =
     (activeZone as any)?.code || (activeZone as any)?.invitationCode || 'LZ1-HQ';
 
-  const copyInviteCode = () => {
+  const copyInviteCode = async () => {
+    await copyToClipboard(invitationCode);
     setCopiedCode(true);
     customAlert(
       'Join Code Copied',
-      `Zonal code: ${invitationCode}\nShare this with singers to join your directory.`
+      `Zonal code: ${invitationCode}\nCopied to clipboard! Share this with singers to join your directory.`
     );
     setTimeout(() => setCopiedCode(false), 2500);
   };
