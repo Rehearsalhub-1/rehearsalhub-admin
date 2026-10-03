@@ -137,6 +137,7 @@ export default function ScheduleScreen() {
                 onOpenAddSlot={state.handleOpenAddSlot}
                 onOpenEditSlot={state.handleOpenEditSlot}
                 onDeleteSlot={state.handleDeleteSlot}
+                onSetCurrent={state.handleSetCurrentWeekDay}
               />
             )}
 

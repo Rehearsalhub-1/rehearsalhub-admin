@@ -25,6 +25,7 @@ interface ScheduleTimetableViewProps {
   onOpenAddSlot: () => void;
   onOpenEditSlot: (slot: ScheduleSlot) => void;
   onDeleteSlot: (slotId: string) => void;
+  onSetCurrent: () => void;
 }
 
 export default function ScheduleTimetableView({
@@ -47,7 +48,15 @@ export default function ScheduleTimetableView({
   onOpenAddSlot,
   onOpenEditSlot,
   onDeleteSlot,
+  onSetCurrent,
 }: ScheduleTimetableViewProps) {
+  const isSelectionCurrent =
+    !!activeProgram.isCurrent &&
+    activeProgram.currentWeekId === selectedWeekId &&
+    activeProgram.currentDayId === selectedDayId;
+  const selectedWeekName = weeks.find(w => w.id === selectedWeekId)?.name || 'Week';
+  const selectedDayName = activeWeekDays.find(d => d.id === selectedDayId)?.name || 'Day';
+
   return (
     <>
       {/* ── TIMETABLE WEEKS & DAYS BAR ──────────────────────────────────── */}
@@ -113,6 +122,23 @@ export default function ScheduleTimetableView({
             <Text style={styles.addWeekDayBtnText}>Day</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Set current week & day */}
+        {isSelectionCurrent ? (
+          <View style={[styles.setCurrentBar, styles.setCurrentBarActive]}>
+            <Ionicons name="checkmark-circle" size={15} color="#059669" style={{ marginRight: 6 }} />
+            <Text style={styles.setCurrentActiveText}>
+              {selectedWeekName} · {selectedDayName} is the current day
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.setCurrentBar} onPress={onSetCurrent} activeOpacity={0.8}>
+            <Ionicons name="star" size={14} color="#d97706" style={{ marginRight: 6 }} />
+            <Text style={styles.setCurrentBtnText}>
+              Set {selectedWeekName} · {selectedDayName} as Current
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ── DAILY SCHEDULE TIMETABLE CONTENT ── */}

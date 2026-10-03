@@ -147,6 +147,24 @@ export function useScheduleState() {
     }
   };
 
+  const handleSetCurrentWeekDay = async () => {
+    if (!activeProgramId || !activeProgram) return;
+    try {
+      await api.schedule.makeCurrent(activeProgramId, selectedWeekId, selectedDayId);
+      bulkUpdatePrograms(prev => prev.map(p => ({
+        ...p,
+        isCurrent: p.id === activeProgramId,
+        currentWeekId: p.id === activeProgramId ? selectedWeekId : p.currentWeekId,
+        currentDayId: p.id === activeProgramId ? selectedDayId : p.currentDayId,
+      })));
+      const weekName = weeks.find(w => w.id === selectedWeekId)?.name || 'Week';
+      const dayName = days.find(d => d.id === selectedDayId)?.name || 'Day';
+      customAlert('Current Day Updated', `${weekName} · ${dayName} is now the current rehearsal day.`);
+    } catch (e: any) {
+      customAlert('Error', e?.message || 'Failed to set current week/day');
+    }
+  };
+
   const handleToggleArchive = async () => {
     if (!activeProgram) return;
     const nextArchived = !activeProgram.isArchived;
@@ -395,6 +413,7 @@ export function useScheduleState() {
     handleCreateProgram,
     handleRenameProgram,
     handleMakeCurrent,
+    handleSetCurrentWeekDay,
     handleToggleArchive,
     handleDeleteProgram,
     handleAddWeek,
