@@ -171,18 +171,28 @@ export function useMasterEditSongState({
         };
 
         const parts: string[] = [];
-        if (song.customParts) {
-          if (Array.isArray(song.customParts)) {
-            song.customParts.forEach(p => {
-              parts.push(p);
+        const rawCustom = song.customParts || (song.audioUrls as any)?._customParts;
+        if (rawCustom) {
+          if (Array.isArray(rawCustom)) {
+            rawCustom.forEach(p => {
+              if (typeof p === 'string' && !parts.includes(p)) parts.push(p);
               if (song.audioUrls?.[p]) urls[p] = song.audioUrls[p];
             });
-          } else if (typeof song.customParts === 'object') {
-            Object.entries(song.customParts).forEach(([k, v]) => {
-              parts.push(k);
+          } else if (typeof rawCustom === 'object') {
+            Object.entries(rawCustom).forEach(([k, v]) => {
+              if (!parts.includes(k)) parts.push(k);
               if (typeof v === 'string') urls[k] = v;
             });
           }
+        }
+        const standardStems = new Set(['full', 'soprano', 'alto', 'tenor', 'bass', 'lead', 'instrumental', 'main', 'master']);
+        if (song.audioUrls && typeof song.audioUrls === 'object') {
+          Object.entries(song.audioUrls).forEach(([k, v]) => {
+            if (!k.startsWith('_') && !standardStems.has(k.toLowerCase()) && !parts.includes(k)) {
+              parts.push(k);
+              if (typeof v === 'string') urls[k] = v;
+            }
+          });
         }
         setAudioUrls(urls);
         setCustomParts(parts);
@@ -345,7 +355,7 @@ export function useMasterEditSongState({
         drummer: drummer.trim(),
         audioFile: audioUrls.full || '',
         audioUrl: audioUrls.full || '',
-        audioUrls,
+        audioUrls: { ...audioUrls, _customParts: customParts } as any,
         customParts,
         lyrics: editorTextToHtml(lyrics.trim()),
         solfas: editorTextToHtml(solfa.trim()),

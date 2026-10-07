@@ -180,10 +180,19 @@ export function useEditSongState({
       setAudioUrls(song.audioUrls || {});
 
       let cParts: string[] = [];
-      if (Array.isArray(song.customParts)) {
-        cParts = song.customParts;
-      } else if (song.customParts && typeof song.customParts === 'object') {
-        cParts = Object.keys(song.customParts);
+      const rawCustom = song.customParts || (song.audioUrls as any)?._customParts;
+      if (Array.isArray(rawCustom)) {
+        cParts = [...rawCustom];
+      } else if (rawCustom && typeof rawCustom === 'object') {
+        cParts = Object.keys(rawCustom);
+      }
+      const standardStems = new Set(['full', 'soprano', 'alto', 'tenor', 'bass', 'lead', 'instrumental', 'main', 'master']);
+      if (song.audioUrls && typeof song.audioUrls === 'object') {
+        Object.keys(song.audioUrls).forEach(k => {
+          if (!k.startsWith('_') && !standardStems.has(k.toLowerCase()) && !cParts.includes(k)) {
+            cParts.push(k);
+          }
+        });
       }
       setCustomParts(cParts);
 
@@ -390,7 +399,7 @@ export function useEditSongState({
       rehearsalCount: rehearsalCount,
       audioFile: songAudioFile.trim(),
       audioUrl: songAudioFile.trim(),
-      audioUrls: audioUrls,
+      audioUrls: { ...audioUrls, _customParts: customParts } as any,
       customParts: customParts,
       imageUrl: normalizedImageUrl,
       coordinatorComment: cleanComment,

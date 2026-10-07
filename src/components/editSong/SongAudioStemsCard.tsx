@@ -66,6 +66,8 @@ export default function SongAudioStemsCard({
             placeholderTextColor="#94a3b8"
             value={newPartName}
             onChangeText={setNewPartName}
+            onSubmitEditing={handleAddCustomPart}
+            returnKeyType="done"
           />
           <TouchableOpacity style={styles.addPartBtn} onPress={handleAddCustomPart}>
             <Text style={styles.addPartBtnText}>Add</Text>

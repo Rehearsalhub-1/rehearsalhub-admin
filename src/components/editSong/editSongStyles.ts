@@ -77,7 +77,7 @@ export const styles = StyleSheet.create({
   addCustomPartPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, },
   addCustomPartPillText: { fontSize: 11.5, fontWeight: '700', color: '#7c3aed', },
   addCustomPartInputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe', borderRadius: 10, padding: 8, marginBottom: 12, },
-  addCustomPartInput: { flex: 1, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, fontSize: 12.5, },
+  addCustomPartInput: { flex: 1, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6, fontSize: 12.5, color: '#0f172a', },
   addPartBtn: { backgroundColor: '#7c3aed', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, },
   addPartBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700', },
   cancelPartBtn: { padding: 6, },
