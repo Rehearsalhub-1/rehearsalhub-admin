@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MediaSelectionModal from '../MediaSelectionModal';
 import { styles } from './editSongStyles';
-import FullscreenLyricsModal from './FullscreenLyricsModal';
 import SongHistoryModal from './SongHistoryModal';
 import BaseSongForm from './BaseSongForm';
 import { useEditSongState } from './useEditSongState';
@@ -267,17 +266,6 @@ export default function EditSongModal(props: EditSongModalProps) {
           onSelect={state.handleMediaSelected}
         />
 
-        <FullscreenLyricsModal
-          visible={state.showFullscreenLyrics}
-          songTitle={state.songTitle || props.song?.title || 'Song Lyrics'}
-          songLyrics={state.songLyrics}
-          onLyricsChange={state.setSongLyrics}
-          lyricsSelection={state.lyricsSelection}
-          onSelectionChange={state.setLyricsSelection}
-          onClose={() => state.setShowFullscreenLyrics(false)}
-          insetsTop={insets.top}
-          insetsBottom={insets.bottom}
-        />
 
         <Modal visible={state.showStatusPicker} transparent animationType="fade">
           <TouchableOpacity

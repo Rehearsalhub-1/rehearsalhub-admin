@@ -55,6 +55,7 @@ export default function SongCommentsCard({
         <TextInput
           style={[styles.inputPrimary, styles.multilineEditor]}
           multiline
+          scrollEnabled={false}
           numberOfLines={4}
           textAlignVertical="top"
           value={coordinatorComment}

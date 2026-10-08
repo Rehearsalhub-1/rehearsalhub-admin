@@ -62,6 +62,7 @@ export default function MasterLyricsTab({
           onChangeText={setLyrics}
           onSelectionChange={e => setLyricsSelection(e.nativeEvent.selection)}
           multiline
+          scrollEnabled={false}
           textAlignVertical="top"
         />
       </View>
@@ -87,6 +88,7 @@ export default function MasterLyricsTab({
           value={solfa}
           onChangeText={setSolfa}
           multiline
+          scrollEnabled={false}
           textAlignVertical="top"
         />
       </View>
@@ -106,12 +108,13 @@ export default function MasterLyricsTab({
         </View>
 
         <TextInput
-          style={[styles.multilineInput, { height: 110 }]}
+          style={[styles.multilineInput, { minHeight: 110 }]}
           placeholder="Notes on the inspiration, ministered program dates, or special rehearsal pointers..."
           placeholderTextColor="#94a3b8"
           value={history}
           onChangeText={setHistory}
           multiline
+          scrollEnabled={false}
           textAlignVertical="top"
         />
       </View>

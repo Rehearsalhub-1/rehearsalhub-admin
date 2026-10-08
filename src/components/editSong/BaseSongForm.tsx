@@ -83,7 +83,6 @@ export interface BaseSongFormProps {
   setSongLyrics: (val: string) => void;
   lyricsSelection: { start: number; end: number };
   setLyricsSelection: (val: { start: number; end: number }) => void;
-  setShowFullscreenLyrics: (val: boolean) => void;
   songSolfas: string;
   setSongSolfas: (val: string) => void;
   songNotation: string;

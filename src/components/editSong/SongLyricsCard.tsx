@@ -15,7 +15,6 @@ export interface SongLyricsCardProps {
   setSongLyrics: (val: string) => void;
   lyricsSelection: { start: number; end: number };
   setLyricsSelection: (val: { start: number; end: number }) => void;
-  setShowFullscreenLyrics: (val: boolean) => void;
   handleAddHistory: (type: string) => void;
   songSolfas: string;
   setSongSolfas: (val: string) => void;
@@ -29,7 +28,6 @@ export default function SongLyricsCard({
   setSongLyrics,
   lyricsSelection,
   setLyricsSelection,
-  setShowFullscreenLyrics,
   handleAddHistory,
   songSolfas,
   setSongSolfas,
@@ -45,23 +43,13 @@ export default function SongLyricsCard({
             <View style={[styles.dotMarker, { backgroundColor: '#3b82f6' }]} />
             <Text style={styles.cardHeaderTitle}>Song Lyrics</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity
-              style={styles.fullscreenBtn}
-              onPress={() => setShowFullscreenLyrics(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="scan-outline" size={13} color="#7c3aed" style={{ marginRight: 4 }} />
-              <Text style={styles.fullscreenBtnText}>Full Screen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.addHistoryBtn}
-              onPress={() => handleAddHistory('lyrics')}
-            >
-              <Ionicons name="time-outline" size={13} color="#475569" style={{ marginRight: 4 }} />
-              <Text style={styles.addHistoryBtnText}>History</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.addHistoryBtn}
+            onPress={() => handleAddHistory('lyrics')}
+          >
+            <Ionicons name="time-outline" size={13} color="#475569" style={{ marginRight: 4 }} />
+            <Text style={styles.addHistoryBtnText}>History</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.cardWhiteBody}>
@@ -78,6 +66,7 @@ export default function SongLyricsCard({
               activeTab === 'lyrics' && styles.multilineEditorTabActive,
             ]}
             multiline
+            scrollEnabled={false}
             numberOfLines={activeTab === 'lyrics' ? 18 : 8}
             textAlignVertical="top"
             value={songLyrics}
@@ -117,6 +106,7 @@ export default function SongLyricsCard({
             <TextInput
               style={[styles.inputPrimary, styles.multilineEditor, styles.fontMono]}
               multiline
+              scrollEnabled={false}
               numberOfLines={5}
               textAlignVertical="top"
               value={songSolfas}
@@ -153,6 +143,7 @@ export default function SongLyricsCard({
             <TextInput
               style={[styles.inputPrimary, styles.multilineEditor, styles.fontMono]}
               multiline
+              scrollEnabled={false}
               numberOfLines={5}
               textAlignVertical="top"
               value={songNotation}

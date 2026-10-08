@@ -96,7 +96,7 @@ export const styles = StyleSheet.create({
   },
   multilineInput: {
     backgroundColor: '#f8fafc', borderRadius: 10, borderWidth: 1,
-    borderColor: '#e2e8f0', padding: 12, height: 150,
+    borderColor: '#e2e8f0', padding: 12, minHeight: 150,
     fontSize: 13.5, color: '#0f172a', lineHeight: 20,
   },
   addCategoryPill: {
