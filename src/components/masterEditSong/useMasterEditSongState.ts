@@ -12,6 +12,7 @@ interface UseMasterEditSongStateProps {
   mode?: 'edit' | 'create';
   onClose: () => void;
   onSaved: (song: MasterSong, isNew: boolean) => void;
+  onDelete?: (songId: string) => void;
 }
 
 export function useMasterEditSongState({
@@ -20,6 +21,7 @@ export function useMasterEditSongState({
   mode = 'edit',
   onClose,
   onSaved,
+  onDelete,
 }: UseMasterEditSongStateProps) {
   const isCreate = mode === 'create' || !song;
   const [activeTab, setActiveTab] = useState<'details' | 'audio' | 'lyrics' | 'access'>('details');
@@ -394,7 +396,34 @@ export function useMasterEditSongState({
     }
   }
 
+  function handleDelete() {
+    if (!song?.id) return;
+    customAlert(
+      'Delete Master Song',
+      `Are you sure you want to delete "${title || song.title}" permanently from the master catalog?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.songs.delete(song.id);
+              if (onDelete) {
+                onDelete(song.id);
+              }
+              onClose();
+            } catch (e: any) {
+              customAlert('Error', e?.message || 'Failed to delete master song.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   return {
+    song,
     isCreate,
     activeTab,
     setActiveTab,
@@ -456,5 +485,6 @@ export function useMasterEditSongState({
     handleToggleStemAudio,
     saving,
     handleSave,
+    handleDelete,
   };
 }

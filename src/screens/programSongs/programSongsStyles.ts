@@ -24,11 +24,11 @@ export const styles = StyleSheet.create({
   filterSection: {
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingTop: 6,
+    paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
-    gap: 8,
+    gap: 6,
   },
   quickBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   progressPill: {
@@ -69,7 +69,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     paddingHorizontal: 10,
-    height: 36,
+    height: 33,
   },
   searchBarInput: { flex: 1, fontSize: 12, color: '#0f172a' },
 
@@ -82,7 +82,7 @@ export const styles = StyleSheet.create({
   },
   segmentTab: {
     flex: 1,
-    paddingVertical: 4.5,
+    paddingVertical: 3.5,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 6,

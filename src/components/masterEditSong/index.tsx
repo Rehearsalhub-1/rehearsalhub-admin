@@ -23,10 +23,10 @@ import MasterAccessControl from './MasterAccessControl';
 export type { MasterEditSongModalProps } from './types';
 
 const TABS = [
-  { id: 'details', label: 'Details', icon: 'information-circle-outline' },
-  { id: 'audio', label: 'Audio & Stems', icon: 'musical-notes-outline' },
-  { id: 'lyrics', label: 'Lyrics & Guide', icon: 'document-text-outline' },
-  { id: 'access', label: 'Access Control', icon: 'shield-checkmark-outline' },
+  { id: 'details', label: 'Details' },
+  { id: 'audio', label: 'Audio' },
+  { id: 'lyrics', label: 'Lyrics' },
+  { id: 'access', label: 'Access' },
 ] as const;
 
 export default function MasterEditSongModal({
@@ -35,67 +35,92 @@ export default function MasterEditSongModal({
   mode = 'edit',
   onClose,
   onSaved,
+  onDelete,
 }: MasterEditSongModalProps) {
   const insets = useSafeAreaInsets();
-  const state = useMasterEditSongState({ visible, song, mode, onClose, onSaved });
+  const state = useMasterEditSongState({ visible, song, mode, onClose, onSaved, onDelete });
+
+  const isEditing = !state.isCreate && Boolean(song?.id);
+  const audioStemsCount = Object.values(state.audioUrls || {}).filter(Boolean).length;
+  const hasLyricsContent = state.lyrics.trim().length > 0 || state.solfa.trim().length > 0;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={styles.container} edges={['top']}>
-        {/* Top Header */}
+        {/* ── 1. Apple-Standard Header ─────────────────────────────────────── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn} activeOpacity={0.7}>
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.headerCloseBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={20} color="#64748b" />
           </TouchableOpacity>
 
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {state.isCreate ? 'Add Master Song' : 'Edit Master Song'}
+          <View style={styles.webHeaderTitleWrap}>
+            <Text style={styles.webHeaderTitle} numberOfLines={1}>
+              {state.isCreate ? 'Add Master Song' : (state.title || song?.title || 'Edit Master Song')}
             </Text>
-            {state.isHQOnly && (
-              <View style={styles.hqIndicator}>
-                <Text style={styles.hqIndicatorText}>HQ</Text>
-              </View>
-            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
+              <Text style={styles.webHeaderSubtitle} numberOfLines={1}>
+                All Ministered • Master Catalog
+              </Text>
+              {state.isHQOnly && (
+                <View style={styles.hqIndicator}>
+                  <Text style={styles.hqIndicatorText}>HQ</Text>
+                </View>
+              )}
+            </View>
           </View>
 
           <TouchableOpacity
             onPress={state.handleSave}
-            style={[styles.saveBtn, !state.title.trim() && styles.saveBtnDisabled]}
+            style={[styles.headerQuickSaveBtn, !state.title.trim() && styles.saveBtnDisabled]}
             disabled={state.saving || !state.title.trim()}
             activeOpacity={0.8}
           >
             {state.saving ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.saveBtnText}>Save</Text>
+              <>
+                <Ionicons name="checkmark" size={16} color="#ffffff" style={{ marginRight: 2 }} />
+                <Text style={styles.headerQuickSaveBtnText}>Save</Text>
+              </>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* 4 Tabs Bar (Web Admin Parity) */}
-        <View style={styles.tabsRow}>
-          {TABS.map(t => {
-            const isActive = state.activeTab === t.id;
-            return (
-              <TouchableOpacity
-                key={t.id}
-                style={[styles.tabBtn, isActive && styles.tabBtnActive]}
-                onPress={() => state.setActiveTab(t.id)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={t.icon as any}
-                  size={14}
-                  color={isActive ? '#7c3aed' : '#64748b'}
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={[styles.tabBtnText, isActive && styles.tabBtnTextActive]}>
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+        {/* ── 2. Segmented Tabs Bar ─────────────────────────────────────── */}
+        <View style={styles.tabBarContainer}>
+          <View style={styles.tabBarScrollContent}>
+            {TABS.map(t => {
+              const isActive = state.activeTab === t.id;
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  style={[styles.tabItem, isActive && styles.tabItemActive]}
+                  onPress={() => state.setActiveTab(t.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.tabItemText, isActive && styles.tabItemTextActive]} numberOfLines={1}>
+                    {t.label}
+                  </Text>
+                  {t.id === 'audio' && audioStemsCount > 0 && (
+                    <View style={styles.tabCountBadge}>
+                      <Text style={styles.tabCountBadgeText}>{audioStemsCount}</Text>
+                    </View>
+                  )}
+                  {t.id === 'lyrics' && hasLyricsContent && (
+                    <View style={styles.tabBadgeDot} />
+                  )}
+                  {t.id === 'access' && state.isHQOnly && (
+                    <View style={[styles.tabBadgeDot, { backgroundColor: '#4338ca' }]} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
         <KeyboardAvoidingView
@@ -186,6 +211,20 @@ export default function MasterEditSongModal({
                 isHQOnly={state.isHQOnly}
                 setIsHQOnly={state.setIsHQOnly}
               />
+            )}
+
+            {/* Danger Zone: Delete Master Song (Parity with Edit Song) */}
+            {isEditing && (
+              <View style={styles.dangerZoneContainer}>
+                <TouchableOpacity
+                  onPress={state.handleDelete}
+                  style={styles.dangerDeleteBtn}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#ef4444" style={{ marginRight: 6 }} />
+                  <Text style={styles.dangerDeleteBtnText}>Delete Master Song</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </ScrollView>
         </KeyboardAvoidingView>

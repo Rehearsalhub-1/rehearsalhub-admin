@@ -26,6 +26,9 @@ export interface SongMusicDetailsCardProps {
   handleAddHistory: (type: string) => void;
 }
 
+const QUICK_KEYS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const QUICK_TEMPOS = ['70', '85', '100', '115', '125', '135'];
+
 export default function SongMusicDetailsCard({
   isMedium,
   songKey,
@@ -57,7 +60,7 @@ export default function SongMusicDetailsCard({
 
       {isMedium ? (
         <View style={styles.threeColRow}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1.2 }}>
             <Text style={styles.fieldLabel}>Key</Text>
             <TextInput
               style={styles.inputPrimary}
@@ -66,6 +69,23 @@ export default function SongMusicDetailsCard({
               placeholder="e.g., C, G, F#"
               placeholderTextColor="#94a3b8"
             />
+            <View style={styles.keyChipsWrap}>
+              {QUICK_KEYS.map(k => {
+                const isSelected = (songKey || '').trim().toLowerCase() === k.toLowerCase();
+                return (
+                  <TouchableOpacity
+                    key={k}
+                    style={[styles.keyChip, isSelected && styles.keyChipActive]}
+                    onPress={() => setSongKey(k)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.keyChipText, isSelected && styles.keyChipTextActive]}>
+                      {k}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           <View style={{ flex: 1 }}>
@@ -77,10 +97,27 @@ export default function SongMusicDetailsCard({
               placeholder="e.g., 120 BPM"
               placeholderTextColor="#94a3b8"
             />
+            <View style={styles.tempoChipsWrap}>
+              {QUICK_TEMPOS.map(t => {
+                const isSelected = (songTempo || '').includes(t);
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.tempoChip, isSelected && styles.tempoChipActive]}
+                    onPress={() => setSongTempo(`${t} BPM`)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.tempoChipText, isSelected && styles.tempoChipTextActive]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
-          <View style={{ flex: 1 }}>
-            <Text style={styles.fieldLabel}>Rehearsal Count</Text>
+          <View style={{ flex: 0.8 }}>
+            <Text style={styles.fieldLabel}>Rehearsals</Text>
             <TextInput
               style={styles.inputPrimary}
               value={String(rehearsalCount)}
@@ -92,19 +129,36 @@ export default function SongMusicDetailsCard({
           </View>
         </View>
       ) : (
-        <View>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Key</Text>
-              <TextInput
-                style={styles.inputPrimary}
-                value={songKey}
-                onChangeText={setSongKey}
-                placeholder="e.g., C, G, F#"
-                placeholderTextColor="#94a3b8"
-              />
+        <View style={{ gap: 12 }}>
+          <View>
+            <Text style={styles.fieldLabel}>Key</Text>
+            <TextInput
+              style={styles.inputPrimary}
+              value={songKey}
+              onChangeText={setSongKey}
+              placeholder="e.g., C, G, F#"
+              placeholderTextColor="#94a3b8"
+            />
+            <View style={styles.keyChipsWrap}>
+              {QUICK_KEYS.map(k => {
+                const isSelected = (songKey || '').trim().toLowerCase() === k.toLowerCase();
+                return (
+                  <TouchableOpacity
+                    key={k}
+                    style={[styles.keyChip, isSelected && styles.keyChipActive]}
+                    onPress={() => setSongKey(k)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.keyChipText, isSelected && styles.keyChipTextActive]}>
+                      {k}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
+          </View>
 
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>Tempo</Text>
               <TextInput
@@ -114,19 +168,36 @@ export default function SongMusicDetailsCard({
                 placeholder="e.g., 120 BPM"
                 placeholderTextColor="#94a3b8"
               />
+              <View style={styles.tempoChipsWrap}>
+                {QUICK_TEMPOS.slice(0, 4).map(t => {
+                  const isSelected = (songTempo || '').includes(t);
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.tempoChip, isSelected && styles.tempoChipActive]}
+                      onPress={() => setSongTempo(`${t} BPM`)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[styles.tempoChipText, isSelected && styles.tempoChipTextActive]}>
+                        {t}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Rehearsal Count</Text>
-            <TextInput
-              style={styles.inputPrimary}
-              value={String(rehearsalCount)}
-              onChangeText={t => setRehearsalCount(parseInt(t, 10) || 0)}
-              keyboardType="number-pad"
-              placeholder="0"
-              placeholderTextColor="#94a3b8"
-            />
+            <View style={{ flex: 0.8 }}>
+              <Text style={styles.fieldLabel}>Rehearsals</Text>
+              <TextInput
+                style={styles.inputPrimary}
+                value={String(rehearsalCount)}
+                onChangeText={t => setRehearsalCount(parseInt(t, 10) || 0)}
+                keyboardType="number-pad"
+                placeholder="0"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
           </View>
         </View>
       )}

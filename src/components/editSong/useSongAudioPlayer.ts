@@ -78,7 +78,7 @@ export function useSongAudioPlayer({
   const handleMediaSelected = (url: string) => {
     if (!mediaTarget) return;
     if (mediaTarget === 'image') setSongImageUrl(url);
-    else if (mediaTarget === 'mainAudio') setSongAudioFile(url);
+    else if (mediaTarget === 'mainAudio' || mediaTarget === 'audio') setSongAudioFile(url);
     else if (mediaTarget === 'commentAudio') setCoordinatorAudioUrl(url);
     else setAudioUrls(prev => ({ ...prev, [mediaTarget]: url }));
     setShowMediaModal(false);

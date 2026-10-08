@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import LyricsFormattingToolbar from '../LyricsFormattingToolbar';
 import { styles } from './masterEditSongStyles';
 
@@ -24,10 +25,30 @@ export default function MasterLyricsTab({
   history,
   setHistory,
 }: MasterLyricsTabProps) {
+  const lyricsCharCount = lyrics.length;
+  const lyricsLines = lyrics ? lyrics.split('\n').length : 0;
+
   return (
     <View style={styles.tabSection}>
+      {/* ── 1. Official Song Lyrics ────────────────────────────────────────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>Official Song Lyrics</Text>
+        <View style={styles.cardHeaderWithIcon}>
+          <View style={styles.cardIconBadge}>
+            <Ionicons name="document-text" size={17} color="#7c3aed" />
+          </View>
+          <View style={styles.cardHeaderTitles}>
+            <Text style={styles.cardSectionTitle}>Official Song Lyrics</Text>
+            <Text style={styles.cardHeaderSubtitle}>
+              Song text for prompters, mobile lyrics & choir presentation
+            </Text>
+          </View>
+          {lyricsCharCount > 0 && (
+            <Text style={styles.charCountText}>
+              {lyricsLines} lines • {lyricsCharCount} chars
+            </Text>
+          )}
+        </View>
+
         <LyricsFormattingToolbar
           value={lyrics}
           onChangeText={setLyrics}
@@ -35,7 +56,7 @@ export default function MasterLyricsTab({
         />
         <TextInput
           style={styles.multilineInput}
-          placeholder="Enter full song lyrics with verses and chorus..."
+          placeholder="Enter full song lyrics with verses, chorus, and bridge..."
           placeholderTextColor="#94a3b8"
           value={lyrics}
           onChangeText={setLyrics}
@@ -45,11 +66,23 @@ export default function MasterLyricsTab({
         />
       </View>
 
+      {/* ── 2. Tonic Solfa & Conductor Guide ──────────────────────────────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>Conductor Guide & Tonic Solfa</Text>
+        <View style={styles.cardHeaderWithIcon}>
+          <View style={[styles.cardIconBadge, { backgroundColor: '#f0fdf4', borderColor: '#dcfce7' }]}>
+            <Ionicons name="musical-notes" size={17} color="#16a34a" />
+          </View>
+          <View style={styles.cardHeaderTitles}>
+            <Text style={styles.cardSectionTitle}>Conductor Guide & Tonic Solfa</Text>
+            <Text style={styles.cardHeaderSubtitle}>
+              Vocal solfa (d:r:m | f:s:l), cue marks, and score notes
+            </Text>
+          </View>
+        </View>
+
         <TextInput
           style={styles.multilineInput}
-          placeholder="Enter tonic solfa (e.g. d:r:m | f:s:l) and conductor cues..."
+          placeholder="Enter tonic solfa (e.g. d:r:m | f:s:l) and vocal cues..."
           placeholderTextColor="#94a3b8"
           value={solfa}
           onChangeText={setSolfa}
@@ -58,11 +91,23 @@ export default function MasterLyricsTab({
         />
       </View>
 
+      {/* ── 3. Ministered Background & History ────────────────────────────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>Song History & Ministered Background</Text>
+        <View style={styles.cardHeaderWithIcon}>
+          <View style={[styles.cardIconBadge, { backgroundColor: '#eff6ff', borderColor: '#dbeafe' }]}>
+            <Ionicons name="time-outline" size={17} color="#2563eb" />
+          </View>
+          <View style={styles.cardHeaderTitles}>
+            <Text style={styles.cardSectionTitle}>Ministry Background & Inspiration</Text>
+            <Text style={styles.cardHeaderSubtitle}>
+              Origin notes, Praise Night dates, or composer instructions
+            </Text>
+          </View>
+        </View>
+
         <TextInput
-          style={[styles.multilineInput, { height: 100 }]}
-          placeholder="Notes on the inspiration, ministered program dates, or special instructions..."
+          style={[styles.multilineInput, { height: 110 }]}
+          placeholder="Notes on the inspiration, ministered program dates, or special rehearsal pointers..."
           placeholderTextColor="#94a3b8"
           value={history}
           onChangeText={setHistory}

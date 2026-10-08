@@ -143,7 +143,7 @@ export default function DashboardScreen({ navigation }: any) {
               icon="musical-notes"
               color="#d97706"
               badgeLabel="CATALOG"
-              subtitle="Master repertoire"
+              subtitle="Master catalog"
               onPress={() => navigation.navigate('MasterLibrary')}
             />
             <StatTile

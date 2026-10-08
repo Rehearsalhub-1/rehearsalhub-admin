@@ -65,7 +65,7 @@ export default function MediaFullAudioModal({
               {activeAudioItem.name}
             </Text>
             <Text style={styles.fullPlayerSubtitle}>
-              {activeAudioItem.forHq ? '⭐ Global HQ Stem' : '📍 Zonal Repertoire Stem'}
+              {activeAudioItem.forHq ? '⭐ Global HQ Stem' : '📍 Zonal Catalog Stem'}
             </Text>
 
             {/* Scrubber Progress */}

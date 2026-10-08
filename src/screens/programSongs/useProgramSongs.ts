@@ -207,6 +207,7 @@ export function useProgramSongs(initialProgram: Program) {
   };
 
   const handleSongUpdated = (updated: PraiseSong) => {
+    setSelectedSong(prev => (prev && prev.id === updated.id ? { ...prev, ...updated } : updated));
     setProgramSongs(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated } : s)));
     if (updated.id) {
       const normalizedImageUrl = updated.imageUrl?.trim()

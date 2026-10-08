@@ -60,6 +60,13 @@ export default function SongPersonnelCard({
 
       {/* Responsive Grid: 2-Col on screens >= 500px, 1-Col stacked on phones */}
       <View style={[styles.personnelGrid, isMedium && { flexDirection: 'row', flexWrap: 'wrap' }]}>
+        {/* Section 1: Vocal & Direction */}
+        <View style={{ width: '100%', marginBottom: 2 }}>
+          <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Vocal & Direction
+          </Text>
+        </View>
+
         <View style={[styles.fieldGroup, isMedium && { width: '48.5%' }]}>
           <Text style={styles.fieldLabel}>Lead Singer</Text>
           <TextInput
@@ -82,7 +89,7 @@ export default function SongPersonnelCard({
           />
         </View>
 
-        <View style={[styles.fieldGroup, isMedium && { width: '48.5%' }]}>
+        <View style={[styles.fieldGroup, isMedium && { width: '100%' }]}>
           <Text style={styles.fieldLabel}>Conductor's Guide</Text>
           <TextInput
             style={styles.inputPrimary}
@@ -91,6 +98,13 @@ export default function SongPersonnelCard({
             placeholder="Enter conductor name"
             placeholderTextColor="#94a3b8"
           />
+        </View>
+
+        {/* Section 2: Band & Musicians */}
+        <View style={{ width: '100%', marginTop: 6, marginBottom: 2 }}>
+          <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Band & Musicians
+          </Text>
         </View>
 
         <View style={[styles.fieldGroup, isMedium && { width: '48.5%' }]}>

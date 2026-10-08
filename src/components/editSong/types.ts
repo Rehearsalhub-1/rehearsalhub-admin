@@ -71,8 +71,8 @@ export const DEFAULT_CATEGORIES = [
 
 export const EDIT_SONG_TABS = [
   { id: 'details', label: 'Details', icon: 'document-text-outline' },
-  { id: 'lyrics', label: 'Lyrics & Solfa', icon: 'musical-notes-outline' },
-  { id: 'audio', label: 'AudioLab', icon: 'headset-outline' },
-  { id: 'personnel', label: 'Personnel', icon: 'people-outline' },
-  { id: 'all', label: 'All Cards', icon: 'grid-outline' },
+  { id: 'lyrics', label: 'Lyrics', icon: 'musical-notes-outline' },
+  { id: 'audio', label: 'Audio', icon: 'headset-outline' },
+  { id: 'personnel', label: 'Team', icon: 'people-outline' },
+  { id: 'all', label: 'All', icon: 'grid-outline' },
 ] as const;

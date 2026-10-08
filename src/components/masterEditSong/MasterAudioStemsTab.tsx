@@ -37,9 +37,12 @@ export default function MasterAudioStemsTab({
   onToggleStemAudio,
   onPickMedia,
 }: MasterAudioStemsTabProps) {
+  const fullMixUrl = audioUrls.full || '';
+  const fullMixName = fullMixUrl ? fullMixUrl.split('/').pop()?.split('?')[0] || 'Master Audio Track' : '';
+
   return (
     <View style={styles.tabSection}>
-      {/* Master Audio Track */}
+      {/* ── CARD 1: FULL MIX (MASTER TRACK) ─────────────────────────────── */}
       <View style={styles.card}>
         <View style={styles.labelWithAction}>
           <Text style={styles.cardSectionTitle}>Full Mix (Master Track)</Text>
@@ -49,39 +52,69 @@ export default function MasterAudioStemsTab({
             activeOpacity={0.8}
           >
             <Ionicons name="folder-open-outline" size={12} color="#7c3aed" style={{ marginRight: 3 }} />
-            <Text style={styles.pickMediaPillText}>Pick from Library</Text>
+            <Text style={styles.pickMediaPillText}>Browse Media Library</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.stemInputRow}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            placeholder="https://... full master audio URL"
-            placeholderTextColor="#94a3b8"
-            value={audioUrls.full || ''}
-            onChangeText={val => setAudioUrls(prev => ({ ...prev, full: val }))}
-            autoCapitalize="none"
-          />
-          {audioUrls.full ? (
-            <TouchableOpacity
-              style={[styles.testPlayBtn, playingKey === 'full' && styles.testPlayBtnActive]}
-              onPress={() => onToggleStemAudio('full', audioUrls.full)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={playingKey === 'full' ? 'pause' : 'play'}
-                size={15}
-                color={playingKey === 'full' ? '#ffffff' : '#7c3aed'}
-              />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        {fullMixUrl ? (
+          <View style={styles.audioTrackBox}>
+            <View style={styles.audioTrackMetaRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                <Ionicons name="musical-notes" size={15} color="#7c3aed" />
+                <Text style={styles.audioTrackFileName} numberOfLines={1}>
+                  {fullMixName}
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity
+                  style={[styles.miniPlayBtn, playingKey === 'full' && styles.miniPlayBtnActive]}
+                  onPress={() => onToggleStemAudio('full', fullMixUrl)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={playingKey === 'full' ? 'pause' : 'play'}
+                    size={13}
+                    color={playingKey === 'full' ? '#ffffff' : '#7c3aed'}
+                  />
+                  <Text style={[styles.miniPlayBtnText, playingKey === 'full' && styles.miniPlayBtnTextActive]}>
+                    {playingKey === 'full' ? 'Playing' : 'Play'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.changeAudioBtn}
+                  onPress={() => onPickMedia('full')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.changeAudioBtnText}>Change</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setAudioUrls(prev => ({ ...prev, full: '' }))}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Ionicons name="close-circle" size={18} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.browseAudioBtn}
+            onPress={() => onPickMedia('full')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="musical-notes-outline" size={16} color="#ffffff" />
+            <Text style={styles.browseAudioBtnText}>Select Master Audio Track</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Vocal Stems */}
+      {/* ── CARD 2: VOCAL STEMS (S, A, T, B) ─────────────────────────────── */}
       <View style={styles.card}>
         <View style={styles.labelWithAction}>
-          <Text style={styles.cardSectionTitle}>Vocal Stems (S, A, T, B)</Text>
+          <Text style={styles.cardSectionTitle}>Vocal Stems & Parts</Text>
           {!showAddPart && (
             <TouchableOpacity
               style={styles.addCategoryPill}
@@ -98,7 +131,7 @@ export default function MasterAudioStemsTab({
           <View style={styles.inlineNewCatRow}>
             <TextInput
               style={styles.inlineNewCatInput}
-              placeholder="Part name (e.g. Lead Vocals, Harmony 2)..."
+              placeholder="Stem name (e.g. Lead, Synth)..."
               placeholderTextColor="#94a3b8"
               value={newPartName}
               onChangeText={setNewPartName}
@@ -131,6 +164,8 @@ export default function MasterAudioStemsTab({
           ...customParts.map(cp => ({ key: cp, label: `${cp} Stem`, color: '#8b5cf6', isCustom: true })),
         ].map(part => {
           const url = audioUrls[part.key] || '';
+          const stemFileName = url ? url.split('/').pop()?.split('?')[0] || `${part.label} Audio` : '';
+
           return (
             <View key={part.key} style={styles.stemFieldBlock}>
               <View style={styles.stemHeaderRow}>
@@ -138,6 +173,7 @@ export default function MasterAudioStemsTab({
                   <View style={[styles.stemDot, { backgroundColor: part.color }]} />
                   <Text style={styles.stemFieldLabel}>{part.label}</Text>
                 </View>
+
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <TouchableOpacity
                     style={styles.smallPickBtn}
@@ -145,7 +181,7 @@ export default function MasterAudioStemsTab({
                     activeOpacity={0.8}
                   >
                     <Ionicons name="folder-open-outline" size={11} color="#7c3aed" style={{ marginRight: 2 }} />
-                    <Text style={styles.smallPickBtnText}>Pick</Text>
+                    <Text style={styles.smallPickBtnText}>Pick File</Text>
                   </TouchableOpacity>
 
                   {(part as any).isCustom && (
@@ -159,29 +195,39 @@ export default function MasterAudioStemsTab({
                 </View>
               </View>
 
-              <View style={styles.stemInputRow}>
-                <TextInput
-                  style={[styles.input, { flex: 1, fontSize: 12 }]}
-                  placeholder={`URL for ${part.label}...`}
-                  placeholderTextColor="#94a3b8"
-                  value={url}
-                  onChangeText={val => setAudioUrls(prev => ({ ...prev, [part.key]: val }))}
-                  autoCapitalize="none"
-                />
-                {url ? (
-                  <TouchableOpacity
-                    style={[styles.testPlayBtn, playingKey === part.key && styles.testPlayBtnActive]}
-                    onPress={() => onToggleStemAudio(part.key, url)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={playingKey === part.key ? 'pause' : 'play'}
-                      size={14}
-                      color={playingKey === part.key ? '#ffffff' : '#7c3aed'}
-                    />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
+              {url ? (
+                <View style={[styles.audioTrackBox, { marginTop: 4, paddingVertical: 6 }]}>
+                  <View style={styles.audioTrackMetaRow}>
+                    <Text style={[styles.audioTrackFileName, { fontSize: 11.5 }]} numberOfLines={1}>
+                      {stemFileName}
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <TouchableOpacity
+                        style={[styles.miniPlayBtn, playingKey === part.key && styles.miniPlayBtnActive, { paddingVertical: 3, paddingHorizontal: 7 }]}
+                        onPress={() => onToggleStemAudio(part.key, url)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons
+                          name={playingKey === part.key ? 'pause' : 'play'}
+                          size={11}
+                          color={playingKey === part.key ? '#ffffff' : '#7c3aed'}
+                        />
+                        <Text style={[styles.miniPlayBtnText, playingKey === part.key && styles.miniPlayBtnTextActive, { fontSize: 10.5 }]}>
+                          {playingKey === part.key ? 'Playing' : 'Play'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => setAudioUrls(prev => ({ ...prev, [part.key]: '' }))}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      >
+                        <Ionicons name="close-circle" size={16} color="#94a3b8" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
             </View>
           );
         })}

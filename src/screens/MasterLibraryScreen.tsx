@@ -35,7 +35,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
   const { activeZone } = useZoneContext();
   const { adminUser } = useAuth();
 
-  // Primary Tab: Master Repertoire vs Zonal Repertoire
+  // Primary Tab: Master Catalog vs Zonal Catalog
   const [activeDomainTab, setActiveDomainTab] = useState<'master' | 'zone'>('master');
 
   // Search & Filter State
@@ -306,14 +306,14 @@ export default function MasterLibraryScreen({ navigation }: any) {
   }
 
   function handleDeleteMasterSong(song: MasterSong) {
-    customAlert('Delete Repertoire Track', `Are you sure you want to delete "${song.title}" from the catalog?`, [
+    customAlert('Delete Master Song', `Are you sure you want to delete "${song.title}" from the catalog?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => { removeMasterSong(song.id); api.songs.delete(song.id).catch(() => {}); } },
     ]);
   }
 
   async function handleDeleteZoneSong(song: ZoneSong) {
-    customAlert('Delete Zone Song', `Delete "${song.title}" from regional repertoire?`, [
+    customAlert('Delete Zone Song', `Delete "${song.title}" from regional catalog?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
@@ -333,71 +333,72 @@ export default function MasterLibraryScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ZoneHeader title="All Ministered" showBack={true} />
 
-      {/* ── TOP SEARCH BAR (Dedicated Full Width) ────────────────────────── */}
+      {/* ── COMPACT SEARCH + STATUS TABS + ACTIONS (single row) ────────────── */}
       <View style={styles.cleanSearchRow}>
+        {/* Search box */}
         <View style={styles.cleanSearchBox}>
-          <Ionicons name="search" size={17} color="#94a3b8" style={{ marginRight: 8 }} />
+          <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
           <TextInput
             style={styles.cleanSearchInput}
-            placeholder="Search all songs by title, singer, lyrics, key..."
+            placeholder="Search title, singer, key..."
             placeholderTextColor="#94a3b8"
             value={search}
             onChangeText={setSearch}
           />
           {search ? (
             <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={18} color="#94a3b8" />
+              <Ionicons name="close-circle" size={16} color="#94a3b8" />
             </TouchableOpacity>
           ) : null}
         </View>
-      </View>
 
-      {/* ── STATUS TABS & ACTIONS ROW ─────────────────────────────────────── */}
-      <View style={styles.cleanActionsAndTabsRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cleanTabsScroll}>
-          {[
-            { id: 'all', label: 'All', count: masterStats.total },
-            { id: 'active', label: 'Active', count: masterStats.active },
-            { id: 'history', label: 'History', count: masterStats.history },
-            ...(adminUser?.isHQAdmin ? [{ id: 'hidden', label: 'Hidden', count: masterStats.hidden }] : []),
-          ].map(t => {
-            const isActive = masterStatusTab === t.id;
-            return (
-              <TouchableOpacity
-                key={t.id}
-                style={[styles.cleanTabBtn, isActive && styles.cleanTabBtnActive]}
-                onPress={() => setMasterStatusTab(t.id as any)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.cleanTabBtnText, isActive && styles.cleanTabBtnTextActive]}>
-                  {t.label} ({t.count})
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
+        {/* Action buttons (HQ only) */}
         {adminUser?.isHQAdmin && (
           <View style={styles.cleanActionButtonsGroup}>
             <TouchableOpacity
               style={styles.cleanImportBtn}
               onPress={() => setImportModalVisible(true)}
               activeOpacity={0.85}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
-              <Ionicons name="download-outline" size={15} color="#7c3aed" style={{ marginRight: 4 }} />
-              <Text style={styles.cleanImportBtnText}>Import</Text>
+              <Ionicons name="download-outline" size={14} color="#7c3aed" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.cleanAddBtn}
               onPress={handleOpenCreateModal}
               activeOpacity={0.85}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             >
-              <Ionicons name="add" size={17} color="#ffffff" style={{ marginRight: 2 }} />
-              <Text style={styles.cleanAddBtnText}>+ Song</Text>
+              <Ionicons name="add" size={18} color="#ffffff" />
+              <Text style={styles.cleanAddBtnText}>Add</Text>
             </TouchableOpacity>
           </View>
         )}
+      </View>
+
+      {/* ── STATUS SEGMENTED CONTROL (Zero-Scroll Parity with programSongs) ─── */}
+      <View style={styles.segmentContainer}>
+        {[
+          { id: 'all', label: `All (${masterStats.total})` },
+          { id: 'active', label: `Active (${masterStats.active})` },
+          { id: 'history', label: `History (${masterStats.history})` },
+          ...(adminUser?.isHQAdmin ? [{ id: 'hidden', label: `Hidden (${masterStats.hidden})` }] : []),
+        ].map(t => {
+          const isActive = masterStatusTab === t.id;
+          return (
+            <TouchableOpacity
+              key={t.id}
+              style={[styles.segmentTab, isActive && styles.segmentTabActive]}
+              onPress={() => setMasterStatusTab(t.id as any)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.segmentTabText, isActive && styles.segmentTabTextActive]}>
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* ── MASTER PROGRAM / COLLECTION FILTER PILLS ──────────────────────── */}
@@ -530,7 +531,11 @@ export default function MasterLibraryScreen({ navigation }: any) {
                     style={styles.cardArtworkThumb}
                     resizeMode="cover"
                   />
-                ) : null}
+                ) : (
+                  <View style={styles.cardArtworkPlaceholder}>
+                    <Ionicons name="musical-notes" size={17} color="#7c3aed" />
+                  </View>
+                )}
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={styles.cardTitleText} numberOfLines={1}>
                     {item.title}
@@ -539,6 +544,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
                     {item.leadSinger ? `Lead: ${item.leadSinger}` : ''}
                     {item.leadSinger && (item.writer || item.publishedByName) ? ' • ' : ''}
                     {item.writer || item.publishedByName ? `Writer: ${item.writer || item.publishedByName}` : ''}
+                    {!item.leadSinger && !item.writer && !item.publishedByName ? 'Master Song' : ''}
                   </Text>
                 </View>
 
@@ -566,7 +572,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
                     const songCats: string[] = Array.isArray(item.categories) && item.categories.length > 0
                       ? item.categories
                       : [item.program || (item as any).programName || item.category].filter(Boolean) as string[];
-                    return songCats.map(catName => (
+                    return songCats.slice(0, 2).map(catName => (
                       <View key={catName} style={styles.categoryPill}>
                         <Ionicons name="albums-outline" size={10} color="#64748b" style={{ marginRight: 3 }} />
                         <Text style={styles.categoryPillText} numberOfLines={1}>
@@ -580,6 +586,13 @@ export default function MasterLibraryScreen({ navigation }: any) {
                     <View style={styles.stemsPill}>
                       <Ionicons name="layers-outline" size={11} color="#7c3aed" style={{ marginRight: 3 }} />
                       <Text style={styles.stemsPillText}>Stems</Text>
+                    </View>
+                  )}
+
+                  {!hasStems && Boolean(item.audioUrl || item.audioFile) && (
+                    <View style={styles.audioTrackPill}>
+                      <Ionicons name="musical-note" size={10} color="#059669" style={{ marginRight: 2 }} />
+                      <Text style={styles.audioTrackPillText}>Audio</Text>
                     </View>
                   )}
 
@@ -605,7 +618,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                     >
-                      <Ionicons name="pencil" size={15} color="#7c3aed" />
+                      <Ionicons name="pencil" size={14} color="#7c3aed" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -616,7 +629,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
                     >
                       <Ionicons
                         name={item.isHidden ? 'eye-outline' : 'eye-off-outline'}
-                        size={15}
+                        size={14}
                         color="#94a3b8"
                       />
                     </TouchableOpacity>
@@ -627,7 +640,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
                     >
-                      <Ionicons name="trash-outline" size={15} color="#ef4444" />
+                      <Ionicons name="trash-outline" size={14} color="#ef4444" />
                     </TouchableOpacity>
                   </View>
                 ) : (
@@ -641,7 +654,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
                       activeOpacity={0.7}
                       hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                     >
-                      <Ionicons name="eye-outline" size={16} color="#7c3aed" />
+                      <Ionicons name="eye-outline" size={15} color="#7c3aed" />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -674,6 +687,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
           setEditingOriginalMaster(null);
         }}
         onSaved={handleMasterSongSaved}
+        onDelete={handleMasterSongDeleted}
       />
 
       {/* ── ZONAL REGIONAL SONG FORM MODAL ─────────────────────────────────── */}
@@ -773,11 +787,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   cleanSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
+    gap: 8,
   },
   cleanSearchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
@@ -785,43 +803,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     paddingHorizontal: 12,
-    height: 42,
+    height: 38,
   },
   cleanSearchInput: {
     flex: 1,
-    fontSize: 13.5,
+    fontSize: 13,
     color: '#0f172a',
+    paddingVertical: 0,
   },
   cleanActionsAndTabsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 10,
-    gap: 8,
+    paddingBottom: 6,
+    paddingTop: 2,
   },
   cleanTabsScroll: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   cleanActionButtonsGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   cleanAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
     backgroundColor: '#7c3aed',
-    paddingHorizontal: 12,
-    height: 36,
-    borderRadius: 10,
+    paddingHorizontal: 11,
+    height: 38,
+    borderRadius: 12,
     shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
   },
   cleanAddBtnText: {
     fontSize: 12.5,
@@ -829,39 +848,52 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   cleanImportBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#f5f3ff',
     borderWidth: 1,
     borderColor: '#ddd6fe',
-    paddingHorizontal: 10,
-    height: 36,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
   },
   cleanImportBtnText: {
     fontSize: 12.5,
     fontWeight: '700',
     color: '#7c3aed',
   },
-  cleanTabBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+  segmentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
     borderRadius: 10,
+    padding: 3,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    gap: 3,
+  },
+  segmentTab: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 7,
+  },
+  segmentTabActive: {
     backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  cleanTabBtnActive: {
-    backgroundColor: '#7c3aed',
-    borderColor: '#7c3aed',
-  },
-  cleanTabBtnText: {
-    fontSize: 12,
+  segmentTabText: {
+    fontSize: 11.5,
     fontWeight: '600',
     color: '#64748b',
   },
-  cleanTabBtnTextActive: {
-    color: '#ffffff',
+  segmentTabTextActive: {
+    color: '#7c3aed',
     fontWeight: '800',
   },
   listContent: {
@@ -871,8 +903,8 @@ const styles = StyleSheet.create({
   },
   cleanCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#0f172a',
@@ -880,6 +912,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 2,
+  },
+  cardArtworkPlaceholder: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#f5f3ff',
+    borderWidth: 1,
+    borderColor: '#ede9fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   cleanCardHidden: {
     opacity: 0.6,
@@ -971,21 +1014,21 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   collectionFilterContainer: {
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
     backgroundColor: '#ffffff',
   },
   collectionFilterScroll: {
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 6,
     alignItems: 'center',
   },
   collectionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 20,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
@@ -996,7 +1039,7 @@ const styles = StyleSheet.create({
     borderColor: '#c4b5fd',
   },
   collectionPillText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '600',
     color: '#64748b',
   },
@@ -1018,6 +1061,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: '#7c3aed',
+  },
+  audioTrackPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  audioTrackPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#059669',
   },
   hqPill: {
     flexDirection: 'row',
@@ -1048,13 +1106,15 @@ const styles = StyleSheet.create({
   cardActionsGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   actionBtn: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: 8,
     backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1062,7 +1122,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 20,
     backgroundColor: '#f5f3ff',
     borderWidth: 1,

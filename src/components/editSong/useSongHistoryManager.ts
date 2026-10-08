@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Alert } from 'react-native';
 import { api } from '../../services/api';
 import { PraiseNightSong } from './types';
@@ -58,6 +58,8 @@ export function useSongHistoryManager({
     new_value: '',
   });
 
+  const returnToListRef = useRef(false);
+
   const formatHistoryType = (type: string) => {
     switch (type) {
       case 'song-details': return 'Song Details';
@@ -72,17 +74,10 @@ export function useSongHistoryManager({
     }
   };
 
-  const handleAddHistory = (typeKey: string) => {
-    setEditingHistoryEntryId(null);
-    setHistoryFormType(typeKey);
-    const label = formatHistoryType(typeKey);
-    setHistoryFormTitle(`${label} Version ${new Date().toLocaleDateString()}`);
-    setHistoryFormDesc(`Updated ${label.toLowerCase()} on ${new Date().toLocaleString()}`);
-
-    let currentContent = '';
+  const getContentForType = (typeKey: string) => {
     switch (typeKey) {
       case 'song-details':
-        currentContent = [
+        return [
           `Title: ${songTitle || 'Untitled'}`,
           `Categories: ${songCategories.join(', ') || 'None'}`,
           `Program: ${songProgram || 'Default'}`,
@@ -90,9 +85,8 @@ export function useSongHistoryManager({
           songKey ? `Key: ${songKey}` : '',
           songTempo ? `Tempo: ${songTempo} BPM` : '',
         ].filter(Boolean).join('\n');
-        break;
       case 'personnel':
-        currentContent = [
+        return [
           songLeadSinger ? `Lead Singer: ${songLeadSinger}` : '',
           songWriter ? `Writer: ${songWriter}` : '',
           songConductor ? `Conductor: ${songConductor}` : '',
@@ -101,33 +95,54 @@ export function useSongHistoryManager({
           songBassGuitarist ? `Bass Guitar: ${songBassGuitarist}` : '',
           songDrummer ? `Drummer: ${songDrummer}` : '',
         ].filter(Boolean).join('\n');
-        break;
       case 'music-details':
-        currentContent = [
+        return [
           songKey ? `Key: ${songKey}` : '',
           songTempo ? `Tempo: ${songTempo} BPM` : '',
         ].filter(Boolean).join('\n');
-        break;
       case 'lyrics':
-        currentContent = songLyrics;
-        break;
+        return songLyrics || '';
       case 'solfas':
-        currentContent = songSolfas;
-        break;
+        return songSolfas || '';
       case 'notation':
-        currentContent = songNotation;
-        break;
+        return songNotation || '';
       case 'audio':
-        currentContent = songAudioFile;
-        break;
+        return songAudioFile || '';
       case 'comments':
-        currentContent = coordinatorComment;
-        break;
+        return coordinatorComment || '';
       default:
-        currentContent = '';
+        return '';
     }
+  };
 
+  const handleSelectHistoryType = (typeKey: string) => {
+    setHistoryFormType(typeKey);
+    if (!editingHistoryEntryId) {
+      const label = formatHistoryType(typeKey);
+      const dateStr = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      setHistoryFormTitle(`${label} — ${dateStr}`);
+      setHistoryFormDesc('');
+      const currentContent = getContentForType(typeKey);
+      setOriginalHistoryValues({ old_value: currentContent, new_value: currentContent });
+    }
+  };
+
+  const handleAddHistory = (typeKey: string = 'general', fromList = false) => {
+    const effectiveTypeKey = typeKey || 'general';
+    setEditingHistoryEntryId(null);
+    setHistoryFormType(effectiveTypeKey);
+    const label = formatHistoryType(effectiveTypeKey);
+    const dateStr = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    setHistoryFormTitle(`${label} — ${dateStr}`);
+    setHistoryFormDesc('');
+
+    const currentContent = getContentForType(typeKey);
     setOriginalHistoryValues({ old_value: currentContent, new_value: currentContent });
+
+    if (fromList || showHistoryList) {
+      returnToListRef.current = true;
+      setShowHistoryList(false);
+    }
     setShowHistoryForm(true);
   };
 
@@ -144,6 +159,7 @@ export function useSongHistoryManager({
       old_value: entry.old_value ?? entry.oldValue ?? '',
       new_value: entry.new_value ?? entry.newValue ?? entry.old_value ?? entry.oldValue ?? '',
     });
+    returnToListRef.current = true;
     setShowHistoryList(false);
     setShowHistoryForm(true);
   };
@@ -238,6 +254,19 @@ export function useSongHistoryManager({
 
     setEditingHistoryEntryId(null);
     setShowHistoryForm(false);
+    if (returnToListRef.current) {
+      setShowHistoryList(true);
+      returnToListRef.current = false;
+    }
+  };
+
+  const handleCloseHistoryForm = () => {
+    setEditingHistoryEntryId(null);
+    setShowHistoryForm(false);
+    if (returnToListRef.current) {
+      setShowHistoryList(true);
+      returnToListRef.current = false;
+    }
   };
 
   const handleDeleteHistoryEntry = (id: string) => {
@@ -288,5 +317,7 @@ export function useSongHistoryManager({
     handleEditHistoryEntry,
     handleSaveHistoryEntry,
     handleDeleteHistoryEntry,
+    handleCloseHistoryForm,
+    handleSelectHistoryType,
   };
 }

@@ -220,8 +220,8 @@ export default function MoreScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
 
-        {/* ── Repertoire & Sets ──────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Repertoire & Sets</Text>
+        {/* ── Catalog & Sets ────────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>Catalog & Sets</Text>
         <View style={styles.menuGroup}>
           <MenuItem
             iconName="calendar-outline"
@@ -256,7 +256,7 @@ export default function MoreScreen({ navigation }: any) {
               iconColor="#d97706"
               iconBg="#fffbeb"
               label="All Ministered"
-              sub="Master ministry repertoire and vocal arrangements"
+              sub="Master ministry catalog and vocal arrangements"
               onPress={() => navigation.navigate('MasterLibrary')}
             />
           )}

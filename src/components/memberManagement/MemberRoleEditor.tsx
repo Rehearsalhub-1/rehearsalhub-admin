@@ -41,7 +41,7 @@ export default function MemberRoleEditor({
                 <Text style={styles.rolePillSlateText}>Standard</Text>
               </View>
             </View>
-            <Text style={styles.roleSubText}>Standard choir singer with repertoire & rehearsal access</Text>
+            <Text style={styles.roleSubText}>Standard choir singer with catalog & rehearsal access</Text>
           </View>
         </TouchableOpacity>
 

@@ -273,7 +273,7 @@ export default function MasterSongDetailModal({
                   {song.title}
                 </Text>
                 <Text style={styles.songWriter} numberOfLines={1}>
-                  {song.writer || song.publishedByName || 'Loveworld Singers Repertoire'}
+                  {song.writer || song.publishedByName || 'Loveworld Singers Master Catalog'}
                 </Text>
               </View>
             </View>

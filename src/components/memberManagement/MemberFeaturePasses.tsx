@@ -57,7 +57,7 @@ export default function MemberFeaturePasses({
                 <Text style={styles.passTagAmberText}>Restricted</Text>
               </View>
             </View>
-            <Text style={styles.passSub}>Access upcoming Praise Night repertoire in advance</Text>
+            <Text style={styles.passSub}>Access upcoming Praise Night songs in advance</Text>
           </View>
           <Switch
             value={passPreRehearsal}

@@ -7,6 +7,21 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#ffffff',
     borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
   },
+  headerCloseBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center',
+  },
+  webHeaderTitleWrap: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  webHeaderTitle: { fontSize: 15, fontWeight: '800', color: '#0f172a' },
+  webHeaderSubtitle: { fontSize: 11, fontWeight: '600', color: '#64748b', marginTop: 1 },
+  headerQuickSaveBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#7c3aed', paddingHorizontal: 16, height: 36,
+    borderRadius: 18, gap: 4,
+    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25, shadowRadius: 3, elevation: 3,
+  },
+  headerQuickSaveBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
   cancelBtn: { paddingVertical: 4, paddingHorizontal: 8 },
   cancelBtnText: { fontSize: 14, color: '#64748b', fontWeight: '600' },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -19,6 +34,36 @@ export const styles = StyleSheet.create({
   saveBtn: { backgroundColor: '#7c3aed', paddingHorizontal: 16, paddingVertical: 7, borderRadius: 10 },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+
+  // ── Apple Segmented Tab Bar ───────────────────────────────────────────────
+  tabBarContainer: {
+    backgroundColor: '#ffffff', paddingHorizontal: 12,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+  },
+  tabBarScrollContent: {
+    flexDirection: 'row', backgroundColor: '#f1f5f9',
+    borderRadius: 12, padding: 3, gap: 3,
+  },
+  tabItem: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 9, borderRadius: 9,
+  },
+  tabItemActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1, shadowRadius: 3, elevation: 2,
+  },
+  tabItemText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  tabItemTextActive: { color: '#7c3aed', fontWeight: '800' },
+  tabBadgeDot: {
+    width: 5, height: 5, borderRadius: 2.5,
+    backgroundColor: '#7c3aed', marginLeft: 4,
+  },
+  tabCountBadge: {
+    backgroundColor: '#ede9fe', paddingHorizontal: 5,
+    paddingVertical: 1, borderRadius: 999, marginLeft: 4,
+  },
+  tabCountBadgeText: { fontSize: 9.5, fontWeight: '800', color: '#7c3aed' },
 
   tabsRow: {
     flexDirection: 'row', backgroundColor: '#ffffff', paddingHorizontal: 12,
@@ -145,4 +190,99 @@ export const styles = StyleSheet.create({
   },
   hqInfoBoxTitle: { fontSize: 12, fontWeight: '800', color: '#7c3aed', marginBottom: 2 },
   hqInfoBoxText: { fontSize: 11, color: '#6b21a8', lineHeight: 15 },
+
+  // ── Music Essentials (1-Tap Chips) ─────────────────────────────────────────
+  keyChipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6 },
+  keyChip: {
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+    backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  keyChipActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  keyChipText: { fontSize: 11.5, fontWeight: '700', color: '#475569' },
+  keyChipTextActive: { color: '#ffffff' },
+
+  tempoChipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 6 },
+  tempoChip: {
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+    backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  tempoChipActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  tempoChipText: { fontSize: 11, fontWeight: '700', color: '#475569' },
+  tempoChipTextActive: { color: '#ffffff' },
+
+  // ── Artwork Preview ────────────────────────────────────────────────────────
+  artworkSectionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
+  artworkPreviewWrap: {
+    position: 'relative', width: 68, height: 68, borderRadius: 10,
+    backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0', overflow: 'hidden',
+  },
+  artworkImg: { width: '100%', height: '100%' },
+  artworkRemoveBadge: {
+    position: 'absolute', top: 3, right: 3, width: 20, height: 20,
+    borderRadius: 10, backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  browseArtworkBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff',
+    borderWidth: 1, borderColor: '#ddd6fe', paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 8, gap: 5,
+  },
+  browseArtworkBtnText: { fontSize: 12, fontWeight: '700', color: '#7c3aed' },
+
+  // ── Audio Track Capsules ───────────────────────────────────────────────────
+  audioTrackBox: {
+    backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0',
+    borderRadius: 10, padding: 10, marginTop: 6,
+  },
+  audioTrackMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  audioTrackFileName: { fontSize: 12.5, fontWeight: '700', color: '#0f172a', flex: 1 },
+  miniPlayBtn: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff',
+    borderWidth: 1, borderColor: '#ddd6fe', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 8, gap: 4,
+  },
+  miniPlayBtnActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+  miniPlayBtnText: { fontSize: 11.5, fontWeight: '700', color: '#7c3aed' },
+  miniPlayBtnTextActive: { color: '#ffffff' },
+  browseAudioBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#7c3aed', paddingVertical: 10, paddingHorizontal: 16,
+    borderRadius: 8, gap: 6, marginTop: 6,
+  },
+  browseAudioBtnText: { fontSize: 13, fontWeight: '700', color: '#ffffff' },
+  changeAudioBtn: {
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6,
+    backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0',
+  },
+  changeAudioBtnText: { fontSize: 11, fontWeight: '600', color: '#475569' },
+
+  // ── Card Header With Icon & Badges ────────────────────────────────────────
+  cardHeaderWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  cardIconBadge: {
+    width: 32, height: 32, borderRadius: 8,
+    backgroundColor: '#f5f3ff', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#ede9fe',
+  },
+  cardHeaderTitles: { flex: 1 },
+  cardHeaderSubtitle: { fontSize: 11.5, color: '#64748b', marginTop: 1 },
+  charCountText: { fontSize: 11, fontWeight: '600', color: '#94a3b8' },
+
+  // ── Access Control Card Styles ────────────────────────────────────────────
+  accessStatusPill: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, alignSelf: 'flex-start', marginTop: 8, gap: 5,
+  },
+  accessStatusPillRestricted: { backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe' },
+  accessStatusPillGlobal: { backgroundColor: '#ecfdf5', borderWidth: 1, borderColor: '#a7f3d0' },
+  accessStatusText: { fontSize: 11, fontWeight: '700' },
+
+  // ── Danger Zone ───────────────────────────────────────────────────────────
+  dangerZoneContainer: { marginTop: 8, paddingHorizontal: 2 },
+  dangerDeleteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca',
+    borderRadius: 12, paddingVertical: 12,
+  },
+  dangerDeleteBtnText: { fontSize: 13, fontWeight: '700', color: '#ef4444' },
 });

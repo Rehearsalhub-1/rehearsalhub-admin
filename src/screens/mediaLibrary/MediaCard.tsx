@@ -219,7 +219,7 @@ export default function MediaCard({
       {/* Bottom Utility Row */}
       <View style={styles.cardBottomRow}>
         <Text style={styles.zoneTag}>
-          {item.forHq ? '⭐ Global HQ Catalog' : '📍 Local Repertoire'}
+          {item.forHq ? '⭐ Global HQ Catalog' : '📍 Local Catalog'}
         </Text>
 
         <View style={styles.utilityBtns}>

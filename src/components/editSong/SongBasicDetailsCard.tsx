@@ -142,54 +142,56 @@ export default function SongBasicDetailsCard({
             </View>
           )}
 
-          {/* Scrollable Checkbox Container */}
-          <View style={styles.categoriesCheckboxContainer}>
-            <ScrollView
-              nestedScrollEnabled={true}
-              showsVerticalScrollIndicator={true}
-              style={{ maxHeight: 180 }}
-              contentContainerStyle={{ paddingVertical: 2 }}
-              keyboardShouldPersistTaps="handled"
+          {/* Wrapping Category Pill Chips (Zero Scroll Trap) */}
+          <View style={styles.categoryPillWrap}>
+            {/* Uncategorized Option */}
+            <TouchableOpacity
+              style={[
+                styles.categoryChip,
+                songCategories.length === 0 && styles.categoryChipNoneActive,
+              ]}
+              onPress={() => setSongCategories([])}
+              activeOpacity={0.75}
             >
-              {/* Uncategorized Option */}
-              <TouchableOpacity
-                style={[styles.categoryCheckboxRow, songCategories.length === 0 && styles.categoryCheckboxRowNoneActive]}
-                onPress={() => setSongCategories([])}
-                activeOpacity={0.7}
+              <Ionicons
+                name={songCategories.length === 0 ? 'checkmark-circle' : 'ellipse-outline'}
+                size={14}
+                color={songCategories.length === 0 ? '#059669' : '#94a3b8'}
+                style={{ marginRight: 5 }}
+              />
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  songCategories.length === 0 && styles.categoryChipTextNoneActive,
+                ]}
               >
-                <Ionicons
-                  name={songCategories.length === 0 ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={18}
-                  color={songCategories.length === 0 ? '#10b981' : '#94a3b8'}
-                  style={{ marginRight: 10 }}
-                />
-                <Text style={[styles.categoryCheckboxText, songCategories.length === 0 && { color: '#059669', fontWeight: '700' }]}>
-                  None (Uncategorized)
-                </Text>
-              </TouchableOpacity>
+                None (Uncategorized)
+              </Text>
+            </TouchableOpacity>
 
-              {availableCategories.map(cat => {
-                const isChecked = songCategories.includes(cat);
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={styles.categoryCheckboxRow}
-                    onPress={() => toggleCategory(cat)}
-                    activeOpacity={0.7}
+            {availableCategories.map(cat => {
+              const isChecked = songCategories.includes(cat);
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[styles.categoryChip, isChecked && styles.categoryChipActive]}
+                  onPress={() => toggleCategory(cat)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={isChecked ? 'checkmark-circle' : 'add-circle-outline'}
+                    size={14}
+                    color={isChecked ? '#7c3aed' : '#94a3b8'}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text
+                    style={[styles.categoryChipText, isChecked && styles.categoryChipTextActive]}
                   >
-                    <Ionicons
-                      name={isChecked ? 'checkbox' : 'square-outline'}
-                      size={18}
-                      color={isChecked ? '#7c3aed' : '#94a3b8'}
-                      style={{ marginRight: 10 }}
-                    />
-                    <Text style={[styles.categoryCheckboxText, isChecked && styles.categoryCheckboxTextActive]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <Text style={styles.selectedCategoriesSummary}>
@@ -253,7 +255,7 @@ export default function SongBasicDetailsCard({
             <Text style={styles.broadcastSubtext}>
               {isHQOnly
                 ? 'HQ Exclusive: Hidden from all regional zones. Visible only to Loveworld Singers HQ.'
-                : 'Universal Repertoire: Visible to all regional zones & church choir hubs.'}
+                : 'Master Catalog: Visible to all regional zones & church choir hubs.'}
             </Text>
           </View>
           <Switch

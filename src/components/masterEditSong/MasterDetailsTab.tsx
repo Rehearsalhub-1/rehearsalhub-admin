@@ -4,11 +4,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './masterEditSongStyles';
 import MasterCollectionPicker from './MasterCollectionPicker';
+
+const QUICK_KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'] as const;
+const QUICK_TEMPOS = ['70', '80', '95', '110', '120', '135'] as const;
 
 interface MasterDetailsTabProps {
   title: string;
@@ -81,10 +84,11 @@ export default function MasterDetailsTab({
 }: MasterDetailsTabProps) {
   return (
     <View style={styles.tabSection}>
-      {/* General Info Card */}
+      {/* ── CARD 1: MUSIC ESSENTIALS (Zero-Scroll Top Card) ─────────────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>General Metadata</Text>
+        <Text style={styles.cardSectionTitle}>Music Essentials</Text>
 
+        {/* 1. Song Title */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>SONG TITLE *</Text>
           <TextInput
@@ -96,6 +100,65 @@ export default function MasterDetailsTab({
           />
         </View>
 
+        {/* 2. Musical Key with 1-Tap Chips */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>MUSICAL KEY</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. C, C to D#, F#"
+            placeholderTextColor="#94a3b8"
+            value={keyVal}
+            onChangeText={setKeyVal}
+          />
+          <View style={styles.keyChipsWrap}>
+            {QUICK_KEYS.map(k => {
+              const isSelected = (keyVal || '').trim().toLowerCase() === k.toLowerCase();
+              return (
+                <TouchableOpacity
+                  key={k}
+                  style={[styles.keyChip, isSelected && styles.keyChipActive]}
+                  onPress={() => setKeyVal(k)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.keyChipText, isSelected && styles.keyChipTextActive]}>
+                    {k}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 3. Tempo with 1-Tap BPM Chips */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>TEMPO (BPM)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. 112 or 112 BPM"
+            placeholderTextColor="#94a3b8"
+            value={tempo}
+            onChangeText={setTempo}
+          />
+          <View style={styles.tempoChipsWrap}>
+            {QUICK_TEMPOS.map(t => {
+              const isSelected = (tempo || '').includes(t);
+              return (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.tempoChip, isSelected && styles.tempoChipActive]}
+                  onPress={() => setTempo(`${t} BPM`)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.tempoChipText, isSelected && styles.tempoChipTextActive]}>
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 4. Lead Singer & Composer / Writer */}
         <View style={styles.inputRow}>
           <View style={[styles.inputGroup, { flex: 1 }]}>
             <Text style={styles.label}>LEAD SINGER</Text>
@@ -119,8 +182,10 @@ export default function MasterDetailsTab({
             />
           </View>
         </View>
+      </View>
 
-        {/* Master Program / Collection Selection */}
+      {/* ── CARD 2: MASTER COLLECTIONS & CATEGORIES ─────────────────────── */}
+      <View style={styles.card}>
         <MasterCollectionPicker
           collectionsList={collectionsList}
           category={category}
@@ -134,48 +199,22 @@ export default function MasterDetailsTab({
           setNewCatName={setNewCatName}
           onAddNewCategory={onAddNewCategory}
         />
-
-        {/* Key and Tempo */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>MUSICAL KEY</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. C, C to D#, F#"
-            placeholderTextColor="#94a3b8"
-            value={keyVal}
-            onChangeText={setKeyVal}
-          />
-        </View>
-
-        <View style={styles.inputRow}>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>TEMPO (BPM)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 112"
-              placeholderTextColor="#94a3b8"
-              keyboardType="numeric"
-              value={tempo}
-              onChangeText={setTempo}
-            />
-          </View>
-
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>CONDUCTOR</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Bro Dennis"
-              placeholderTextColor="#94a3b8"
-              value={conductor}
-              onChangeText={setConductor}
-            />
-          </View>
-        </View>
       </View>
 
-      {/* Rhythm Section Card */}
+      {/* ── CARD 3: BAND & MUSICIANS (Grouped Cleanly) ───────────────────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>Band & Musicians</Text>
+        <Text style={styles.cardSectionTitle}>Band & Direction</Text>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>CONDUCTOR / DIRECTOR</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Bro Dennis"
+            placeholderTextColor="#94a3b8"
+            value={conductor}
+            onChangeText={setConductor}
+          />
+        </View>
 
         <View style={styles.inputGroup}>
           <Text style={styles.label}>LEAD KEYBOARDIST</Text>
@@ -213,27 +252,35 @@ export default function MasterDetailsTab({
         </View>
       </View>
 
-      {/* Artwork Card */}
+      {/* ── CARD 4: COVER ARTWORK (Visual Preview & Library Picker) ──────── */}
       <View style={styles.card}>
-        <View style={styles.labelWithAction}>
-          <Text style={styles.cardSectionTitle}>Cover Artwork URL</Text>
+        <Text style={styles.cardSectionTitle}>Cover Artwork</Text>
+
+        <View style={styles.artworkSectionRow}>
+          {imageUrl ? (
+            <View style={styles.artworkPreviewWrap}>
+              <Image source={{ uri: imageUrl }} style={styles.artworkImg} resizeMode="cover" />
+              <TouchableOpacity
+                style={styles.artworkRemoveBadge}
+                onPress={() => setImageUrl('')}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="close" size={13} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
           <TouchableOpacity
-            style={styles.pickMediaPill}
+            style={styles.browseArtworkBtn}
             onPress={onPickArtwork}
             activeOpacity={0.8}
           >
-            <Ionicons name="image-outline" size={12} color="#7c3aed" style={{ marginRight: 3 }} />
-            <Text style={styles.pickMediaPillText}>Media Library</Text>
+            <Ionicons name="image-outline" size={15} color="#7c3aed" />
+            <Text style={styles.browseArtworkBtnText}>
+              {imageUrl ? 'Change Artwork' : 'Browse Media Library'}
+            </Text>
           </TouchableOpacity>
         </View>
-        <TextInput
-          style={styles.input}
-          placeholder="https://... or cloud storage image URL"
-          placeholderTextColor="#94a3b8"
-          value={imageUrl}
-          onChangeText={setImageUrl}
-          autoCapitalize="none"
-        />
       </View>
     </View>
   );

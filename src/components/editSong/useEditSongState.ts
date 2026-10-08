@@ -177,7 +177,15 @@ export function useEditSongState({
       setSongTempo(song.tempo || '');
       setRehearsalCount(song.rehearsalCount ?? 0);
       setSongAudioFile(song.audioFile || song.audioUrl || '');
-      setAudioUrls(song.audioUrls || {});
+      // Strip underscore-prefixed metadata keys (_customParts, _categories, etc.) from the
+      // audioUrls state so they don't pollute stem URL lookups in the UI.
+      const rawAudioUrls: Record<string, string> = {};
+      if (song.audioUrls && typeof song.audioUrls === 'object') {
+        Object.entries(song.audioUrls).forEach(([k, v]) => {
+          if (!k.startsWith('_')) rawAudioUrls[k] = v as string;
+        });
+      }
+      setAudioUrls(rawAudioUrls);
 
       let cParts: string[] = [];
       const rawCustom = song.customParts || (song.audioUrls as any)?._customParts;

@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,77 +48,68 @@ export default function EditSongModal(props: EditSongModalProps) {
     <Modal visible={props.visible} animationType="slide" transparent={false} onRequestClose={state.handleClose}>
       <View style={[styles.root, { paddingTop: insets.top }]}>
 
-        {/* ── 1. Header ──────────────────────────────────────────────────────── */}
+        {/* ── 1. Apple-Standard Header ─────────────────────────────────────── */}
         <View style={styles.webHeader}>
+          <TouchableOpacity
+            onPress={state.handleClose}
+            style={styles.headerCloseBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close" size={22} color="#64748b" />
+          </TouchableOpacity>
+
           <View style={styles.webHeaderTitleWrap}>
             <Text style={styles.webHeaderTitle} numberOfLines={1}>
               {isEditing ? `Edit: ${state.songTitle || props.song?.title || 'Song'}` : 'Add New Song'}
             </Text>
+            <Text style={styles.webHeaderSubtitle} numberOfLines={1}>
+              {props.programName || (props.isMaster ? 'All Ministered' : 'Setlist')}
+            </Text>
           </View>
 
-          <View style={styles.webHeaderActions}>
-            {!props.isMaster && (
-              <TouchableOpacity
-                onPress={() => state.setIsSongActive(!state.isSongActive)}
-                style={[
-                  styles.headerLivePill,
-                  state.isSongActive ? styles.headerLivePillActive : styles.headerLivePillInactive,
-                ]}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.headerLiveDot, state.isSongActive && styles.headerLiveDotActive]} />
-                <Text style={[styles.headerLiveText, state.isSongActive && styles.headerLiveTextActive]}>
-                  {state.isSongActive ? '● LIVE' : 'OFF'}
-                </Text>
-              </TouchableOpacity>
-            )}
+          <TouchableOpacity
+            onPress={state.handleSubmit}
+            style={styles.headerQuickSaveBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark" size={16} color="#ffffff" style={{ marginRight: 3 }} />
+            <Text style={styles.headerQuickSaveBtnText}>Save</Text>
+          </TouchableOpacity>
+        </View>
 
-            {!props.isMaster && isEditing && (
+        {/* ── 1a. Song Meta Action Strip (LIVE pill & To All Ministered) ────── */}
+        {!props.isMaster && (
+          <View style={styles.songMetaActionStrip}>
+            <TouchableOpacity
+              onPress={() => state.setIsSongActive(!state.isSongActive)}
+              style={[
+                styles.headerLivePill,
+                state.isSongActive ? styles.headerLivePillActive : styles.headerLivePillInactive,
+              ]}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.headerLiveDot, state.isSongActive && styles.headerLiveDotActive]} />
+              <Text style={[styles.headerLiveText, state.isSongActive && styles.headerLiveTextActive]}>
+                {state.isSongActive ? '● LIVE BROADCAST' : 'OFFLINE STANDBY'}
+              </Text>
+            </TouchableOpacity>
+
+            {isEditing && (
               <TouchableOpacity
                 onPress={state.handleImportToMaster}
                 style={styles.headerImportBtn}
                 activeOpacity={0.8}
               >
-                <Ionicons name="cloud-upload-outline" size={14} color="#7c3aed" style={{ marginRight: 3 }} />
+                <Ionicons name="cloud-upload-outline" size={14} color="#7c3aed" style={{ marginRight: 4 }} />
                 <Text style={styles.headerImportBtnText}>To All Ministered</Text>
               </TouchableOpacity>
             )}
-
-            <TouchableOpacity
-              onPress={state.handleSubmit}
-              style={styles.headerQuickSaveBtn}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="checkmark-sharp" size={15} color="#ffffff" style={{ marginRight: 3 }} />
-              <Text style={styles.headerQuickSaveBtnText}>Save</Text>
-            </TouchableOpacity>
-
-            {isEditing && (
-              <TouchableOpacity
-                onPress={state.handleDelete}
-                style={styles.headerDeleteBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="trash-outline" size={20} color="#ef4444" />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={state.handleClose}
-              style={styles.headerCloseBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="close" size={24} color="#94a3b8" />
-            </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         {/* ── 1b. Segmented Tabs Bar ─────────────────────────────────────────── */}
         <View style={styles.tabBarContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabBarScrollContent}
-          >
+          <View style={styles.tabBarScrollContent}>
             {EDIT_SONG_TABS.map(tab => {
               const isActive = state.activeTab === tab.id;
               return (
@@ -129,11 +121,11 @@ export default function EditSongModal(props: EditSongModalProps) {
                 >
                   <Ionicons
                     name={tab.icon as any}
-                    size={14}
+                    size={13}
                     color={isActive ? '#7c3aed' : '#64748b'}
-                    style={{ marginRight: 5 }}
+                    style={{ marginRight: 3 }}
                   />
-                  <Text style={[styles.tabItemText, isActive && styles.tabItemTextActive]}>
+                  <Text style={[styles.tabItemText, isActive && styles.tabItemTextActive]} numberOfLines={1}>
                     {tab.label}
                   </Text>
                   {tab.id === 'lyrics' && (state.songLyrics.trim().length > 0 || state.songSolfas.trim().length > 0) && (
@@ -149,7 +141,7 @@ export default function EditSongModal(props: EditSongModalProps) {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
 
         {/* ── 2. Scrollable Body composing BaseSongForm ──────────────────────── */}
@@ -171,6 +163,20 @@ export default function EditSongModal(props: EditSongModalProps) {
               isMaster={Boolean(props.isMaster)}
               {...state}
             />
+
+            {isEditing && (
+              <View style={styles.dangerZoneContainer}>
+                <TouchableOpacity
+                  onPress={state.handleDelete}
+                  style={styles.dangerDeleteBtn}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#ef4444" style={{ marginRight: 6 }} />
+                  <Text style={styles.dangerDeleteBtnText}>Delete Song</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
@@ -310,9 +316,15 @@ export default function EditSongModal(props: EditSongModalProps) {
           onDeleteEntry={state.handleDeleteHistoryEntry}
           formatHistoryType={state.formatHistoryType}
           isTablet={isTablet}
+          onAddHistory={state.handleAddHistory}
+          currentSongAudioFile={state.songAudioFile}
+          playingAudioUrl={state.playingAudioUrl}
+          onTogglePlay={state.handleTogglePlay}
+          audioLoading={state.audioLoading}
           showHistoryForm={state.showHistoryForm}
           editingHistoryEntryId={state.editingHistoryEntryId}
           historyFormType={state.historyFormType}
+          setHistoryFormType={state.setHistoryFormType}
           historyFormTitle={state.historyFormTitle}
           setHistoryFormTitle={state.setHistoryFormTitle}
           historyFormDesc={state.historyFormDesc}
@@ -320,8 +332,14 @@ export default function EditSongModal(props: EditSongModalProps) {
           originalHistoryValues={state.originalHistoryValues}
           setOriginalHistoryValues={state.setOriginalHistoryValues}
           onSaveHistoryEntry={state.handleSaveHistoryEntry}
-          onCloseHistoryForm={() => { state.setEditingHistoryEntryId(null); state.setShowHistoryForm(false); }}
+          onCloseHistoryForm={state.handleCloseHistoryForm || (() => { state.setEditingHistoryEntryId(null); state.setShowHistoryForm(false); })}
+          onSelectHistoryType={state.handleSelectHistoryType}
           insetsBottom={insets.bottom}
+          songTitle={state.songTitle}
+          songKey={state.songKey}
+          songTempo={state.songTempo}
+          songCategories={state.songCategories}
+          songStatus={state.songStatus}
         />
 
       </View>
