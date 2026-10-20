@@ -194,7 +194,11 @@ export function useProgramSongs(initialProgram: Program) {
         status: nextLive ? 'live' : (songIsHeard ? 'heard' : 'unheard'),
       } : s))
     );
-    api.songs.toggleActive(song.id, nextLive, songIsHeard).catch(() => {});
+    api.songs.toggleActive(song.id, nextLive, songIsHeard, {
+      programId: currentProgram?.id,
+      zoneId: currentProgram?.organizationId,
+      groupId: currentProgram?.groupId || undefined,
+    }).catch(() => {});
   };
 
   const handleToggleHeard = (song: PraiseSong) => {

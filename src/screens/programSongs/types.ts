@@ -76,6 +76,9 @@ export interface Program {
   description?: string;
   songIds?: string[];
   categoryOrder?: string[];
+  organizationId?: string;
+  groupId?: string;
+  zoneId?: string;
 }
 
 export interface SongDetailsModalProps {
