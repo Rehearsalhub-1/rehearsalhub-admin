@@ -20,7 +20,9 @@ import MemberListItem from './MemberListItem';
 import MemberFeaturePassItem from './MemberFeaturePassItem';
 import AddEmailPassModal from './AddEmailPassModal';
 import EditMemberModal from './EditMemberModal';
+import MemberExportModal from './MemberExportModal';
 import SingerAttendanceBadgeModal from '../../components/SingerAttendanceBadgeModal';
+import { exportTableReport, ExportFormat } from '../../utils/exportUtils';
 
 const FlashListAny = FlashList as any;
 
@@ -45,6 +47,9 @@ export default function MembersScreen() {
   const [addEmailModalVisible, setAddEmailModalVisible] = useState(false);
   const [targetEmailInput, setTargetEmailInput] = useState('');
   const [addingEmailLoading, setAddingEmailLoading] = useState(false);
+
+  // Multi-format Member Export Modal
+  const [exportModalVisible, setExportModalVisible] = useState(false);
 
   // Filtered members by search
   const filteredMembers = useMemo(() => {
@@ -157,22 +162,40 @@ export default function MembersScreen() {
     }
   };
 
-  const handleExportCSV = async () => {
-    const headers = ['Name', 'Email', 'Role', 'Zone', 'Church', 'Archive', 'Ongoing', 'Pre-Reh', 'Annotate'];
-    const rows = filteredMembers.map(m => [
-      `"${m.first_name} ${m.last_name}"`,
-      `"${m.email}"`,
-      `"${m.role === 'hq_admin' ? 'HQ Admin' : m.role === 'church_admin' ? 'Church Admin' : m.role === 'zone_admin' ? 'Zone Admin' : 'Singer'}"`,
-      `"${m.zoneName || ''}"`,
-      `"${m.church || ''}"`,
+  const handleExport = async (format: ExportFormat) => {
+    setExportModalVisible(false);
+    if (filteredMembers.length === 0) {
+      showAlert('No Members', 'There are no member records to export.');
+      return;
+    }
+
+    const title = isChurchMode ? `${activeChurch?.name || 'Church'} Members` : (activeZone?.name || 'Loveworld Singers HQ');
+    const headers = ['#', 'Name', 'Email', 'Role', 'Zone', 'Church', 'Voice / Designation', 'Archive', 'Ongoing', 'Pre-Reh', 'Annotate'];
+    const rows = filteredMembers.map((m, i) => [
+      String(i + 1),
+      `${m.first_name} ${m.last_name}`,
+      m.email,
+      m.role === 'hq_admin' ? 'HQ Admin' : m.role === 'church_admin' ? 'Church Admin' : m.role === 'zone_admin' ? 'Zone Admin' : 'Singer',
+      m.zoneName || '',
+      m.church || '',
+      m.designation || '',
       m.can_access_archive ? 'YES' : 'NO',
       m.can_access_ongoing ? 'YES' : 'NO',
       m.can_access_pre_rehearsal ? 'YES' : 'NO',
       m.canAnnotate ? 'YES' : 'NO',
     ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
     try {
-      await Share.share({ title: 'Loveworld Singers Directory', message: csvContent });
+      await exportTableReport(
+        {
+          title: `${title} - Members Directory`,
+          subtitle: `Generated on ${new Date().toLocaleDateString()} • Total Members: ${filteredMembers.length}`,
+          fileBaseName: `Members_Directory_${new Date().toLocaleDateString('en-CA')}`,
+          headers,
+          rows,
+        },
+        format
+      );
     } catch {
       showAlert('Export Ready', `${filteredMembers.length} records exported.`);
     }
@@ -231,7 +254,7 @@ export default function MembersScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={handleExportCSV}
+            onPress={() => setExportModalVisible(true)}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
@@ -358,6 +381,14 @@ export default function MembersScreen() {
         onClose={() => setSelectedEditMember(null)}
         onSave={handleSaveMemberDetails}
         loading={editMemberLoading}
+      />
+
+      {/* ─── MEMBER EXPORT MODAL ────────────────────────────────────────── */}
+      <MemberExportModal
+        visible={exportModalVisible}
+        onClose={() => setExportModalVisible(false)}
+        onExport={handleExport}
+        memberCount={filteredMembers.length}
       />
     </SafeAreaView>
   );

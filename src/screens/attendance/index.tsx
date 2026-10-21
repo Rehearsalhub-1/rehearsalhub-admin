@@ -14,6 +14,7 @@ import AttendanceCheckInModal from './AttendanceCheckInModal';
 import AttendanceActionMenuModal from './AttendanceActionMenuModal';
 import AttendanceScannerModal from './AttendanceScannerModal';
 import SingerAttendanceBadgeModal from '../../components/SingerAttendanceBadgeModal';
+import { exportTableReport, ExportFormat } from '../../utils/exportUtils';
 import type { AttendanceRecord } from './types';
 
 export type { AttendanceRecord };
@@ -241,39 +242,37 @@ export default function AttendanceScreen({ navigation }: any) {
     customAlert('Clocked In', `${newRecord.userName} has been logged as present.`);
   };
 
-  const handleExportCSV = async () => {
+  const handleExport = async (format: ExportFormat) => {
     try {
       if (dailyRecords.length === 0) {
         customAlert('No Records', `There are no attendance records to export for ${formattedDateLabel}.`);
         return;
       }
-      const fileName = `Attendance_${selectedDate}.csv`;
-      const headers = ['Singer Name', 'Event', 'Date', 'Time', 'Method', 'Status'];
-      const rows = dailyRecords.map(r => [
-        `"${(r.userName || r.user_name || 'Singer').replace(/"/g, '""')}"`,
-        `"${(r.eventName || r.event_name || 'Rehearsal').replace(/"/g, '""')}"`,
-        `"${selectedDate}"`,
-        `"${r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Present'}"`,
-        `"${r.method || (r.isManual ? 'manual' : 'scanner')}"`,
-        `"${r.status || 'present'}"`,
-      ]);
-      const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
 
-      if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        return;
-      }
-      await Share.share({ title: fileName, message: csvContent });
+      const zoneName = activeZone?.name || 'Loveworld Singers';
+      const headers = ['#', 'Singer Name', 'Event', 'Date', 'Time', 'Method', 'Status'];
+      const rows = dailyRecords.map((r, i) => [
+        String(i + 1),
+        r.userName || r.user_name || 'Singer',
+        r.eventName || r.event_name || 'Rehearsal',
+        selectedDate,
+        r.checkInTime ? new Date(r.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Present',
+        r.method || (r.isManual ? 'manual' : 'scanner'),
+        r.status || 'present',
+      ]);
+
+      await exportTableReport(
+        {
+          title: `${zoneName} Attendance Report`,
+          subtitle: `Date: ${selectedDate} • Total Present: ${dailyRecords.length}`,
+          fileBaseName: `Attendance_${selectedDate}`,
+          headers,
+          rows,
+        },
+        format
+      );
     } catch {
-      customAlert('Export Notice', 'Attendance CSV prepared.');
+      customAlert('Export Notice', 'Attendance report prepared.');
     }
   };
 
@@ -325,7 +324,7 @@ export default function AttendanceScreen({ navigation }: any) {
         onClose={() => setActionMenuVisible(false)}
         onNavigateGeofence={() => { setActionMenuVisible(false); navigation?.navigate?.('Geofence'); }}
         onOpenManual={() => { setActionMenuVisible(false); setTimeout(() => setManualModalVisible(true), 350); }}
-        onExportCSV={() => { setActionMenuVisible(false); setTimeout(handleExportCSV, 350); }}
+        onExport={(format) => { setActionMenuVisible(false); setTimeout(() => handleExport(format), 350); }}
         onRefresh={() => { setActionMenuVisible(false); refetch(); }}
       />
 
