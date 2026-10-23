@@ -307,7 +307,7 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#059669"
             iconBg="#ecfdf5"
             label="Attendance Manager"
-            sub="Camera QR scanner, cumulative stats & check-in feed"
+            sub="Camera QR scanner, live attendance & check-in feed"
             onPress={() => navigation.navigate('Attendance')}
           />
           <MenuItem
