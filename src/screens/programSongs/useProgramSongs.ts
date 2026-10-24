@@ -8,9 +8,13 @@ import { getSongDisplayCategory, getSongAllCategories } from './programSongsUtil
 export function useProgramSongs(initialProgram: Program) {
   const [currentProgram, setCurrentProgram] = useState<Program>(initialProgram);
 
-  const [programSongs, setProgramSongs] = useState<PraiseSong[]>(() =>
-    Array.isArray((initialProgram as any)?.songs) ? (initialProgram as any).songs : []
-  );
+  const [programSongs, setProgramSongs] = useState<PraiseSong[]>(() => {
+    const raw = Array.isArray((initialProgram as any)?.songs) ? (initialProgram as any).songs : [];
+    return raw.map((s: any) => ({
+      ...s,
+      categories: getSongAllCategories(s),
+    }));
+  });
   const [loading, setLoading] = useState(
     !Array.isArray((initialProgram as any)?.songs) || (initialProgram as any).songs.length === 0
   );
@@ -30,6 +34,7 @@ export function useProgramSongs(initialProgram: Program) {
   const [cloneModalVisible, setCloneModalVisible] = useState(false);
   const [createSongModalVisible, setCreateSongModalVisible] = useState(false);
   const [editProgramModalVisible, setEditProgramModalVisible] = useState(false);
+  const [openingSongId, setOpeningSongId] = useState<string | null>(null);
 
   const fetchSongs = useCallback(async () => {
     if (!currentProgram?.id) {
@@ -54,9 +59,51 @@ export function useProgramSongs(initialProgram: Program) {
           ? (Array.isArray(songsRes.value?.data) ? songsRes.value.data : (Array.isArray(songsRes.value) ? songsRes.value : []))
           : [];
 
-      const seenIds = new Set<string>(junctionSongs.map((s) => s.id));
-      const extras = songsList.filter((s) => !seenIds.has(s.id));
-      const merged: PraiseSong[] = [...junctionSongs, ...extras];
+      const songsMap = new Map<string, PraiseSong>(songsList.map((s) => [s.id, s]));
+      const seenIds = new Set<string>();
+
+      const merged: PraiseSong[] = junctionSongs.map((js) => {
+        seenIds.add(js.id);
+        const full = songsMap.get(js.id);
+        const allCats = getSongAllCategories({
+          ...(full || {}),
+          ...js,
+          categories: [
+            ...(Array.isArray(full?.categories) ? full.categories : []),
+            ...(Array.isArray(js?.categories) ? js.categories : []),
+          ],
+        });
+
+        return {
+          ...(full || {}),
+          ...js,
+          category: js.category || full?.category || (allCats.length > 0 ? allCats[0] : undefined),
+          categories: allCats,
+          conductorGuide: full?.conductorGuide || js.conductorGuide || full?.solfas || js.solfas || '',
+          solfas: full?.solfas || js.solfas || full?.conductorGuide || js.conductorGuide || '',
+          solfa: full?.solfa || js.solfa || full?.solfas || js.solfas || '',
+          audioUrls: {
+            ...((typeof full?.audioUrls === 'object' ? full.audioUrls : {}) as any),
+            ...((typeof js?.audioUrls === 'object' ? js.audioUrls : {}) as any),
+            _categories: allCats,
+          },
+        };
+      });
+
+      songsList.forEach((s) => {
+        if (!seenIds.has(s.id)) {
+          const allCats = getSongAllCategories(s);
+          merged.push({
+            ...s,
+            category: s.category || (allCats.length > 0 ? allCats[0] : undefined),
+            categories: allCats,
+            audioUrls: {
+              ...((typeof s?.audioUrls === 'object' ? s.audioUrls : {}) as any),
+              _categories: allCats,
+            },
+          });
+        }
+      });
 
       if (merged.length > 0) {
         setProgramSongs(merged);
@@ -166,16 +213,62 @@ export function useProgramSongs(initialProgram: Program) {
     }
   };
 
+  /**
+   * Open a song for editing. The program list endpoint strips lyrics/solfas/
+   * conductor guide to save bandwidth, so we MUST load the full song first —
+   * otherwise saving the form would overwrite those fields with blanks.
+   */
+  const openSong = async (song: PraiseSong) => {
+    if (!song?.id || openingSongId) return;
+    setOpeningSongId(song.id);
+    try {
+      const res: any = await api.songs.getById(song.id);
+      const full = res?.data || (res?.id ? res : null);
+      if (!full?.id) throw new Error('Song not found');
+      const merged: any = { ...song, ...full };
+      const allCats = getSongAllCategories({
+        ...merged,
+        categories: [
+          ...(Array.isArray(full.categories) ? full.categories : []),
+          ...(Array.isArray(song.categories) ? song.categories : []),
+        ],
+      });
+      merged.categories = allCats;
+      merged.category = merged.category || allCats[0] || null;
+      setProgramSongs(prev => prev.map(s => (s.id === song.id ? { ...s, ...merged } : s)));
+      setSelectedSong(merged);
+      setDetailsModalVisible(true);
+    } catch (e: any) {
+      customAlert(
+        'Could not load song',
+        'The full song details could not be loaded, so editing was blocked to protect the lyrics and conductor\'s guide. Please check your connection and try again.'
+      );
+    } finally {
+      setOpeningSongId(null);
+    }
+  };
+
   const handleRemoveSong = (songId: string, title: string) => {
     customAlert('Remove Song', `Remove "${title}" from this setlist?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
         style: 'destructive',
-        onPress: () => {
-          const nextSongs = programSongs.filter(s => s.id !== songId);
-          setProgramSongs(nextSongs);
-          api.programs.updateSongIds(currentProgram.id, nextSongs.map(s => s.id)).catch(() => {});
+        onPress: async () => {
+          // Use the SERVER's current list, not local state — local state can be
+          // stale (songs added from another device) and would wipe them.
+          try {
+            const res: any = await api.programs.getById(currentProgram.id);
+            const prog = res?.data || res;
+            const serverIds: string[] = Array.isArray(prog?.songs)
+              ? prog.songs.map((s: any) => s.id).filter(Boolean)
+              : (Array.isArray(prog?.songIds) ? prog.songIds : []);
+            if (serverIds.length === 0) throw new Error('Could not read current setlist');
+            await api.programs.updateSongIds(currentProgram.id, serverIds.filter(id => id !== songId));
+            setProgramSongs(prev => prev.filter(s => s.id !== songId));
+          } catch (e: any) {
+            customAlert('Error', e?.message || 'Failed to remove song. Nothing was changed.');
+          }
         },
       },
     ]);
@@ -211,6 +304,30 @@ export function useProgramSongs(initialProgram: Program) {
   };
 
   const handleSongUpdated = (updated: PraiseSong) => {
+    // The edit form strips hidden `_` metadata from audioUrls (_categories,
+    // _isHeard, _preLiveStatus, _isHQOnly...). Carry it over from the existing
+    // song so saving doesn't erase it, and keep _categories in sync.
+    const existing: any = programSongs.find(s => s.id === updated.id) || selectedSong || {};
+    const preservedMeta: Record<string, any> = {};
+    if (existing?.audioUrls && typeof existing.audioUrls === 'object') {
+      Object.entries(existing.audioUrls).forEach(([k, v]) => {
+        if (k.startsWith('_')) preservedMeta[k] = v;
+      });
+    }
+    const nextCategories = Array.isArray(updated.categories)
+      ? updated.categories
+      : getSongAllCategories(existing);
+    updated = {
+      ...updated,
+      categories: nextCategories,
+      category: updated.category || nextCategories[0] || null,
+      audioUrls: {
+        ...preservedMeta,
+        ...((updated.audioUrls || {}) as any),
+        _categories: nextCategories,
+      },
+    } as PraiseSong;
+
     setSelectedSong(prev => (prev && prev.id === updated.id ? { ...prev, ...updated } : updated));
     setProgramSongs(prev => prev.map(s => (s.id === updated.id ? { ...s, ...updated } : s)));
     if (updated.id) {
@@ -275,9 +392,16 @@ export function useProgramSongs(initialProgram: Program) {
         .then(res => {
           if (res?.data?.id) {
             setProgramSongs(prev => prev.map(s => (s.id === newSong.id ? { ...s, ...res.data } : s)));
+          } else {
+            throw new Error('Server did not confirm the new song');
           }
         })
-        .catch(err => console.error('[handleSongCreated] api.songs.create error:', err));
+        .catch(err => {
+          console.error('[handleSongCreated] api.songs.create error:', err);
+          // Remove the ghost so admins don't think it was saved.
+          setProgramSongs(prev => prev.filter(s => s.id !== newSong.id));
+          customAlert('Song not saved', `"${newSong.title || 'Song'}" failed to save. Please add it again.`);
+        });
 
       setProgramSongs(prev => [songPayload, ...prev]);
     }
@@ -352,6 +476,8 @@ export function useProgramSongs(initialProgram: Program) {
     setCreateSongModalVisible,
     editProgramModalVisible,
     setEditProgramModalVisible,
+    openSong,
+    openingSongId,
     fetchSongs,
     orderedCategories,
     categoryCounts,

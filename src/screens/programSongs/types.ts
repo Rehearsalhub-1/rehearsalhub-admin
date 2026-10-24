@@ -8,6 +8,7 @@ export interface PraiseSong {
   writer?: string;
   category?: string;
   categories?: string[];
+  conductorGuide?: string;
   lyrics?: string;
   solfa?: string;
   solfas?: string;

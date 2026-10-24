@@ -208,10 +208,7 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
           <SongCard
             item={item}
             index={index}
-            onPress={() => {
-              state.setSelectedSong(item);
-              state.setDetailsModalVisible(true);
-            }}
+            onPress={() => state.openSong(item)}
             onToggleActive={() => state.handleToggleSongActive(item)}
             onToggleHeard={() => state.handleToggleHeard(item)}
             onRemove={() => state.handleRemoveSong(item.id, item.title || 'this song')}

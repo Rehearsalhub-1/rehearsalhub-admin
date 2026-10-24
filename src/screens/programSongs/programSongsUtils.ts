@@ -34,7 +34,11 @@ export function getSongAllCategories(s: PraiseSong): string[] {
   const result = new Set<string>();
   if (s.category?.trim()) result.add(s.category.trim());
   if (Array.isArray(s.categories)) {
-    s.categories.forEach(c => { if (c?.trim()) result.add(c.trim()); });
+    s.categories.forEach(c => { if (typeof c === 'string' && c.trim()) result.add(c.trim()); });
+  }
+  const rawCats = (s as any)?.audioUrls?._categories;
+  if (Array.isArray(rawCats)) {
+    rawCats.forEach(c => { if (typeof c === 'string' && c.trim()) result.add(c.trim()); });
   }
   return Array.from(result);
 }
