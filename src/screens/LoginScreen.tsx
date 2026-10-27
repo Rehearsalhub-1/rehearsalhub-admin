@@ -10,9 +10,9 @@ import {
   Platform,
   Alert,
   ScrollView,
-  StatusBar,
   Image,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -80,7 +80,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+      <StatusBar style="dark" />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}

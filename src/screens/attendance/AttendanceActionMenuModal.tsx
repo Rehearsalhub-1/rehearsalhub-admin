@@ -59,7 +59,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Venue Geofence & GPS</Text>
-                  <Text style={styles.sheetItemSub}>Configure rehearsal perimeter & GPS boundary</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>
@@ -75,7 +74,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Manual Clock-In</Text>
-                  <Text style={styles.sheetItemSub}>Record singer without personal device</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>
@@ -91,7 +89,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Export Attendance Report</Text>
-                  <Text style={styles.sheetItemSub}>Share as Excel, Word, PDF or CSV</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>
@@ -107,7 +104,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Sync & Refresh</Text>
-                  <Text style={styles.sheetItemSub}>Reload latest logs from server</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>
@@ -146,7 +142,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Excel Spreadsheet (.xls)</Text>
-                  <Text style={styles.sheetItemSub}>Formatted table with colors for Microsoft Excel</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>
@@ -165,7 +160,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Word Document (.doc)</Text>
-                  <Text style={styles.sheetItemSub}>Printable letterhead document for Microsoft Word</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>
@@ -184,7 +178,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Print / Save as PDF (.html)</Text>
-                  <Text style={styles.sheetItemSub}>Web document ready to Print or Save as PDF</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>
@@ -203,7 +196,6 @@ export default function AttendanceActionMenuModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sheetItemTitle}>Raw CSV File (.csv)</Text>
-                  <Text style={styles.sheetItemSub}>Standard comma-separated spreadsheet data</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </TouchableOpacity>

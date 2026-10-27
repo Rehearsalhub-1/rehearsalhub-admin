@@ -398,9 +398,6 @@ export default function GeofenceScreen() {
               <Ionicons name="compass-outline" size={16} color="#7c3aed" style={{ marginRight: 6 }} />
               <Text style={styles.cardHeaderTitle}>QUICK VENUE PRESETS</Text>
             </View>
-            <Text style={styles.cardHelperText}>
-              Tap to apply verified GPS coordinates for primary ministry venues:
-            </Text>
 
             <View style={{ marginTop: 10 }}>
               {VENUE_PRESETS.map((preset, idx) => (

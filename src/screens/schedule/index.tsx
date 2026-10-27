@@ -110,7 +110,7 @@ export default function ScheduleScreen() {
             <View style={styles.emptyCenter}>
               <Ionicons name="calendar-outline" size={44} color="#cbd5e1" style={{ marginBottom: 10 }} />
               <Text style={styles.emptyTitle}>No Program Selected</Text>
-              <Text style={styles.emptySubtitle}>Tap "+ New Program" at the top to create a rehearsal schedule.</Text>
+              <Text style={styles.emptySubtitle}>Select or create a program to view its schedule.</Text>
             </View>
           )
         ) : (

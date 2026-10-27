@@ -42,17 +42,17 @@ export default function MasterAudioStemsTab({
 
   return (
     <View style={styles.tabSection}>
-      {/* ── CARD 1: FULL MIX (MASTER TRACK) ─────────────────────────────── */}
+      {/* ── CARD 1: MASTER AUDIO TRACK ─────────────────────────────── */}
       <View style={styles.card}>
         <View style={styles.labelWithAction}>
-          <Text style={styles.cardSectionTitle}>Full Mix (Master Track)</Text>
+          <Text style={styles.cardSectionTitle}>Master Audio</Text>
           <TouchableOpacity
             style={styles.pickMediaPill}
             onPress={() => onPickMedia('full')}
             activeOpacity={0.8}
           >
             <Ionicons name="folder-open-outline" size={12} color="#7c3aed" style={{ marginRight: 3 }} />
-            <Text style={styles.pickMediaPillText}>Browse Media Library</Text>
+            <Text style={styles.pickMediaPillText}>Choose File</Text>
           </TouchableOpacity>
         </View>
 
@@ -106,15 +106,15 @@ export default function MasterAudioStemsTab({
             activeOpacity={0.85}
           >
             <Ionicons name="musical-notes-outline" size={16} color="#ffffff" />
-            <Text style={styles.browseAudioBtnText}>Select Master Audio Track</Text>
+            <Text style={styles.browseAudioBtnText}>Add Master Track</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* ── CARD 2: VOCAL STEMS (S, A, T, B) ─────────────────────────────── */}
+      {/* ── CARD 2: VOCAL STEMS & PARTS ─────────────────────────────── */}
       <View style={styles.card}>
         <View style={styles.labelWithAction}>
-          <Text style={styles.cardSectionTitle}>Vocal Stems & Parts</Text>
+          <Text style={styles.cardSectionTitle}>Stems & Parts</Text>
           {!showAddPart && (
             <TouchableOpacity
               style={styles.addCategoryPill}
@@ -122,7 +122,7 @@ export default function MasterAudioStemsTab({
               activeOpacity={0.8}
             >
               <Ionicons name="add" size={12} color="#7c3aed" style={{ marginRight: 2 }} />
-              <Text style={styles.addCategoryPillText}>+ Custom Stem</Text>
+              <Text style={styles.addCategoryPillText}>+ Stem</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -131,7 +131,7 @@ export default function MasterAudioStemsTab({
           <View style={styles.inlineNewCatRow}>
             <TextInput
               style={styles.inlineNewCatInput}
-              placeholder="Stem name (e.g. Lead, Synth)..."
+              placeholder="Stem name..."
               placeholderTextColor="#94a3b8"
               value={newPartName}
               onChangeText={setNewPartName}
@@ -157,11 +157,11 @@ export default function MasterAudioStemsTab({
         )}
 
         {[
-          { key: 'soprano', label: 'Soprano Stem', color: '#ec4899' },
-          { key: 'alto', label: 'Alto Stem', color: '#f43f5e' },
-          { key: 'tenor', label: 'Tenor Stem', color: '#3b82f6' },
-          { key: 'bass', label: 'Bass Stem', color: '#6366f1' },
-          ...customParts.map(cp => ({ key: cp, label: `${cp} Stem`, color: '#8b5cf6', isCustom: true })),
+          { key: 'soprano', label: 'Soprano', color: '#ec4899' },
+          { key: 'alto', label: 'Alto', color: '#f43f5e' },
+          { key: 'tenor', label: 'Tenor', color: '#3b82f6' },
+          { key: 'bass', label: 'Bass', color: '#6366f1' },
+          ...customParts.map(cp => ({ key: cp, label: cp, color: '#8b5cf6', isCustom: true })),
         ].map(part => {
           const url = audioUrls[part.key] || '';
           const stemFileName = url ? url.split('/').pop()?.split('?')[0] || `${part.label} Audio` : '';
@@ -181,7 +181,7 @@ export default function MasterAudioStemsTab({
                     activeOpacity={0.8}
                   >
                     <Ionicons name="folder-open-outline" size={11} color="#7c3aed" style={{ marginRight: 2 }} />
-                    <Text style={styles.smallPickBtnText}>Pick File</Text>
+                    <Text style={styles.smallPickBtnText}>Choose</Text>
                   </TouchableOpacity>
 
                   {(part as any).isCustom && (

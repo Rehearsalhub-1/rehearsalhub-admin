@@ -21,11 +21,6 @@ export default function AttendanceSessionControls({
           <Text style={[styles.sessionTitle, { color: isSessionOpen ? '#065f46' : '#991b1b' }]}>
             {isSessionOpen ? 'Clock-in is OPEN' : 'Clock-in is CLOSED'}
           </Text>
-          <Text style={[styles.sessionSub, { color: isSessionOpen ? '#047857' : '#b91c1c' }]}>
-            {isSessionOpen
-              ? 'Singers can scan QR or use geofence to check in'
-              : 'Late arrivals are blocked from clocking in'}
-          </Text>
         </View>
       </View>
 

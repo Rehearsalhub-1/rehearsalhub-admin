@@ -215,8 +215,8 @@ export default function MediaAddModal({
                       disabled={saving}
                     >
                       <Ionicons name="cloud-upload-outline" size={28} color="#7c3aed" />
-                      <Text style={styles.pickFileTitle}>Tap to Select File(s)</Text>
-                      <Text style={styles.pickFileSub}>Bulk upload audio stems, photos, PDF scores, or videos</Text>
+                      <Text style={styles.pickFileTitle}>Upload Files</Text>
+                      <Text style={styles.pickFileSub}>Audio stems, photos, PDFs, or videos</Text>
                     </TouchableOpacity>
                   )}
                 </View>

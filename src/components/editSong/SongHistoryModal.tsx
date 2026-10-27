@@ -30,6 +30,7 @@ export interface SongHistoryModalProps {
   playingAudioUrl?: string | null;
   onTogglePlay?: (url: string) => void;
   audioLoading?: boolean;
+  onRestoreEntry?: (entry: any) => void;
 
   // Form modal
   showHistoryForm: boolean;
@@ -83,6 +84,7 @@ export default function SongHistoryModal({
   onCloseHistoryForm,
   onSelectHistoryType,
   insetsBottom = 0,
+  onRestoreEntry,
 
   songTitle = '',
   songKey = '',
@@ -453,6 +455,17 @@ export default function SongHistoryModal({
                               <Ionicons name="checkmark-circle" size={13} color="#15803d" />
                               <Text style={styles.browserAudioActiveBadgeText}>Current Song Audio</Text>
                             </View>
+                          ) : onRestoreEntry ? (
+                            <View style={styles.browserAudioActionRow}>
+                              <TouchableOpacity
+                                style={styles.browserAudioRestoreBtn}
+                                onPress={() => onRestoreEntry(h)}
+                                activeOpacity={0.75}
+                              >
+                                <Ionicons name="swap-horizontal" size={13} color="#16a34a" />
+                                <Text style={styles.browserAudioRestoreBtnText}>Use This Audio</Text>
+                              </TouchableOpacity>
+                            </View>
                           ) : null}
                         </View>
                       ) : null}
@@ -480,6 +493,18 @@ export default function SongHistoryModal({
                               <ScrollView nestedScrollEnabled style={{ maxHeight: 110 }}>
                                 <Text style={styles.snapshotPreviewText}>{snapshotText}</Text>
                               </ScrollView>
+                              {onRestoreEntry && (
+                                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#e2e8f0' }}>
+                                  <TouchableOpacity
+                                    style={styles.browserAudioRestoreBtn}
+                                    onPress={() => onRestoreEntry(h)}
+                                    activeOpacity={0.75}
+                                  >
+                                    <Ionicons name="arrow-undo" size={12} color="#16a34a" />
+                                    <Text style={styles.browserAudioRestoreBtnText}>Restore to Editor</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              )}
                             </View>
                           )}
                         </View>

@@ -48,7 +48,7 @@ export const ProgramCardItem = React.memo(function ProgramCardItem({
           {isCardOngoing ? (
             <View style={styles.liveBadge}>
               <View style={styles.liveDot} />
-              <Text style={styles.liveBadgeText}>ONGOING</Text>
+              <Text style={styles.liveBadgeText}>IN PROGRESS</Text>
             </View>
           ) : isCardPreReh ? (
             <View style={styles.prepBadge}>
@@ -105,16 +105,16 @@ export const ProgramCardItem = React.memo(function ProgramCardItem({
         ) : null}
       </View>
 
-      {/* Clean Inset Progress Box */}
-      <View style={styles.progressSection}>
-        <View style={styles.progressStatsRow}>
-          <View style={styles.songCountRow}>
-            <Ionicons name="musical-notes-outline" size={12} color={Colors.accent} style={{ marginRight: 4 }} />
-            <Text style={styles.progressSongCount}>
+      {/* Sleek Progress Row */}
+      <View style={{ marginTop: 2, marginBottom: 2 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="musical-notes-outline" size={11} color="#64748b" style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 11, fontWeight: '600', color: '#64748b' }}>
               {songCount} {songCount === 1 ? 'track' : 'tracks'}
             </Text>
           </View>
-          <Text style={[styles.progressPercentText, percent === 100 && styles.progressPercentCompleted]}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: percent === 100 ? '#10b981' : '#7c3aed' }}>
             {percent}% rehearsed
           </Text>
         </View>
@@ -126,17 +126,6 @@ export const ProgramCardItem = React.memo(function ProgramCardItem({
               percent === 100 && styles.progressBarFillCompleted,
             ]}
           />
-        </View>
-      </View>
-
-      {/* Card Footer: Setlist navigation cue */}
-      <View style={styles.cardFooterRow}>
-        <Text style={styles.footerHintText}>
-          {songCount > 0 ? 'Tap to view setlist queue' : 'Tap to add songs'}
-        </Text>
-        <View style={styles.openSetlistWrap}>
-          <Text style={styles.openSetlistText}>Setlist Queue</Text>
-          <Ionicons name="chevron-forward" size={13} color={Colors.accent} />
         </View>
       </View>
     </TouchableOpacity>

@@ -47,85 +47,75 @@ export default function ProgramSongsScreen({ route, navigation }: any) {
           <Text style={styles.navMetaSub} numberOfLines={1}>
             {formatDisplayDate(state.currentProgram.date)}
             {state.currentProgram.location ? ` • ${state.currentProgram.location}` : ''}
+            {state.pageMetrics.total > 0 ? ` • ${state.pageMetrics.heard}/${state.pageMetrics.total} Heard` : ''}
           </Text>
         </View>
 
-        {/* Action Button: opens clean action sheet */}
-        <TouchableOpacity onPress={state.handleOpenActionMenu} style={styles.navActionBtn} activeOpacity={0.75}>
-          <Ionicons name="ellipsis-horizontal" size={20} color="#0f172a" />
-        </TouchableOpacity>
+        <View style={styles.navRightRow}>
+          <TouchableOpacity
+            style={styles.addBtnNav}
+            onPress={() => state.setCreateSongModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 2 }} />
+            <Text style={styles.addBtnNavText}>Song</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={state.handleOpenActionMenu} style={styles.navActionBtn} activeOpacity={0.75}>
+            <Ionicons name="ellipsis-horizontal" size={20} color="#0f172a" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* ── SLIM PROGRESS INDICATOR ────────────────────────────────────────── */}
+      {state.pageMetrics.total > 0 && (
+        <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarFill, { width: `${state.pageMetrics.progressPercent}%` }]} />
+        </View>
+      )}
 
       {/* ── STREAMLINED METRICS & FILTER BAR ──────────────────────────────── */}
       <View style={styles.filterSection}>
-        {/* Progress & Quick Actions Row */}
-        <View style={styles.quickBar}>
-          <View style={styles.progressPill}>
-            <Text style={styles.progressPillText}>
-              {state.pageMetrics.heard}/{state.pageMetrics.total} Heard ({state.pageMetrics.progressPercent}%)
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            <TouchableOpacity
-              style={styles.addBtnSmall}
-              onPress={() => state.setCreateSongModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 2 }} />
-              <Text style={styles.addBtnSmallText}>+ Song</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cloneBtnSmall}
-              onPress={() => state.setCloneModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="sparkles" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
-              <Text style={styles.cloneBtnSmallText}>Clone</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Integrated Search Input */}
-        <View style={styles.searchBarWrap}>
-          <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 8 }} />
-          <TextInput
-            style={styles.searchBarInput}
-            placeholder="Search songs, singer, key..."
-            placeholderTextColor="#94a3b8"
-            value={state.searchQuery}
-            onChangeText={state.setSearchQuery}
-          />
-          {state.searchQuery ? (
-            <TouchableOpacity onPress={() => state.setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color="#94a3b8" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* 3-Tab Segmented Filter */}
-        <View style={styles.segmentContainer}>
-          {(['all', 'heard', 'unheard'] as const).map(f => {
-            const active = state.statusFilter === f;
-            const count = f === 'all' ? state.pageMetrics.total : f === 'heard' ? state.pageMetrics.heard : state.pageMetrics.unheard;
-            const label = f === 'all' ? `All (${count})` : f === 'heard' ? `Heard (${count})` : `Unheard (${count})`;
-            return (
-              <TouchableOpacity
-                key={f}
-                style={[styles.segmentTab, active && styles.segmentTabActive]}
-                onPress={() => state.setStatusFilter(f)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.segmentTabText, active && styles.segmentTabTextActive]}>
-                  {label}
-                </Text>
+        {/* Row 1: Search + 3-Tab Segmented Filter */}
+        <View style={styles.searchAndFilterRow}>
+          <View style={styles.searchBarWrap}>
+            <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
+            <TextInput
+              style={styles.searchBarInput}
+              placeholder="Search setlist..."
+              placeholderTextColor="#94a3b8"
+              value={state.searchQuery}
+              onChangeText={state.setSearchQuery}
+            />
+            {state.searchQuery ? (
+              <TouchableOpacity onPress={() => state.setSearchQuery('')}>
+                <Ionicons name="close-circle" size={16} color="#94a3b8" />
               </TouchableOpacity>
-            );
-          })}
+            ) : null}
+          </View>
+
+          <View style={styles.segmentContainer}>
+            {(['all', 'heard', 'unheard'] as const).map(f => {
+              const active = state.statusFilter === f;
+              const count = f === 'all' ? state.pageMetrics.total : f === 'heard' ? state.pageMetrics.heard : state.pageMetrics.unheard;
+              const label = f === 'all' ? `All` : f === 'heard' ? `Heard` : `Left`;
+              return (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.segmentTab, active && styles.segmentTabActive]}
+                  onPress={() => state.setStatusFilter(f)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.segmentTabText, active && styles.segmentTabTextActive]}>
+                    {label} ({count})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
 
-        {/* Horizontal Category Chips Filter Bar */}
+        {/* Row 2: Horizontal Category Chips Filter Bar */}
         {state.orderedCategories.length > 0 && (
           <View style={styles.categoryBarWrap}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryBarScroll}>

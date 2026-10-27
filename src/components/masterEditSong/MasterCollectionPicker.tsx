@@ -47,7 +47,7 @@ export default function MasterCollectionPicker({
   return (
     <View style={styles.inputGroup}>
       <View style={styles.labelWithAction}>
-        <Text style={styles.label}>MASTER PROGRAMS / COLLECTIONS</Text>
+        <Text style={styles.label}>COLLECTIONS</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {activeCategories.length > 0 && (
             <TouchableOpacity
@@ -66,7 +66,7 @@ export default function MasterCollectionPicker({
               activeOpacity={0.8}
             >
               <Ionicons name="add" size={12} color="#7c3aed" style={{ marginRight: 2 }} />
-              <Text style={styles.addCategoryPillText}>+ New Collection</Text>
+              <Text style={styles.addCategoryPillText}>+ New</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -76,7 +76,7 @@ export default function MasterCollectionPicker({
         <View style={styles.inlineNewCatRow}>
           <TextInput
             style={styles.inlineNewCatInput}
-            placeholder="Collection name (e.g. Praise Night 29, HSLHS)..."
+            placeholder="Collection name..."
             placeholderTextColor="#94a3b8"
             value={newCatName}
             onChangeText={setNewCatName}
@@ -110,7 +110,7 @@ export default function MasterCollectionPicker({
           contentContainerStyle={{ paddingVertical: 2 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* None / Uncategorized Option */}
+          {/* None Option */}
           <TouchableOpacity
             style={[
               styles.categoryCheckboxRow,
@@ -131,7 +131,7 @@ export default function MasterCollectionPicker({
                 activeCategories.length === 0 && { color: '#059669', fontWeight: '700' },
               ]}
             >
-              None (Uncategorized)
+              None
             </Text>
           </TouchableOpacity>
 
@@ -169,7 +169,7 @@ export default function MasterCollectionPicker({
       </View>
 
       <Text style={styles.selectedCategoriesSummary}>
-        Selected: {activeCategories.length > 0 ? activeCategories.join(', ') : 'None (Uncategorized)'}
+        Selected: {activeCategories.length > 0 ? activeCategories.join(', ') : 'None'}
       </Text>
     </View>
   );

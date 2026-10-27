@@ -58,7 +58,7 @@ export default function SubmissionReviewModal({
   const [inputMessage, setInputMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<SongSubmissionMessage | null>(null);
-  const chatScrollRef = useRef<ScrollView | null>(null);
+  const chatScrollRef = useRef<any>(null);
 
   // Reject Dialog
   const [showRejectBox, setShowRejectBox] = useState(false);

@@ -53,14 +53,24 @@ export function useChurches() {
   }, [fetch]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
-  const createChurch = useCallback(async (name: string, code: string): Promise<boolean> => {
+  const createChurch = useCallback(async (name: string, code?: string, coordinatorEmail?: string): Promise<boolean> => {
     try {
-      await api.churches.create({
-        name: name.trim(),
-        code: code.trim().toUpperCase(),
+      const cleanName = name.trim();
+      const slug = cleanName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'CHURCH';
+      const autoCode = (code && code.trim()) ? code.trim().toUpperCase() : `${slug}-${Math.floor(100 + Math.random() * 900)}`;
+
+      const res = await api.churches.create({
+        name: cleanName,
+        code: autoCode,
         zoneId: activeZone?.id || adminUser?.zoneId,
       });
-      customAlert('Success', 'New church added to directory.');
+
+      const newChurchId = res?.data?.id || res?.data?.subGroupId;
+      if (newChurchId && coordinatorEmail && coordinatorEmail.trim()) {
+        await api.churches.addCoordinator(newChurchId, { identifier: coordinatorEmail.trim().toLowerCase() }).catch(() => {});
+      }
+
+      customAlert('Success', 'New church created successfully.');
       fetch();
       return true;
     } catch (e: any) {

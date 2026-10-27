@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import LyricsFormattingToolbar from '../LyricsFormattingToolbar';
 import { styles } from './masterEditSongStyles';
@@ -13,6 +13,8 @@ interface MasterLyricsTabProps {
   setSolfa: (val: string) => void;
   history: string;
   setHistory: (val: string) => void;
+  onOpenHistory?: () => void;
+  historyCount?: number;
 }
 
 export default function MasterLyricsTab({
@@ -24,23 +26,22 @@ export default function MasterLyricsTab({
   setSolfa,
   history,
   setHistory,
+  onOpenHistory,
+  historyCount,
 }: MasterLyricsTabProps) {
   const lyricsCharCount = lyrics.length;
   const lyricsLines = lyrics ? lyrics.split('\n').length : 0;
 
   return (
     <View style={styles.tabSection}>
-      {/* ── 1. Official Song Lyrics ────────────────────────────────────────── */}
+      {/* ── 1. Lyrics ────────────────────────────────────────── */}
       <View style={styles.card}>
         <View style={styles.cardHeaderWithIcon}>
           <View style={styles.cardIconBadge}>
             <Ionicons name="document-text" size={17} color="#7c3aed" />
           </View>
           <View style={styles.cardHeaderTitles}>
-            <Text style={styles.cardSectionTitle}>Official Song Lyrics</Text>
-            <Text style={styles.cardHeaderSubtitle}>
-              Song text for prompters, mobile lyrics & choir presentation
-            </Text>
+            <Text style={styles.cardSectionTitle}>Lyrics</Text>
           </View>
           {lyricsCharCount > 0 && (
             <Text style={styles.charCountText}>
@@ -56,7 +57,7 @@ export default function MasterLyricsTab({
         />
         <TextInput
           style={styles.multilineInput}
-          placeholder="Enter full song lyrics with verses, chorus, and bridge..."
+          placeholder="Song lyrics..."
           placeholderTextColor="#94a3b8"
           value={lyrics}
           onChangeText={setLyrics}
@@ -67,23 +68,20 @@ export default function MasterLyricsTab({
         />
       </View>
 
-      {/* ── 2. Tonic Solfa & Conductor Guide ──────────────────────────────── */}
+      {/* ── 2. Tonic Solfa ──────────────────────────────── */}
       <View style={styles.card}>
         <View style={styles.cardHeaderWithIcon}>
           <View style={[styles.cardIconBadge, { backgroundColor: '#f0fdf4', borderColor: '#dcfce7' }]}>
             <Ionicons name="musical-notes" size={17} color="#16a34a" />
           </View>
           <View style={styles.cardHeaderTitles}>
-            <Text style={styles.cardSectionTitle}>Conductor Guide & Tonic Solfa</Text>
-            <Text style={styles.cardHeaderSubtitle}>
-              Vocal solfa (d:r:m | f:s:l), cue marks, and score notes
-            </Text>
+            <Text style={styles.cardSectionTitle}>Tonic Solfa</Text>
           </View>
         </View>
 
         <TextInput
           style={styles.multilineInput}
-          placeholder="Enter tonic solfa (e.g. d:r:m | f:s:l) and vocal cues..."
+          placeholder="Solfa notes (e.g. d:r:m | f:s:l)..."
           placeholderTextColor="#94a3b8"
           value={solfa}
           onChangeText={setSolfa}
@@ -93,23 +91,25 @@ export default function MasterLyricsTab({
         />
       </View>
 
-      {/* ── 3. Ministered Background & History ────────────────────────────── */}
+      {/* ── 3. Background Notes & History ────────────────────────────── */}
       <View style={styles.card}>
         <View style={styles.cardHeaderWithIcon}>
           <View style={[styles.cardIconBadge, { backgroundColor: '#eff6ff', borderColor: '#dbeafe' }]}>
             <Ionicons name="time-outline" size={17} color="#2563eb" />
           </View>
           <View style={styles.cardHeaderTitles}>
-            <Text style={styles.cardSectionTitle}>Ministry Background & Inspiration</Text>
-            <Text style={styles.cardHeaderSubtitle}>
-              Origin notes, Praise Night dates, or composer instructions
-            </Text>
+            <Text style={styles.cardSectionTitle}>Background Notes</Text>
           </View>
+          {history.length > 0 && (
+            <Text style={styles.charCountText}>
+              {history.length} chars
+            </Text>
+          )}
         </View>
 
         <TextInput
           style={[styles.multilineInput, { minHeight: 110 }]}
-          placeholder="Notes on the inspiration, ministered program dates, or special rehearsal pointers..."
+          placeholder="Inspiration, program dates, composer notes..."
           placeholderTextColor="#94a3b8"
           value={history}
           onChangeText={setHistory}
@@ -117,6 +117,25 @@ export default function MasterLyricsTab({
           scrollEnabled={false}
           textAlignVertical="top"
         />
+
+        {onOpenHistory && (
+          <TouchableOpacity
+            style={styles.historyActionBtn}
+            onPress={onOpenHistory}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="time" size={16} color="#6366f1" />
+              <Text style={styles.historyActionBtnText}>Revision History</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={styles.historyCountPill}>
+                <Text style={styles.historyCountPillText}>{historyCount || 0}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#64748b" />
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

@@ -24,18 +24,15 @@ export default function MasterAccessControl({
             />
           </View>
           <View style={styles.cardHeaderTitles}>
-            <Text style={styles.cardSectionTitle}>Catalog Scope & Visibility</Text>
-            <Text style={styles.cardHeaderSubtitle}>
-              Control zonal access and replication permissions
-            </Text>
+            <Text style={styles.cardSectionTitle}>Visibility</Text>
           </View>
         </View>
 
         <View style={styles.accessToggleRow}>
           <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={styles.accessTitle}>Headquarters Only (HQ Only)</Text>
+            <Text style={styles.accessTitle}>Headquarters Only</Text>
             <Text style={styles.accessSubtitle}>
-              Restricts this song strictly to Headquarters. Hides it from all regional and zonal church portals.
+              Hides from regional & zonal church portals
             </Text>
 
             <View style={[
@@ -51,7 +48,7 @@ export default function MasterAccessControl({
                 styles.accessStatusText,
                 { color: isHQOnly ? '#1e40af' : '#15803d' },
               ]}>
-                {isHQOnly ? 'Restricted to Headquarters' : 'Global Master Catalog (Visible to All Zones)'}
+                {isHQOnly ? 'HQ Restricted' : 'All Zones'}
               </Text>
             </View>
           </View>
@@ -62,18 +59,6 @@ export default function MasterAccessControl({
             trackColor={{ false: '#cbd5e1', true: '#7c3aed' }}
             thumbColor="#ffffff"
           />
-        </View>
-
-        <View style={styles.hqInfoBox}>
-          <Ionicons name="shield-checkmark" size={18} color="#7c3aed" style={{ marginTop: 1 }} />
-          <View style={{ flex: 1, marginLeft: 8 }}>
-            <Text style={styles.hqInfoBoxTitle}>Scope Protection Active</Text>
-            <Text style={styles.hqInfoBoxText}>
-              {isHQOnly
-                ? 'Zonal directors and rehearsal portals will not be able to view, rehearse, or clone this song.'
-                : 'Zonal directors can view this song in the master library and clone it into their local rehearsal programs.'}
-            </Text>
-          </View>
         </View>
       </View>
     </View>

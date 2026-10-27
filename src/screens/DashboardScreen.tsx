@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  TextInput,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,44 +13,12 @@ import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import ZoneHeader from '../components/ZoneHeader';
-import { StatTile, Badge } from '../components/ui';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { customAlert } from '../context/AlertContext';
-import { copyToClipboard } from '../lib/clipboard';
 
 export default function DashboardScreen({ navigation }: any) {
   const { adminUser } = useAuth();
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
-  const { stats, recentPrograms, members, loading, refreshing, refetch } = useDashboardData();
-
-  const [memberSearch, setMemberSearch] = useState('');
-  const [copiedCode, setCopiedCode] = useState(false);
-
-  const invitationCode =
-    (activeZone as any)?.code || (activeZone as any)?.invitationCode || 'LZ1-HQ';
-
-  const copyInviteCode = async () => {
-    await copyToClipboard(invitationCode);
-    setCopiedCode(true);
-    customAlert(
-      'Join Code Copied',
-      `Zonal code: ${invitationCode}\nCopied to clipboard! Share this with singers to join your directory.`
-    );
-    setTimeout(() => setCopiedCode(false), 2500);
-  };
-
-  const filteredMembers = useMemo(() => {
-    if (!memberSearch.trim()) return members.slice(0, 5);
-    const q = memberSearch.toLowerCase().trim();
-    return members
-      .filter(m => {
-        const name = `${m.first_name} ${m.last_name}`.toLowerCase();
-        const des = (m.designation || '').toLowerCase();
-        const church = (m.church || '').toLowerCase();
-        return name.includes(q) || des.includes(q) || church.includes(q);
-      })
-      .slice(0, 5);
-  }, [members, memberSearch]);
+  const { stats, recentPrograms, refreshing, refetch } = useDashboardData();
 
   const rawZoneName = activeZone?.name;
   const cleanZoneName =
@@ -62,19 +27,12 @@ export default function DashboardScreen({ navigation }: any) {
       : 'Assigned Zone';
 
   const liveScopeTitle = isChurchMode
-    ? `${activeChurch?.name || 'Church Choir'} • Live Scope`
-    : `${cleanZoneName} • Live Metrics`;
+    ? `${activeChurch?.name || 'Church Choir'}`
+    : `${cleanZoneName}`;
 
-  const formatRoleTag = (role: string) => {
-    switch (role) {
-      case 'hq_admin': return 'HQ Admin';
-      case 'zone_admin':
-      case 'zone_coordinator': return 'Zonal Coord';
-      case 'church_admin':
-      case 'church_coordinator': return 'Church Coord';
-      default: return 'Singer';
-    }
-  };
+  // Find live or latest upcoming program for spotlight card
+  const liveProgram = recentPrograms.find(p => p.status === 'ongoing' || p.category === 'ongoing') || recentPrograms[0];
+  const isLiveNow = Boolean(liveProgram && (liveProgram.status === 'ongoing' || liveProgram.category === 'ongoing'));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -88,216 +46,208 @@ export default function DashboardScreen({ navigation }: any) {
           <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} colors={[Colors.accent]} />
         }
       >
-        {/* Greeting */}
-        <View style={styles.greetingBox}>
+        {/* ── 1. CALM GREETING & CONSOLE HEADER ───────────────────────── */}
+        <View style={styles.greetingSection}>
           <Text style={styles.greetingName}>
             Welcome, {adminUser?.name ? adminUser.name.split(' ')[0] : 'Director'} 👋
           </Text>
-          <Text style={styles.greetingSub}>Loveworld Singers Executive Administration Portal</Text>
-        </View>
-
-        {/* Scope Toolbar */}
-        <View style={styles.toolbar}>
-          <View style={styles.liveIndicatorRow}>
+          <View style={styles.scopeBadgeRow}>
             <View style={styles.pulseDot} />
-            <Text style={styles.liveScopeText} numberOfLines={1}>{liveScopeTitle}</Text>
-          </View>
-          <View style={styles.toolbarBtnsRow}>
-            <TouchableOpacity style={styles.joinCodeBtn} onPress={copyInviteCode} activeOpacity={0.7}>
-              <Ionicons name={copiedCode ? 'checkmark' : 'copy-outline'} size={13} color="#7c3aed" style={{ marginRight: 4 }} />
-              <Text style={styles.joinCodeBtnText}>{copiedCode ? 'Copied' : `Code: ${invitationCode}`}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.newProgBtn} onPress={() => navigation.navigate('Programs')} activeOpacity={0.8}>
-              <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 2 }} />
-              <Text style={styles.newProgBtnText}>New Program</Text>
-            </TouchableOpacity>
+            <Text style={styles.liveScopeText} numberOfLines={1}>
+              {liveScopeTitle} • Executive Portal
+            </Text>
           </View>
         </View>
 
-        {/* KPI Grid */}
-        <View style={styles.kpiGrid}>
-          <View style={styles.kpiRow}>
-            <StatTile
-              label={isChurchMode ? 'Church Members' : 'Zone Members'}
-              value={stats.totalMembers}
-              icon="people"
-              color="#4f46e5"
-              badgeLabel="DIRECTORY"
-              subtitle="Registered singers"
-              onPress={() => navigation.navigate('Members')}
-            />
-            <StatTile
-              label="Programs"
-              value={stats.activePrograms}
-              icon="calendar"
-              color="#7c3aed"
-              badgeLabel="REHEARSALS"
-              subtitle="All rehearsal sets"
-              onPress={() => navigation.navigate('Programs')}
-            />
-          </View>
-          <View style={styles.kpiRow}>
-            <StatTile
-              label="Ministered Songs"
-              value={stats.totalSongs}
-              icon="musical-notes"
-              color="#d97706"
-              badgeLabel="CATALOG"
-              subtitle="Master catalog"
-              onPress={() => navigation.navigate('MasterLibrary')}
-            />
-            <StatTile
-              label="Pending Reviews"
-              value={stats.pendingSongs}
-              icon="cloud-upload"
-              color="#e11d48"
-              badgeLabel={stats.pendingSongs > 0 ? 'ACTION NEEDED' : 'ALL CLEAR'}
-              subtitle="Song submissions"
-              onPress={() => navigation.navigate('SubmittedSongs')}
-            />
-          </View>
-        </View>
-
-        {/* Recent Programs */}
-        <View style={styles.sectionBox}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Recent Programs</Text>
-              <Text style={styles.sectionSubtitle}>Active & upcoming rehearsal setlists</Text>
-            </View>
-            <TouchableOpacity style={styles.viewAllLink} onPress={() => navigation.navigate('Programs')} activeOpacity={0.7}>
-              <Text style={styles.viewAllText}>View All</Text>
-              <Ionicons name="arrow-forward" size={12} color="#7c3aed" style={{ marginLeft: 4 }} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.programsList}>
-            {loading ? (
-              <View style={styles.emptyInlineCard}>
-                <ActivityIndicator size="small" color="#7c3aed" />
-              </View>
-            ) : recentPrograms.length === 0 ? (
-              <View style={styles.emptyInlineCard}>
-                <Ionicons name="calendar-outline" size={24} color="#94a3b8" style={{ marginBottom: 6 }} />
-                <Text style={styles.emptyInlineTitle}>No Programs Yet</Text>
-                <Text style={styles.emptyInlineSub}>
-                  Tap "New Program" above to create your first rehearsal setlist.
+        {/* ── 2. REHEARSAL LIVE SPOTLIGHT (HERO COMMAND CARD) ─────────── */}
+        {liveProgram ? (
+          <TouchableOpacity
+            style={[styles.spotlightCard, isLiveNow && styles.spotlightCardActive]}
+            onPress={() => navigation.navigate('ProgramSongs', { program: liveProgram })}
+            activeOpacity={0.88}
+          >
+            <View style={styles.spotlightHeader}>
+              <View style={[styles.spotlightBadge, isLiveNow && styles.spotlightBadgeLive]}>
+                <View style={[styles.spotlightDot, isLiveNow && styles.spotlightDotLive]} />
+                <Text style={[styles.spotlightBadgeText, isLiveNow && styles.spotlightBadgeTextLive]}>
+                  {isLiveNow ? 'IN PROGRESS' : 'NEXT REHEARSAL'}
                 </Text>
               </View>
-            ) : (
-              recentPrograms.map(prog => {
-                const isOngoing = prog.status === 'ongoing' || prog.category === 'ongoing';
-                const initial = (prog.name || 'P').charAt(0).toUpperCase();
-                return (
-                  <TouchableOpacity
-                    key={prog.id}
-                    style={styles.programCard}
-                    onPress={() => navigation.navigate('ProgramSongs', { program: prog })}
-                    activeOpacity={0.75}
-                  >
-                    <View style={[styles.programAvatar, isOngoing && styles.programAvatarOngoing]}>
-                      <Text style={[styles.programAvatarText, isOngoing && styles.programAvatarTextOngoing]}>{initial}</Text>
-                    </View>
-                    <View style={styles.programInfo}>
-                      <Text style={styles.programName} numberOfLines={1}>{prog.name}</Text>
-                      <View style={styles.programMetaRow}>
-                        <Ionicons name="time-outline" size={12} color="#94a3b8" style={{ marginRight: 3 }} />
-                        <Text style={styles.programMetaText}>{prog.date || 'Date TBD'}</Text>
-                        {prog.category ? <Text style={styles.programCategoryTag}>• {prog.category}</Text> : null}
-                      </View>
-                    </View>
-                    <View style={styles.programRight}>
-                      <Badge label={isOngoing ? 'Active' : 'Archived'} variant={isOngoing ? 'ongoing' : 'draft'} size="sm" />
-                      <Ionicons name="chevron-forward" size={14} color="#cbd5e1" style={{ marginLeft: 4 }} />
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </View>
-        </View>
+              <Text style={styles.spotlightDate}>{liveProgram.date || 'Scheduled'}</Text>
+            </View>
 
-        {/* Members Directory Preview */}
-        <View style={[styles.sectionBox, { marginBottom: 30 }]}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Members Directory</Text>
-              <Text style={styles.sectionSubtitle}>
-                {stats.totalMembers > 0
-                  ? `${stats.totalMembers} singers registered`
-                  : 'Registered singers appear here'}
+            <Text style={styles.spotlightTitle} numberOfLines={1}>
+              {liveProgram.name}
+            </Text>
+
+            <View style={styles.spotlightFooter}>
+              <View style={styles.spotlightMeta}>
+                <Ionicons name="location-outline" size={13} color="#64748b" style={{ marginRight: 4 }} />
+                <Text style={styles.spotlightMetaText} numberOfLines={1}>
+                  {liveProgram.location || 'Main Auditorium'}
+                </Text>
+              </View>
+
+              <View style={[styles.spotlightActionBtn, isLiveNow && styles.spotlightActionBtnLive]}>
+                <Text style={[styles.spotlightActionText, isLiveNow && styles.spotlightActionTextLive]}>
+                  {isLiveNow ? 'Enter Setlist' : 'Open Setlist'}
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={14}
+                  color={isLiveNow ? '#ffffff' : '#7c3aed'}
+                  style={{ marginLeft: 5 }}
+                />
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.emptySpotlightCard}
+            onPress={() => navigation.navigate('Programs')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.emptySpotlightIconWrap}>
+              <Ionicons name="musical-notes-outline" size={24} color="#7c3aed" />
+            </View>
+            <Text style={styles.emptySpotlightTitle}>No Rehearsal in Progress</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* ── 3. ACTION QUEUE (Song Submissions Alert) ────────────────── */}
+        {stats.pendingSongs > 0 && (
+          <TouchableOpacity
+            style={styles.actionQueueCard}
+            onPress={() => navigation.navigate('SubmittedSongs')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.actionQueueLeft}>
+              <View style={styles.actionQueueIconWrap}>
+                <Ionicons name="notifications" size={16} color="#e11d48" />
+              </View>
+              <Text style={styles.actionQueueTitle}>
+                {stats.pendingSongs} Song {stats.pendingSongs === 1 ? 'Submission' : 'Submissions'} Awaiting Review
               </Text>
             </View>
-            <TouchableOpacity style={styles.viewAllLink} onPress={() => navigation.navigate('Members')} activeOpacity={0.7}>
-              <Text style={styles.viewAllText}>View All</Text>
-              <Ionicons name="arrow-forward" size={12} color="#7c3aed" style={{ marginLeft: 4 }} />
-            </TouchableOpacity>
-          </View>
+            <Ionicons name="chevron-forward" size={16} color="#e11d48" />
+          </TouchableOpacity>
+        )}
 
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={14} color="#94a3b8" style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search singers..."
-              placeholderTextColor="#94a3b8"
-              value={memberSearch}
-              onChangeText={setMemberSearch}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {memberSearch.length > 0 && (
-              <TouchableOpacity onPress={() => setMemberSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={15} color="#94a3b8" />
-              </TouchableOpacity>
-            )}
-          </View>
+        {/* ── 4. QUICK ACTION STRIP (Focused Daily Tasks) ─────────────── */}
+        <Text style={styles.sectionLabel}>Quick Actions</Text>
+        <View style={styles.quickActionsStrip}>
+          <TouchableOpacity
+            style={styles.quickActionTile}
+            onPress={() => navigation.navigate('Programs')}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.quickActionIconWrap, { backgroundColor: '#f5f3ff' }]}>
+              <Ionicons name="add" size={20} color="#7c3aed" />
+            </View>
+            <Text style={styles.quickActionLabel}>New Setlist</Text>
+          </TouchableOpacity>
 
-          <View style={styles.membersList}>
-            {loading ? (
-              <View style={styles.emptyInlineCard}>
-                <ActivityIndicator size="small" color="#7c3aed" />
-              </View>
-            ) : filteredMembers.length === 0 ? (
-              <View style={styles.emptyInlineCard}>
-                <Ionicons name="people-outline" size={24} color="#94a3b8" style={{ marginBottom: 6 }} />
-                <Text style={styles.emptyInlineTitle}>
-                  {memberSearch ? 'No matching singers' : 'No Members Yet'}
-                </Text>
-                <Text style={styles.emptyInlineSub}>
-                  {memberSearch
-                    ? `No singers found for "${memberSearch}". Try a different name.`
-                    : 'Singers who join your zone will appear here.'}
-                </Text>
-              </View>
-            ) : (
-              filteredMembers.map(m => {
-                const fullName = `${m.first_name} ${m.last_name}`.trim();
-                const initials = `${m.first_name?.[0] || ''}${m.last_name?.[0] || ''}`.toUpperCase() || 'S';
-                const isLead = m.role !== 'member';
-                return (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={styles.memberRow}
-                    onPress={() => navigation.navigate('Members')}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.memberAvatar, isLead && styles.memberAvatarLead]}>
-                      <Text style={[styles.memberAvatarText, isLead && styles.memberAvatarTextLead]}>{initials}</Text>
-                      {m.is_active && <View style={styles.onlineDot} />}
-                    </View>
-                    <View style={styles.memberMeta}>
-                      <Text style={styles.memberName} numberOfLines={1}>{fullName}</Text>
-                      <Text style={styles.memberSub} numberOfLines={1}>
-                        {[m.designation, m.church].filter(Boolean).join(' • ') || 'Choir Member'}
-                      </Text>
-                    </View>
-                    <Badge label={formatRoleTag(m.role)} variant={isLead ? 'alto' : 'ongoing'} size="sm" />
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </View>
+          <TouchableOpacity
+            style={styles.quickActionTile}
+            onPress={() => navigation.navigate('AttendanceTab')}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.quickActionIconWrap, { backgroundColor: '#ecfdf5' }]}>
+              <Ionicons name="qr-code-outline" size={19} color="#059669" />
+            </View>
+            <Text style={styles.quickActionLabel}>Scan QR</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionTile}
+            onPress={() => navigation.navigate('Notifications')}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.quickActionIconWrap, { backgroundColor: '#fffbeb' }]}>
+              <Ionicons name="megaphone-outline" size={19} color="#d97706" />
+            </View>
+            <Text style={styles.quickActionLabel}>Broadcast</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionTile}
+            onPress={() => navigation.navigate('MasterLibrary')}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.quickActionIconWrap, { backgroundColor: '#eff6ff' }]}>
+              <Ionicons name="library-outline" size={19} color="#2563eb" />
+            </View>
+            <Text style={styles.quickActionLabel}>Library</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* ── 5. CLEAN METRICS OVERVIEW (2x2 Glance) ─────────────────── */}
+        <Text style={styles.sectionLabel}>Ministry Overview</Text>
+        <View style={styles.metricsGrid}>
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => navigation.navigate('Members')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricTopRow}>
+              <Text style={styles.metricValue}>{stats.totalMembers}</Text>
+              <View style={[styles.metricIconWrap, { backgroundColor: '#eef2ff' }]}>
+                <Ionicons name="people" size={16} color="#4f46e5" />
+              </View>
+            </View>
+            <Text style={styles.metricLabel}>{isChurchMode ? 'Church Choir' : 'Zone Singers'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => navigation.navigate('Programs')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricTopRow}>
+              <Text style={styles.metricValue}>{stats.activePrograms}</Text>
+              <View style={[styles.metricIconWrap, { backgroundColor: '#f5f3ff' }]}>
+                <Ionicons name="calendar" size={16} color="#7c3aed" />
+              </View>
+            </View>
+            <Text style={styles.metricLabel}>Rehearsal Sets</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => navigation.navigate('MasterLibrary')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricTopRow}>
+              <Text style={styles.metricValue}>{stats.totalSongs}</Text>
+              <View style={[styles.metricIconWrap, { backgroundColor: '#fffbeb' }]}>
+                <Ionicons name="musical-notes" size={16} color="#d97706" />
+              </View>
+            </View>
+            <Text style={styles.metricLabel}>Ministered Songs</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.metricCard}
+            onPress={() => navigation.navigate('SubmittedSongs')}
+            activeOpacity={0.75}
+          >
+            <View style={styles.metricTopRow}>
+              <Text style={[styles.metricValue, stats.pendingSongs > 0 && { color: '#e11d48' }]}>
+                {stats.pendingSongs}
+              </Text>
+              <View style={[styles.metricIconWrap, { backgroundColor: stats.pendingSongs > 0 ? '#ffe4e6' : '#f1f5f9' }]}>
+                <Ionicons
+                  name="cloud-upload"
+                  size={16}
+                  color={stats.pendingSongs > 0 ? '#e11d48' : '#64748b'}
+                />
+              </View>
+            </View>
+            <Text style={styles.metricLabel}>Review Queue</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 28 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -306,52 +256,305 @@ export default function DashboardScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f8fafc' },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 24 },
-  greetingBox: { paddingTop: 8, paddingBottom: 6 },
-  greetingName: { fontSize: 19, fontWeight: '900', color: '#0f172a', letterSpacing: -0.4 },
-  greetingSub: { fontSize: 12, fontWeight: '500', color: '#64748b', marginTop: 2 },
-  toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, marginBottom: 12 },
-  liveIndicatorRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
-  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', marginRight: 6 },
-  liveScopeText: { fontSize: 12, fontWeight: '700', color: '#475569' },
-  toolbarBtnsRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  joinCodeBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#ede9fe' },
-  joinCodeBtnText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
-  newProgBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#7c3aed', paddingHorizontal: 11, paddingVertical: 6, borderRadius: 12 },
-  newProgBtnText: { fontSize: 11, fontWeight: '700', color: '#ffffff' },
-  kpiGrid: { gap: 10, marginBottom: 16 },
-  kpiRow: { flexDirection: 'row', gap: 10 },
-  sectionBox: { backgroundColor: '#ffffff', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 16, shadowColor: '#64748b', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#0f172a' },
-  sectionSubtitle: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
-  viewAllLink: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: '#f5f3ff' },
-  viewAllText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
-  programsList: { gap: 8 },
-  programCard: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#f1f5f9' },
-  programAvatar: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  programAvatarOngoing: { backgroundColor: '#f5f3ff' },
-  programAvatarText: { fontSize: 14, fontWeight: '800', color: '#64748b' },
-  programAvatarTextOngoing: { color: '#7c3aed' },
-  programInfo: { flex: 1, marginRight: 8 },
-  programName: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
-  programMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  programMetaText: { fontSize: 11, color: '#64748b' },
-  programCategoryTag: { fontSize: 11, color: '#7c3aed', fontWeight: '600', marginLeft: 3 },
-  programRight: { flexDirection: 'row', alignItems: 'center' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', paddingHorizontal: 10, height: 36, marginBottom: 10 },
-  searchInput: { flex: 1, fontSize: 12, color: '#0f172a', padding: 0 },
-  membersList: { gap: 8 },
-  memberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f8fafc' },
-  memberAvatar: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center', marginRight: 10, position: 'relative' },
-  memberAvatarLead: { backgroundColor: '#f5f3ff' },
-  memberAvatarText: { fontSize: 12, fontWeight: '800', color: '#64748b' },
-  memberAvatarTextLead: { color: '#7c3aed' },
-  onlineDot: { position: 'absolute', bottom: -1, right: -1, width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', borderWidth: 1.5, borderColor: '#ffffff' },
-  memberMeta: { flex: 1, marginRight: 8 },
-  memberName: { fontSize: 13, fontWeight: '700', color: '#0f172a' },
-  memberSub: { fontSize: 11, color: '#94a3b8', marginTop: 1 },
-  emptyInlineCard: { paddingVertical: 24, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#f1f5f9' },
-  emptyInlineTitle: { fontSize: 13, fontWeight: '700', color: '#475569' },
-  emptyInlineSub: { fontSize: 11, color: '#94a3b8', marginTop: 4, textAlign: 'center', lineHeight: 16 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
+
+  greetingSection: {
+    paddingTop: 4,
+    paddingBottom: 16,
+  },
+  greetingName: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: -0.4,
+  },
+  scopeBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  pulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#10b981',
+    marginRight: 6,
+  },
+  liveScopeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+
+  /* Spotlight Hero Card */
+  spotlightCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 16,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  spotlightCardActive: {
+    borderColor: '#ddd6fe',
+    backgroundColor: '#faf5ff',
+    shadowColor: '#7c3aed',
+    shadowOpacity: 0.08,
+  },
+  spotlightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  spotlightBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  spotlightBadgeLive: {
+    backgroundColor: '#ede9fe',
+  },
+  spotlightDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#64748b',
+    marginRight: 6,
+  },
+  spotlightDotLive: {
+    backgroundColor: '#7c3aed',
+  },
+  spotlightBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#475569',
+    letterSpacing: 0.4,
+  },
+  spotlightBadgeTextLive: {
+    color: '#7c3aed',
+  },
+  spotlightDate: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+  },
+  spotlightTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.4,
+    marginBottom: 14,
+  },
+  spotlightFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  spotlightMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  spotlightMetaText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  spotlightActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f3ff',
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  spotlightActionBtnLive: {
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
+  },
+  spotlightActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7c3aed',
+  },
+  spotlightActionTextLive: {
+    color: '#ffffff',
+  },
+
+  emptySpotlightCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptySpotlightIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#f5f3ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptySpotlightTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  emptySpotlightSub: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+
+  /* Action Queue */
+  actionQueueCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff1f2',
+    borderWidth: 1,
+    borderColor: '#fecdd3',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  actionQueueLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  actionQueueIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#ffe4e6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  actionQueueTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#9f1239',
+  },
+  actionQueueSub: {
+    fontSize: 11,
+    color: '#be123c',
+    marginTop: 1,
+  },
+
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    paddingLeft: 2,
+  },
+
+  /* Quick Actions Strip */
+  quickActionsStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 8,
+  },
+  quickActionTile: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  quickActionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  quickActionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+
+  /* Metrics Grid */
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  metricCard: {
+    width: '48.5%',
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  metricTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  metricIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: -0.5,
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  metricHint: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
 });

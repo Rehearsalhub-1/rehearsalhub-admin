@@ -12,6 +12,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MediaSelectionModal from '../MediaSelectionModal';
+import SongHistoryModal from '../editSong/SongHistoryModal';
 import { styles } from './masterEditSongStyles';
 import { MasterEditSongModalProps } from './types';
 import { useMasterEditSongState } from './useMasterEditSongState';
@@ -60,11 +61,11 @@ export default function MasterEditSongModal({
 
           <View style={styles.webHeaderTitleWrap}>
             <Text style={styles.webHeaderTitle} numberOfLines={1}>
-              {state.isCreate ? 'Add Master Song' : (state.title || song?.title || 'Edit Master Song')}
+              {state.isCreate ? 'Add Song' : (state.title || song?.title || 'Edit Song')}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
               <Text style={styles.webHeaderSubtitle} numberOfLines={1}>
-                All Ministered • Master Catalog
+                All Ministered
               </Text>
               {state.isHQOnly && (
                 <View style={styles.hqIndicator}>
@@ -74,21 +75,41 @@ export default function MasterEditSongModal({
             </View>
           </View>
 
-          <TouchableOpacity
-            onPress={state.handleSave}
-            style={[styles.headerQuickSaveBtn, !state.title.trim() && styles.saveBtnDisabled]}
-            disabled={state.saving || !state.title.trim()}
-            activeOpacity={0.8}
-          >
-            {state.saving ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark" size={16} color="#ffffff" style={{ marginRight: 2 }} />
-                <Text style={styles.headerQuickSaveBtnText}>Save</Text>
-              </>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {isEditing && (
+              <TouchableOpacity
+                onPress={() => state.historyManager.setShowHistoryList(true)}
+                style={styles.headerHistoryBtn}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="time-outline" size={16} color="#6366f1" />
+                <Text style={styles.headerHistoryBtnText}>History</Text>
+                {state.historyManager.historyEntries.length > 0 && (
+                  <View style={styles.headerHistoryBadge}>
+                    <Text style={styles.headerHistoryBadgeText}>
+                      {state.historyManager.historyEntries.length}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={state.handleSave}
+              style={[styles.headerQuickSaveBtn, !state.title.trim() && styles.saveBtnDisabled]}
+              disabled={state.saving || !state.title.trim()}
+              activeOpacity={0.8}
+            >
+              {state.saving ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={16} color="#ffffff" style={{ marginRight: 2 }} />
+                  <Text style={styles.headerQuickSaveBtnText}>Save</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── 2. Segmented Tabs Bar ─────────────────────────────────────── */}
@@ -203,6 +224,8 @@ export default function MasterEditSongModal({
                 setSolfa={state.setSolfa}
                 history={state.history}
                 setHistory={state.setHistory}
+                onOpenHistory={() => state.historyManager.setShowHistoryList(true)}
+                historyCount={state.historyManager.historyEntries.length}
               />
             )}
 
@@ -213,7 +236,34 @@ export default function MasterEditSongModal({
               />
             )}
 
-            {/* Danger Zone: Delete Master Song (Parity with Edit Song) */}
+            {/* Revision History Action Card */}
+            {isEditing && (
+              <View style={styles.historyActionCard}>
+                <View style={styles.historyActionLeft}>
+                  <View style={styles.historyActionIconWrap}>
+                    <Ionicons name="time" size={18} color="#6366f1" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.historyActionTitle}>Revision History</Text>
+                    <Text style={styles.historyActionSubtitle}>
+                      {state.historyManager.historyEntries.length === 0
+                        ? 'No revisions'
+                        : `${state.historyManager.historyEntries.length} checkpoint${state.historyManager.historyEntries.length === 1 ? '' : 's'}`}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.historyActionOpenBtn}
+                  onPress={() => state.historyManager.setShowHistoryList(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.historyActionOpenBtnText}>Manage</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#6366f1" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Danger Zone: Delete Song */}
             {isEditing && (
               <View style={styles.dangerZoneContainer}>
                 <TouchableOpacity
@@ -222,7 +272,7 @@ export default function MasterEditSongModal({
                   activeOpacity={0.8}
                 >
                   <Ionicons name="trash-outline" size={16} color="#ef4444" style={{ marginRight: 6 }} />
-                  <Text style={styles.dangerDeleteBtnText}>Delete Master Song</Text>
+                  <Text style={styles.dangerDeleteBtnText}>Delete Song</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -247,6 +297,41 @@ export default function MasterEditSongModal({
             state.setMediaModalVisible(false);
             state.setMediaTarget(null);
           }}
+        />
+
+        {/* Song Revision History Modal */}
+        <SongHistoryModal
+          showHistoryList={state.historyManager.showHistoryList}
+          onCloseHistoryList={() => state.historyManager.setShowHistoryList(false)}
+          historyEntries={state.historyManager.historyEntries}
+          onEditEntry={state.historyManager.handleEditHistoryEntry}
+          onDeleteEntry={state.historyManager.handleDeleteHistoryEntry}
+          formatHistoryType={state.historyManager.formatHistoryType}
+          isTablet={false}
+          onAddHistory={state.historyManager.handleAddHistory}
+          currentSongAudioFile={state.audioUrls.full}
+          playingAudioUrl={state.playingKey === 'history' ? (state.audioUrls.full || '') : null}
+          onTogglePlay={state.handleTogglePlay}
+          showHistoryForm={state.historyManager.showHistoryForm}
+          editingHistoryEntryId={state.historyManager.editingHistoryEntryId}
+          historyFormType={state.historyManager.historyFormType}
+          setHistoryFormType={state.historyManager.setHistoryFormType}
+          historyFormTitle={state.historyManager.historyFormTitle}
+          setHistoryFormTitle={state.historyManager.setHistoryFormTitle}
+          historyFormDesc={state.historyManager.historyFormDesc}
+          setHistoryFormDesc={state.historyManager.setHistoryFormDesc}
+          originalHistoryValues={state.historyManager.originalHistoryValues}
+          setOriginalHistoryValues={state.historyManager.setOriginalHistoryValues}
+          onSaveHistoryEntry={state.historyManager.handleSaveHistoryEntry}
+          onCloseHistoryForm={state.historyManager.handleCloseHistoryForm}
+          onSelectHistoryType={state.historyManager.handleSelectHistoryType}
+          insetsBottom={insets.bottom}
+          songTitle={state.title}
+          songKey={state.key}
+          songTempo={state.tempo}
+          songCategories={state.categories}
+          songStatus="active"
+          onRestoreEntry={state.handleRestoreHistoryEntry}
         />
       </SafeAreaView>
     </Modal>

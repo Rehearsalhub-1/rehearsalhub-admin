@@ -48,6 +48,7 @@ export interface MasterSong {
   history?: string;
   coordinatorComment?: string;
   coordinatorNotes?: string;
+  notes?: string;
   rehearsalNotes?: string;
   comments?: any[];
   rehearsalCount?: number;
@@ -207,7 +208,19 @@ export default function MasterSongDetailModal({
     .replace(/&nbsp;/gi, ' ')
     .trim();
 
-  const cleanHistory = (song.history || song.coordinatorComment || song.coordinatorNotes || '')
+  const rawHistorySource =
+    (typeof song.history === 'string' && song.history) ||
+    song.coordinatorComment ||
+    song.coordinatorNotes ||
+    (song as any).notes ||
+    (Array.isArray((song as any).comments) && (song as any).comments.length > 0
+      ? (typeof (song as any).comments[(song as any).comments.length - 1] === 'string'
+          ? (song as any).comments[(song as any).comments.length - 1]
+          : ((song as any).comments[(song as any).comments.length - 1]?.text || ''))
+      : '') ||
+    '';
+
+  const cleanHistory = (typeof rawHistorySource === 'string' ? rawHistorySource : '')
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/gi, ' ')
     .trim();

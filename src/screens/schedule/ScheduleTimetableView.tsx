@@ -161,10 +161,7 @@ export default function ScheduleTimetableView({
 
         {/* Section Title & Add Slot Button */}
         <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={styles.sectionHeaderTitle}>Timetable Itinerary</Text>
-            <Text style={styles.sectionHeaderSub}>Tap status pill to cycle Pending ➔ Rehearsed ➔ Break</Text>
-          </View>
+          <Text style={styles.sectionHeaderTitle}>Timetable Itinerary</Text>
           <TouchableOpacity style={styles.addSlotBtn} onPress={onOpenAddSlot} activeOpacity={0.8}>
             <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 2 }} />
             <Text style={styles.addSlotBtnText}>+ Slot</Text>

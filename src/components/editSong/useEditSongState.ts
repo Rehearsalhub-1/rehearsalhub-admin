@@ -216,7 +216,12 @@ export function useEditSongState({
       setSongSolfas(htmlToEditorText(song.solfas || song.solfa));
       setSongNotation(htmlToEditorText(song.notation));
 
-      let commentText = song.coordinatorComment || '';
+      let commentText =
+        (typeof song.history === 'string' && song.history) ||
+        song.coordinatorComment ||
+        (song as any).coordinatorNotes ||
+        (song as any).notes ||
+        '';
       let commentAudio = song.coordinatorAudioUrl || '';
       if (!commentText && Array.isArray(song.comments) && song.comments.length > 0) {
         const last = song.comments[song.comments.length - 1];

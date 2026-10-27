@@ -84,16 +84,16 @@ export default function MasterDetailsTab({
 }: MasterDetailsTabProps) {
   return (
     <View style={styles.tabSection}>
-      {/* ── CARD 1: MUSIC ESSENTIALS (Zero-Scroll Top Card) ─────────────── */}
+      {/* ── CARD 1: MUSIC INFO ─────────────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>Music Essentials</Text>
+        <Text style={styles.cardSectionTitle}>Music Info</Text>
 
         {/* 1. Song Title */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>SONG TITLE *</Text>
+          <Text style={styles.label}>TITLE *</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. King of Kings (You Reign)"
+            placeholder="Song title"
             placeholderTextColor="#94a3b8"
             value={title}
             onChangeText={setTitle}
@@ -102,10 +102,10 @@ export default function MasterDetailsTab({
 
         {/* 2. Musical Key with 1-Tap Chips */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>MUSICAL KEY</Text>
+          <Text style={styles.label}>KEY</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. C, C to D#, F#"
+            placeholder="Key (e.g. C or F#)"
             placeholderTextColor="#94a3b8"
             value={keyVal}
             onChangeText={setKeyVal}
@@ -131,10 +131,10 @@ export default function MasterDetailsTab({
 
         {/* 3. Tempo with 1-Tap BPM Chips */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>TEMPO (BPM)</Text>
+          <Text style={styles.label}>TEMPO</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. 112 or 112 BPM"
+            placeholder="BPM"
             placeholderTextColor="#94a3b8"
             value={tempo}
             onChangeText={setTempo}
@@ -158,13 +158,13 @@ export default function MasterDetailsTab({
           </View>
         </View>
 
-        {/* 4. Lead Singer & Composer / Writer */}
+        {/* 4. Lead Singer & Composer */}
         <View style={styles.inputRow}>
           <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>LEAD SINGER</Text>
+            <Text style={styles.label}>LEAD VOCAL</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Pastor Ruth"
+              placeholder="Name"
               placeholderTextColor="#94a3b8"
               value={leadSinger}
               onChangeText={setLeadSinger}
@@ -172,10 +172,10 @@ export default function MasterDetailsTab({
           </View>
 
           <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>COMPOSER / WRITER</Text>
+            <Text style={styles.label}>COMPOSER</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Loveworld Singers"
+              placeholder="Name"
               placeholderTextColor="#94a3b8"
               value={writer}
               onChangeText={setWriter}
@@ -184,7 +184,7 @@ export default function MasterDetailsTab({
         </View>
       </View>
 
-      {/* ── CARD 2: MASTER COLLECTIONS & CATEGORIES ─────────────────────── */}
+      {/* ── CARD 2: COLLECTIONS ─────────────────────── */}
       <View style={styles.card}>
         <MasterCollectionPicker
           collectionsList={collectionsList}
@@ -201,15 +201,15 @@ export default function MasterDetailsTab({
         />
       </View>
 
-      {/* ── CARD 3: BAND & MUSICIANS (Grouped Cleanly) ───────────────────── */}
+      {/* ── CARD 3: BAND & MUSICIANS ───────────────────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>Band & Direction</Text>
+        <Text style={styles.cardSectionTitle}>Band & Musicians</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>CONDUCTOR / DIRECTOR</Text>
+          <Text style={styles.label}>CONDUCTOR</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Bro Dennis"
+            placeholder="Name"
             placeholderTextColor="#94a3b8"
             value={conductor}
             onChangeText={setConductor}
@@ -217,10 +217,10 @@ export default function MasterDetailsTab({
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>LEAD KEYBOARDIST</Text>
+          <Text style={styles.label}>KEYBOARD</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Bro Enoch"
+            placeholder="Name"
             placeholderTextColor="#94a3b8"
             value={leadKeyboardist}
             onChangeText={setLeadKeyboardist}
@@ -229,10 +229,10 @@ export default function MasterDetailsTab({
 
         <View style={styles.inputRow}>
           <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>BASS GUITARIST</Text>
+            <Text style={styles.label}>BASS</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Bro Wisdom"
+              placeholder="Name"
               placeholderTextColor="#94a3b8"
               value={bassGuitarist}
               onChangeText={setBassGuitarist}
@@ -240,10 +240,10 @@ export default function MasterDetailsTab({
           </View>
 
           <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>DRUMMER</Text>
+            <Text style={styles.label}>DRUMS</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Bro Victor"
+              placeholder="Name"
               placeholderTextColor="#94a3b8"
               value={drummer}
               onChangeText={setDrummer}
@@ -252,9 +252,9 @@ export default function MasterDetailsTab({
         </View>
       </View>
 
-      {/* ── CARD 4: COVER ARTWORK (Visual Preview & Library Picker) ──────── */}
+      {/* ── CARD 4: COVER ARTWORK ──────── */}
       <View style={styles.card}>
-        <Text style={styles.cardSectionTitle}>Cover Artwork</Text>
+        <Text style={styles.cardSectionTitle}>Artwork</Text>
 
         <View style={styles.artworkSectionRow}>
           {imageUrl ? (
@@ -277,7 +277,7 @@ export default function MasterDetailsTab({
           >
             <Ionicons name="image-outline" size={15} color="#7c3aed" />
             <Text style={styles.browseArtworkBtnText}>
-              {imageUrl ? 'Change Artwork' : 'Browse Media Library'}
+              {imageUrl ? 'Change' : 'Choose Media'}
             </Text>
           </TouchableOpacity>
         </View>

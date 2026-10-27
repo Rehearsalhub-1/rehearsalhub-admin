@@ -12,7 +12,7 @@ import { SongSubmissionMessage, QUICK_FEEDBACK_CHIPS } from './submissionReviewU
 interface SubmissionConversationProps {
   conversation: SongSubmissionMessage[];
   replyingTo: SongSubmissionMessage | null;
-  chatScrollRef: React.RefObject<ScrollView | null>;
+  chatScrollRef: any;
   onReply: (msg: SongSubmissionMessage) => void;
   onCancelReply: () => void;
   onSendChip: (text: string) => void;

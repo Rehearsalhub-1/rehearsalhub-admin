@@ -31,8 +31,22 @@ export function normalizeLyricsMarkdown(text: string): string {
 /**
  * Converts rich HTML from database into clean, editable text with markdown bold markers (**bold**).
  */
-export function htmlToEditorText(raw: string | undefined | null): string {
+export function htmlToEditorText(raw: any): string {
   if (!raw) return '';
+
+  if (typeof raw !== 'string') {
+    if (Array.isArray(raw)) {
+      if (raw.length === 0) return '';
+      const last = raw[raw.length - 1];
+      const text = typeof last === 'string' ? last : (last?.text || last?.content || last?.comment || last?.description || '');
+      return typeof text === 'string' ? htmlToEditorText(text) : '';
+    }
+    if (typeof raw === 'object') {
+      const text = raw.text || raw.content || raw.comment || raw.description || '';
+      return typeof text === 'string' ? htmlToEditorText(text) : '';
+    }
+    raw = String(raw);
+  }
 
   // If the text is already plain (no HTML tags), return normalized as-is
   if (!/<[a-z]/i.test(raw)) return normalizeLyricsMarkdown(raw.trim());
@@ -49,7 +63,7 @@ export function htmlToEditorText(raw: string | undefined | null): string {
     .replace(/<\/div>/gi, '\n')
     .replace(/<div[^>]*>/gi, '')
     // Convert bold tags to markdown line-by-line
-    .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, (_, p1) => {
+    .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, (_: string, p1: string) => {
       const lines = p1.split('\n');
       return lines.map((l: string) => {
         const leading = l.match(/^\s*/)?.[0] || '';
@@ -58,7 +72,7 @@ export function htmlToEditorText(raw: string | undefined | null): string {
         return core ? `${leading}**${core}**${trailing}` : l;
       }).join('\n');
     })
-    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, (_, p1) => {
+    .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, (_: string, p1: string) => {
       const lines = p1.split('\n');
       return lines.map((l: string) => {
         const leading = l.match(/^\s*/)?.[0] || '';
@@ -67,7 +81,7 @@ export function htmlToEditorText(raw: string | undefined | null): string {
         return core ? `${leading}**${core}**${trailing}` : l;
       }).join('\n');
     })
-    .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, (_, p1) => {
+    .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, (_: string, p1: string) => {
       const lines = p1.split('\n');
       return lines.map((l: string) => {
         const leading = l.match(/^\s*/)?.[0] || '';
@@ -76,7 +90,7 @@ export function htmlToEditorText(raw: string | undefined | null): string {
         return core ? `${leading}*${core}*${trailing}` : l;
       }).join('\n');
     })
-    .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, (_, p1) => {
+    .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, (_: string, p1: string) => {
       const lines = p1.split('\n');
       return lines.map((l: string) => {
         const leading = l.match(/^\s*/)?.[0] || '';

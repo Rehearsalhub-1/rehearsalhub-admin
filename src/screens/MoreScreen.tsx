@@ -228,7 +228,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#7c3aed"
             iconBg="#f5f3ff"
             label="Programs"
-            sub="Rehearsal programs, setlists, and running orders"
             onPress={() => navigation.navigate('Programs')}
           />
           <MenuItem
@@ -236,7 +235,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#6366f1"
             iconBg="#eef2ff"
             label="Schedule Manager"
-            sub="Rehearsal timetables, daily slots, and active schedule"
             onPress={() => navigation.navigate('Schedule')}
           />
           {/* Hide Submitted Songs in pure Church Mode */}
@@ -246,7 +244,6 @@ export default function MoreScreen({ navigation }: any) {
               iconColor="#e11d48"
               iconBg="#fff1f2"
               label="Submitted Songs"
-              sub="Review singer audio submissions and approve"
               onPress={() => navigation.navigate('SubmittedSongs')}
             />
           )}
@@ -256,7 +253,6 @@ export default function MoreScreen({ navigation }: any) {
               iconColor="#d97706"
               iconBg="#fffbeb"
               label="All Ministered"
-              sub="Master ministry catalog and vocal arrangements"
               onPress={() => navigation.navigate('MasterLibrary')}
             />
           )}
@@ -266,7 +262,6 @@ export default function MoreScreen({ navigation }: any) {
               iconColor="#059669"
               iconBg="#ecfdf5"
               label="Categories & Tags"
-              sub="Manage rehearsal song classifications"
               onPress={() => navigation.navigate('Categories')}
             />
           )}
@@ -275,7 +270,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#0284c7"
             iconBg="#f0f9ff"
             label="Media Library"
-            sub="Cloud audio tracks, stems, and album artworks"
             onPress={() => navigation.navigate('MediaLibrary')}
           />
         </View>
@@ -288,7 +282,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#4f46e5"
             iconBg="#eef2ff"
             label="Members Directory"
-            sub="Singer roster, vocal parts, and permissions"
             onPress={() => navigation.navigate('Members')}
           />
           {/* Hide Churches & Subgroups in Church Mode */}
@@ -298,7 +291,6 @@ export default function MoreScreen({ navigation }: any) {
               iconColor="#0284c7"
               iconBg="#f0f9ff"
               label="Churches & Subgroups"
-              sub="Local assemblies, coordinator approvals, and rosters"
               onPress={() => navigation.navigate('Churches')}
             />
           )}
@@ -307,7 +299,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#059669"
             iconBg="#ecfdf5"
             label="Attendance Manager"
-            sub="Camera QR scanner, live attendance & check-in feed"
             onPress={() => navigation.navigate('Attendance')}
           />
           <MenuItem
@@ -315,7 +306,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#0284c7"
             iconBg="#e0f2fe"
             label="Geofence & Venue Clock-in"
-            sub="GPS venue boundary & mobile rehearsal check-in"
             onPress={() => navigation.navigate('Geofence')}
           />
           <MenuItem
@@ -323,7 +313,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#d97706"
             iconBg="#fffbeb"
             label="Broadcast Announcements"
-            sub="Push alerts to choir members and coordinators"
             onPress={() => navigation.navigate('Notifications')}
           />
         </View>
@@ -337,7 +326,6 @@ export default function MoreScreen({ navigation }: any) {
                 iconColor="#4f46e5"
                 iconBg="#eef2ff"
                 label="Analytics & Insights"
-                sub="Attendance turnout rates and rehearsal trends"
                 onPress={() => navigation.navigate('Analytics')}
               />
             </View>
@@ -352,7 +340,7 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#7c3aed"
             iconBg="#faf5ff"
             label="Check for Updates"
-            sub={checkingUpdates ? "Connecting to EAS servers..." : "Version 1.0.0 (Tap to check for updates)"}
+            sub={checkingUpdates ? "Connecting..." : undefined}
             onPress={handleCheckForUpdates}
           />
         </View>
@@ -365,7 +353,6 @@ export default function MoreScreen({ navigation }: any) {
             iconColor="#dc2626"
             iconBg="#fee2e2"
             label="Sign Out"
-            sub="Log out of admin session"
             onPress={handleLogout}
             destructive
           />

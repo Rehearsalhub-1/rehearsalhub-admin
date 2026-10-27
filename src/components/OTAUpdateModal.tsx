@@ -45,7 +45,9 @@ export default function OTAUpdateModal({
       transparent
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={() => !isRestarting && handleDismiss()}
+      onRequestClose={() => {
+        if (!isRestarting) handleDismiss();
+      }}
     >
       {/* Full-screen restart overlay — shown while reloading */}
       {isRestarting ? (

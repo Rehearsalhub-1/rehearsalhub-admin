@@ -36,7 +36,8 @@
       ],
       "expo-audio",
       "expo-video",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

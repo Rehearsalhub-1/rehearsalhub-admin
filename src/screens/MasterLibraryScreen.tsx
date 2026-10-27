@@ -8,20 +8,16 @@ import {
   RefreshControl,
   TextInput,
   ScrollView,
-  Platform,
   Image,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
-import ZoneSongFormModal, { ZoneSong } from '../components/ZoneSongFormModal';
-import { useZoneContext } from '../context/ZoneContext';
+import { EmptyState } from '../components/ui';
 import { api } from '../services/api';
-import { GradientCard, Badge, EmptyState } from '../components/ui';
-import ZoneHeader from '../components/ZoneHeader';
-import MasterSongDetailModal, { MasterSong } from '../components/MasterSongDetailModal';
 import MasterEditSongModal from '../components/MasterEditSongModal';
+import { MasterSong } from '../components/MasterSongDetailModal';
 import { useAuth } from '../context/AuthContext';
 import { customAlert } from '../context/AlertContext';
 import { useMasterLibrary } from '../hooks/useMasterLibrary';
@@ -32,11 +28,7 @@ const FlashListAny = FlashList as any;
 
 export default function MasterLibraryScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { activeZone } = useZoneContext();
   const { adminUser } = useAuth();
-
-  // Primary Tab: Master Catalog vs Zonal Catalog
-  const [activeDomainTab, setActiveDomainTab] = useState<'master' | 'zone'>('master');
 
   // Search & Filter State
   const [search, setSearch] = useState('');
@@ -45,71 +37,29 @@ export default function MasterLibraryScreen({ navigation }: any) {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(search.trim());
-    }, 350);
+    }, 300);
     return () => clearTimeout(handler);
   }, [search]);
 
   const {
-    masterSongs, masterLoading, loadingMore, refreshing,
-    zoneSongs, zoneSongsLoading,
-    refetch, fetchZoneSongs,
-    hasMore, loadMore,
-    upsertMasterSong, removeMasterSong, toggleHideMasterSong, removeZoneSong,
-  } = useMasterLibrary(activeDomainTab, debouncedSearch);
+    masterSongs,
+    masterLoading,
+    loadingMore,
+    refreshing,
+    refetch,
+    loadMore,
+    upsertMasterSong,
+    removeMasterSong,
+  } = useMasterLibrary('master', debouncedSearch);
 
-  // Master Tab Status Filters
-  const [masterStatusTab, setMasterStatusTab] = useState<'active' | 'history' | 'hidden' | 'all'>('active');
-
+  // Status Tab Filters
+  const [masterStatusTab, setMasterStatusTab] = useState<'all' | 'active' | 'history' | 'hidden'>('all');
   const [selectedCollection, setSelectedCollection] = useState<string>('all');
-  const [selectedLeadSinger, setSelectedLeadSinger] = useState<string>('all');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // Zonal Songs UI State
-  const [showZoneForm, setShowZoneForm] = useState(false);
-  const [editingZoneSong, setEditingZoneSong] = useState<ZoneSong | null>(null);
-
-  // Detail Sheet & Edit Modal State
-  const [selectedDetailSong, setSelectedDetailSong] = useState<MasterSong | null>(null);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  // Edit Modal State (Direct 1-tap workspace)
   const [editModalSong, setEditModalSong] = useState<MasterSong | null>(null);
-  const [editingOriginalMaster, setEditingOriginalMaster] = useState<MasterSong | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
-  const [availablePrograms, setAvailablePrograms] = useState<{ id: string; name: string }[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-
-  useEffect(() => {
-    // Only fetch programs/categories when the edit modal is opened, not on screen mount.
-    // These are only needed for the edit form dropdowns.
-  }, []);
-
-  const [programsLoaded, setProgramsLoaded] = useState(false);
-
-  const loadEditFormData = useCallback(() => {
-    if (programsLoaded) return;
-    setProgramsLoaded(true);
-    api.programs.getMasterPrograms().then(res => {
-      const progs = Array.isArray(res?.data) ? res.data : [];
-      setAvailablePrograms(progs.map((p: any) => ({ id: p.id, name: p.name || p.title || 'Master Program' })));
-    }).catch(() => {});
-
-    api.categories.getAll().then(res => {
-      const cats = Array.isArray(res?.data) ? res.data : [];
-      if (cats.length > 0) {
-        setAvailableCategories(cats.map((c: any) => c.name || c.title || String(c)).filter(Boolean));
-      }
-    }).catch(() => {});
-  }, [programsLoaded]);
-
-  // Master Stats Calculations
-  const masterStats = useMemo(() => {
-    const total = masterSongs.length;
-    const active = masterSongs.filter(s => !s.isHistory && !s.isHidden).length;
-    const history = masterSongs.filter(s => Boolean(s.isHistory)).length;
-    const hidden = masterSongs.filter(s => Boolean(s.isHidden)).length;
-    const hqOnly = masterSongs.filter(s => Boolean(s.isHQOnly || s.isHqOnly)).length;
-    return { total, active, history, hidden, hqOnly };
-  }, [masterSongs]);
 
   // Reorder Collections State
   const [reorderModalVisible, setReorderModalVisible] = useState(false);
@@ -128,12 +78,18 @@ export default function MasterLibraryScreen({ navigation }: any) {
       .catch(() => {});
   }, []);
 
-  // Distinct Master Collections for Filter Bar
+  // Compute metrics
+  const masterStats = useMemo(() => {
+    const total = masterSongs.length;
+    const active = masterSongs.filter(s => !s.isHistory && !s.isHidden).length;
+    const history = masterSongs.filter(s => Boolean(s.isHistory)).length;
+    const hidden = masterSongs.filter(s => Boolean(s.isHidden)).length;
+    return { total, active, history, hidden };
+  }, [masterSongs]);
+
+  // Distinct Collections for horizontal filter chips
   const masterCollectionsList = useMemo(() => {
     const set = new Set<string>();
-    availablePrograms.forEach(p => {
-      if (p.name?.trim()) set.add(p.name.trim());
-    });
     masterSongs.forEach(s => {
       if (Array.isArray(s.categories) && s.categories.length > 0) {
         s.categories.forEach(c => { if (c?.trim()) set.add(c.trim()); });
@@ -153,7 +109,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
       });
     }
     return allList.sort();
-  }, [availablePrograms, masterSongs, savedCollectionOrder]);
+  }, [masterSongs, savedCollectionOrder]);
 
   const collectionCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -201,482 +157,332 @@ export default function MasterLibraryScreen({ navigation }: any) {
     }
   };
 
-  // Distinct Lead Singers for Filter Bar
-  const leadSingersList = useMemo(() => {
-    const set = new Set<string>();
-    masterSongs.forEach(s => {
-      if (s.leadSinger?.trim()) set.add(s.leadSinger.trim());
-    });
-    return Array.from(set).sort();
-  }, [masterSongs]);
-
-  // Filtered Master Songs
+  // Filtered master songs
   const filteredMasterSongs = useMemo(() => {
     return masterSongs.filter(song => {
-      // Non-HQ admins cannot view hidden master songs
-      if (!adminUser?.isHQAdmin && song.isHidden) return false;
-
-      // 1. Status Tab filter
       if (masterStatusTab === 'active' && (song.isHistory || song.isHidden)) return false;
       if (masterStatusTab === 'history' && !song.isHistory) return false;
       if (masterStatusTab === 'hidden' && !song.isHidden) return false;
 
-      // 2. Collection filter
       if (selectedCollection !== 'all') {
-        const target = selectedCollection.toLowerCase();
         const songColl = ((song as any).program || (song as any).programName || song.category || '').toLowerCase();
-        const songCats = Array.isArray(song.categories)
-          ? song.categories.map(c => (c || '').toLowerCase())
-          : [];
+        const songCats = Array.isArray(song.categories) ? song.categories.map(c => (c || '').toLowerCase()) : [];
+        const target = selectedCollection.toLowerCase();
         if (songColl !== target && !songCats.includes(target)) {
           return false;
         }
       }
 
-      // 3. Lead Singer filter
-      if (selectedLeadSinger !== 'all' && song.leadSinger?.toLowerCase() !== selectedLeadSinger.toLowerCase()) {
-        return false;
-      }
-
-      // 4. Search query
       if (search.trim()) {
         const q = search.toLowerCase();
         const matchesTitle = (song.title || '').toLowerCase().includes(q);
         const matchesSinger = (song.leadSinger || '').toLowerCase().includes(q);
         const matchesWriter = (song.writer || song.publishedByName || '').toLowerCase().includes(q);
-        const matchesCategory = (song.category || '').toLowerCase().includes(q);
-        const matchesCategories = Array.isArray(song.categories) && song.categories.some(c => (c || '').toLowerCase().includes(q));
-        const matchesProgram = (((song as any).program || (song as any).programName) || '').toLowerCase().includes(q);
         const matchesKey = (song.key || '').toLowerCase().includes(q);
-        if (!matchesTitle && !matchesSinger && !matchesWriter && !matchesCategory && !matchesCategories && !matchesProgram && !matchesKey) {
+        const matchesConductor = (song.conductor || '').toLowerCase().includes(q);
+        const matchesColl = ((song as any).program || (song as any).programName || song.category || '').toLowerCase().includes(q);
+        const matchesCats = Array.isArray(song.categories) && song.categories.some(c => (c || '').toLowerCase().includes(q));
+        if (!matchesTitle && !matchesSinger && !matchesWriter && !matchesKey && !matchesConductor && !matchesColl && !matchesCats) {
           return false;
         }
       }
 
       return true;
-    }).sort((a, b) => {
-      const titleA = (a.title || '').toLowerCase();
-      const titleB = (b.title || '').toLowerCase();
-      return sortOrder === 'asc' ? titleA.localeCompare(titleB) : titleB.localeCompare(titleA);
     });
-  }, [masterSongs, masterStatusTab, selectedCollection, selectedLeadSinger, search, sortOrder]);
+  }, [masterSongs, masterStatusTab, selectedCollection, search]);
 
-  // Filtered Zonal Songs
-  const filteredZoneSongs = useMemo(() => {
-    if (!search.trim()) return zoneSongs;
-    const q = search.toLowerCase();
-    return zoneSongs.filter(
-      s =>
-        (s.title || '').toLowerCase().includes(q) ||
-        (s.key || '').toLowerCase().includes(q) ||
-        (s.category || '').toLowerCase().includes(q)
-    );
-  }, [search, zoneSongs]);
-
-  // Handlers for Master Songs
+  // Actions
   function handleOpenCreateModal() {
-    loadEditFormData();
-    setEditingOriginalMaster(null);
     setEditModalSong(null);
     setEditModalVisible(true);
   }
 
-  function handleOpenEditModal(song: MasterSong) {
-    loadEditFormData();
-    setEditingOriginalMaster(song);
+  function handleOpenSong(song: MasterSong) {
     setEditModalSong(song);
     setEditModalVisible(true);
   }
 
-  async function handleMasterSongSaved(savedMaster: MasterSong, isNew: boolean) {
+  async function handleMasterSongSaved(savedMaster: MasterSong) {
     upsertMasterSong(savedMaster);
-    if (selectedDetailSong?.id === savedMaster.id) setSelectedDetailSong(savedMaster);
     setEditModalVisible(false);
   }
 
   function handleMasterSongDeleted(songId: string) {
     removeMasterSong(songId);
-    if (selectedDetailSong?.id === songId) { setSelectedDetailSong(null); setDetailModalVisible(false); }
     setEditModalVisible(false);
     api.songs.delete(songId).catch(() => {});
   }
 
-  function handleToggleHideSong(song: MasterSong) {
-    toggleHideMasterSong(song.id);
-  }
-
-  function handleDeleteMasterSong(song: MasterSong) {
-    customAlert('Delete Master Song', `Are you sure you want to delete "${song.title}" from the catalog?`, [
+  // Action Menu
+  const handleOpenActionMenu = () => {
+    customAlert('All Ministered', 'Select an option', [
+      { text: 'Add Song', onPress: handleOpenCreateModal },
+      { text: 'Import from Rehearsals', onPress: () => setImportModalVisible(true) },
+      { text: 'Reorder Collections', onPress: handleOpenReorderModal },
+      { text: 'Refresh', onPress: refetch },
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => { removeMasterSong(song.id); api.songs.delete(song.id).catch(() => {}); } },
     ]);
-  }
+  };
 
-  async function handleDeleteZoneSong(song: ZoneSong) {
-    customAlert('Delete Zone Song', `Delete "${song.title}" from regional catalog?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.songs.deleteSubgroupSong(song.id);
-            removeZoneSong(song.id);
-          } catch (e: any) {
-            customAlert('Error', e.message || 'Failed to delete song.');
-          }
-        },
-      },
-    ]);
+  if (!adminUser?.isHQAdmin) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.navBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackBtn} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={22} color="#0f172a" />
+          </TouchableOpacity>
+          <Text style={styles.navTitleText}>All Ministered</Text>
+          <View style={{ width: 34 }} />
+        </View>
+        <View style={styles.centerRestricted}>
+          <View style={styles.restrictedIconBox}>
+            <Ionicons name="shield-checkmark-outline" size={32} color="#7c3aed" />
+          </View>
+          <Text style={styles.restrictedTitle}>HQ Restricted</Text>
+          <Text style={styles.restrictedSub}>
+            Reserved for central Loveworld Singers HQ administrators.
+          </Text>
+          <TouchableOpacity style={styles.goBackBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={16} color="#ffffff" style={{ marginRight: 6 }} />
+            <Text style={styles.goBackBtnText}>Return to Dashboard</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ZoneHeader title="All Ministered" showBack={true} />
+      {/* ── 1. HIGH-END SLIM NAVIGATION BAR ────────────────────────────── */}
+      <View style={styles.navBar}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackBtn} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={22} color="#0f172a" />
+        </TouchableOpacity>
 
-      {/* ── COMPACT SEARCH + STATUS TABS + ACTIONS (single row) ────────────── */}
-      <View style={styles.cleanSearchRow}>
-        {/* Search box */}
-        <View style={styles.cleanSearchBox}>
-          <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
-          <TextInput
-            style={styles.cleanSearchInput}
-            placeholder="Search title, singer, key..."
-            placeholderTextColor="#94a3b8"
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search ? (
-            <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Ionicons name="close-circle" size={16} color="#94a3b8" />
-            </TouchableOpacity>
-          ) : null}
+        <View style={styles.navTitleCenter}>
+          <Text style={styles.navTitleText} numberOfLines={1}>All Ministered</Text>
+          <Text style={styles.navMetaSub} numberOfLines={1}>
+            {masterStats.total} Songs
+          </Text>
         </View>
 
-        {/* Action buttons (HQ only) */}
-        {adminUser?.isHQAdmin && (
-          <View style={styles.cleanActionButtonsGroup}>
-            <TouchableOpacity
-              style={styles.cleanImportBtn}
-              onPress={() => setImportModalVisible(true)}
-              activeOpacity={0.85}
-              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-            >
-              <Ionicons name="download-outline" size={14} color="#7c3aed" />
-            </TouchableOpacity>
+        <View style={styles.navRightRow}>
+          <TouchableOpacity
+            style={styles.addBtnNav}
+            onPress={handleOpenCreateModal}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={15} color="#ffffff" style={{ marginRight: 2 }} />
+            <Text style={styles.addBtnNavText}>Song</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.cleanAddBtn}
-              onPress={handleOpenCreateModal}
-              activeOpacity={0.85}
-              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
-            >
-              <Ionicons name="add" size={18} color="#ffffff" />
-              <Text style={styles.cleanAddBtnText}>Add</Text>
-            </TouchableOpacity>
+          <TouchableOpacity onPress={handleOpenActionMenu} style={styles.navActionBtn} activeOpacity={0.75}>
+            <Ionicons name="ellipsis-horizontal" size={20} color="#0f172a" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── 2. STREAMLINED 2-ROW FILTER BAR ────────────────────────────── */}
+      <View style={styles.filterSection}>
+        {/* Row 1: Search + Status Segment */}
+        <View style={styles.searchAndFilterRow}>
+          <View style={styles.searchBarWrap}>
+            <Ionicons name="search" size={15} color="#94a3b8" style={{ marginRight: 6 }} />
+            <TextInput
+              style={styles.searchBarInput}
+              placeholder="Search title, singer, key..."
+              placeholderTextColor="#94a3b8"
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search ? (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons name="close-circle" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <View style={styles.segmentContainer}>
+            {([
+              { id: 'all' as const, label: 'All', count: masterStats.total },
+              { id: 'active' as const, label: 'Active', count: masterStats.active },
+              { id: 'history' as const, label: 'History', count: masterStats.history },
+              { id: 'hidden' as const, label: 'Hidden', count: masterStats.hidden },
+            ]).map(f => {
+              const active = masterStatusTab === f.id;
+              return (
+                <TouchableOpacity
+                  key={f.id}
+                  style={[styles.segmentTab, active && styles.segmentTabActive]}
+                  onPress={() => setMasterStatusTab(f.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.segmentTabText, active && styles.segmentTabTextActive]}>
+                    {f.label} ({f.count})
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Row 2: Horizontal Collection Chips */}
+        {masterCollectionsList.length > 0 && (
+          <View style={styles.categoryBarWrap}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryBarScroll}>
+              <TouchableOpacity
+                style={[styles.catChip, selectedCollection === 'all' && styles.catChipActive]}
+                onPress={() => setSelectedCollection('all')}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.catChipText, selectedCollection === 'all' && styles.catChipTextActive]}>
+                  All ({masterSongs.length})
+                </Text>
+              </TouchableOpacity>
+
+              {masterCollectionsList.map(coll => {
+                const isSelected = selectedCollection.toLowerCase() === coll.toLowerCase();
+                const count = collectionCounts[coll] || 0;
+                return (
+                  <TouchableOpacity
+                    key={coll}
+                    style={[styles.catChip, isSelected && styles.catChipActive]}
+                    onPress={() => setSelectedCollection(isSelected ? 'all' : coll)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.catChipText, isSelected && styles.catChipTextActive]}>
+                      {coll} ({count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={styles.reorderChipBtn}
+                onPress={handleOpenReorderModal}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="swap-vertical" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
+                <Text style={styles.reorderChipText}>Reorder</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         )}
       </View>
 
-      {/* ── STATUS SEGMENTED CONTROL (Zero-Scroll Parity with programSongs) ─── */}
-      <View style={styles.segmentContainer}>
-        {[
-          { id: 'all', label: `All (${masterStats.total})` },
-          { id: 'active', label: `Active (${masterStats.active})` },
-          { id: 'history', label: `History (${masterStats.history})` },
-          ...(adminUser?.isHQAdmin ? [{ id: 'hidden', label: `Hidden (${masterStats.hidden})` }] : []),
-        ].map(t => {
-          const isActive = masterStatusTab === t.id;
-          return (
-            <TouchableOpacity
-              key={t.id}
-              style={[styles.segmentTab, isActive && styles.segmentTabActive]}
-              onPress={() => setMasterStatusTab(t.id as any)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.segmentTabText, isActive && styles.segmentTabTextActive]}>
-                {t.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* ── MASTER PROGRAM / COLLECTION FILTER PILLS ──────────────────────── */}
-      <View style={styles.collectionFilterContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.collectionFilterScroll}
-        >
-          <TouchableOpacity
-            style={[styles.collectionPill, selectedCollection === 'all' && styles.collectionPillActive]}
-            onPress={() => setSelectedCollection('all')}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="albums-outline"
-              size={12}
-              color={selectedCollection === 'all' ? '#7c3aed' : '#64748b'}
-              style={{ marginRight: 4 }}
-            />
-            <Text style={[styles.collectionPillText, selectedCollection === 'all' && styles.collectionPillTextActive]}>
-              All Collections ({masterSongs.length})
-            </Text>
-          </TouchableOpacity>
-          {masterCollectionsList.map(coll => {
-            const isSelected = selectedCollection.toLowerCase() === coll.toLowerCase();
-            const count = masterSongs.filter(s => {
-              const songColl = ((s as any).program || (s as any).programName || s.category || '').toLowerCase();
-              const songCats = Array.isArray(s.categories) ? s.categories.map(c => (c || '').toLowerCase()) : [];
-              return songColl === coll.toLowerCase() || songCats.includes(coll.toLowerCase());
-            }).length;
-            return (
-              <TouchableOpacity
-                key={coll}
-                style={[styles.collectionPill, isSelected && styles.collectionPillActive]}
-                onPress={() => setSelectedCollection(isSelected ? 'all' : coll)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.collectionPillText, isSelected && styles.collectionPillTextActive]}>
-                  {coll}{count > 0 ? ` (${count})` : ''}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-          {adminUser?.isHQAdmin && (
-            <TouchableOpacity
-              style={styles.reorderChipBtn}
-              onPress={handleOpenReorderModal}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="swap-vertical" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
-              <Text style={styles.reorderChipText}>Reorder</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-      </View>
-
-      {/* ── CLEAN MASTER CATALOG SONG FEED ──────────────────────────────────── */}
+      {/* ── 3. SPACIOUS, TOUCH-FRIENDLY TRACKLIST ───────────────────────── */}
       <FlashListAny
         data={filteredMasterSongs}
-        keyExtractor={(i: MasterSong) => i.id}
+        keyExtractor={(item: MasterSong) => item.id}
         estimatedItemSize={68}
-        onEndReached={() => { if (hasMore && !masterLoading && !loadingMore) loadMore(); }}
-        onEndReachedThreshold={0.3}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 24) + 20 }
+        ]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} colors={[Colors.accent]} />
+        }
+        showsVerticalScrollIndicator={false}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         ListFooterComponent={
           loadingMore ? (
-            <View style={{ paddingVertical: 16, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator color="#7c3aed" size="small" />
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#7c3aed" />
             </View>
           ) : null
         }
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: Math.max(insets.bottom, 24) + 30 }
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refetch}
-            tintColor="#7c3aed"
-            colors={['#7c3aed']}
-          />
-        }
-        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           masterLoading ? (
-            <View style={styles.center}>
-              <ActivityIndicator color="#7c3aed" size="large" />
-            </View>
+            <View style={styles.center}><ActivityIndicator color={Colors.accent} size="large" /></View>
           ) : (
             <EmptyState
               icon="musical-notes-outline"
-              title="No Songs Found"
-              description={
-                search || masterStatusTab !== 'all' || selectedCollection !== 'all'
-                  ? 'No songs match your search or collection filter.'
-                  : 'The master catalog has no registered songs yet.'
-              }
-              actionLabel={adminUser?.isHQAdmin ? "+ Add Master Song" : undefined}
-              onAction={adminUser?.isHQAdmin ? handleOpenCreateModal : undefined}
+              title={search ? 'No Matching Songs' : 'Catalog is Empty'}
+              description={search ? `No songs found for "${search}".` : 'Tap "+ Song" above to create your first master song.'}
+              actionLabel="+ Add Song"
+              onAction={handleOpenCreateModal}
             />
           )
         }
-        renderItem={({ item }: { item: MasterSong }) => {
-          const isHq = Boolean(item.isHQOnly || item.isHqOnly);
+        renderItem={({ item, index }: { item: MasterSong; index: number }) => {
           const hasStems = Boolean(
             item.audioUrls?.soprano ||
             item.audioUrls?.alto ||
             item.audioUrls?.tenor ||
             item.audioUrls?.bass
           );
+          const hasAudio = hasStems || Boolean(item.audioUrl || item.audioFile);
+          const metaParts = [
+            item.leadSinger || item.writer || null,
+            item.key ? `Key ${item.key}` : null,
+            item.tempo ? `${item.tempo} BPM` : null,
+            item.program || (item as any).programName || item.category || null,
+          ].filter(Boolean);
 
           return (
             <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => {
-                setSelectedDetailSong(item);
-                setDetailModalVisible(true);
-              }}
+              activeOpacity={0.75}
+              onPress={() => handleOpenSong(item)}
               style={[
-                styles.cleanCard,
-                item.isHidden && styles.cleanCardHidden,
+                styles.trackCard,
+                item.isHidden && styles.trackCardHidden,
               ]}
             >
-              {/* Card Header: Title & Key / Tempo */}
-              <View style={styles.cardHeaderRow}>
-                {item.imageUrl ? (
-                  <Image
-                    source={{ uri: item.imageUrl }}
-                    style={styles.cardArtworkThumb}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.cardArtworkPlaceholder}>
-                    <Ionicons name="musical-notes" size={17} color="#7c3aed" />
-                  </View>
-                )}
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.cardTitleText} numberOfLines={1}>
+              {/* Left: Thumbnail Artwork or Index Box */}
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} style={styles.artworkThumb} resizeMode="cover" />
+              ) : (
+                <View style={styles.trackIndexBox}>
+                  <Text style={styles.trackIndexNum}>
+                    {String(index + 1).padStart(2, '0')}
+                  </Text>
+                </View>
+              )}
+
+              {/* Center: Title & Musical Metadata */}
+              <View style={styles.trackInfoCol}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.trackTitleText} numberOfLines={1}>
                     {item.title}
                   </Text>
-                  <Text style={styles.cardSubtitleText} numberOfLines={1}>
-                    {item.leadSinger ? `Lead: ${item.leadSinger}` : ''}
-                    {item.leadSinger && (item.writer || item.publishedByName) ? ' • ' : ''}
-                    {item.writer || item.publishedByName ? `Writer: ${item.writer || item.publishedByName}` : ''}
-                    {!item.leadSinger && !item.writer && !item.publishedByName ? 'Master Song' : ''}
-                  </Text>
+                  {item.isHQOnly && (
+                    <View style={styles.hqPillSmall}>
+                      <Text style={styles.hqPillSmallText}>HQ</Text>
+                    </View>
+                  )}
+                  {item.isHidden && (
+                    <View style={styles.hiddenPillSmall}>
+                      <Text style={styles.hiddenPillSmallText}>Hidden</Text>
+                    </View>
+                  )}
                 </View>
 
-                <View style={styles.keyTempoGroup}>
-                  {item.key ? (
-                    <View style={styles.keyBadge}>
-                      <Text style={styles.keyBadgeText}>Key: {item.key}</Text>
-                    </View>
-                  ) : null}
-                  {item.tempo ? (
-                    <View style={styles.tempoBadge}>
-                      <Text style={styles.tempoBadgeText}>{item.tempo} BPM</Text>
-                    </View>
-                  ) : null}
-                </View>
+                <Text style={styles.trackMetaText} numberOfLines={1}>
+                  {metaParts.length > 0 ? metaParts.join(' • ') : 'Master Ministry Arrangement'}
+                </Text>
               </View>
 
-              {/* Divider */}
-              <View style={styles.cardDivider} />
-
-              {/* Card Footer: Tags & Action Icons */}
-              <View style={styles.cardFooterRow}>
-                <View style={styles.cardTagsRow}>
-                  {(() => {
-                    const songCats: string[] = Array.isArray(item.categories) && item.categories.length > 0
-                      ? item.categories
-                      : [item.program || (item as any).programName || item.category].filter(Boolean) as string[];
-                    return songCats.slice(0, 2).map(catName => (
-                      <View key={catName} style={styles.categoryPill}>
-                        <Ionicons name="albums-outline" size={10} color="#64748b" style={{ marginRight: 3 }} />
-                        <Text style={styles.categoryPillText} numberOfLines={1}>
-                          {catName}
-                        </Text>
-                      </View>
-                    ));
-                  })()}
-
-                  {hasStems && (
-                    <View style={styles.stemsPill}>
-                      <Ionicons name="layers-outline" size={11} color="#7c3aed" style={{ marginRight: 3 }} />
-                      <Text style={styles.stemsPillText}>Stems</Text>
-                    </View>
-                  )}
-
-                  {!hasStems && Boolean(item.audioUrl || item.audioFile) && (
-                    <View style={styles.audioTrackPill}>
-                      <Ionicons name="musical-note" size={10} color="#059669" style={{ marginRight: 2 }} />
-                      <Text style={styles.audioTrackPillText}>Audio</Text>
-                    </View>
-                  )}
-
-                  {isHq && (
-                    <View style={styles.hqPill}>
-                      <Ionicons name="lock-closed" size={10} color="#4338ca" style={{ marginRight: 2 }} />
-                      <Text style={styles.hqPillText}>HQ Only</Text>
-                    </View>
-                  )}
-
-                  {item.isHidden && (
-                    <View style={styles.hiddenPill}>
-                      <Text style={styles.hiddenPillText}>Hidden</Text>
-                    </View>
-                  )}
-                </View>
-
-                {adminUser?.isHQAdmin ? (
-                  <View style={styles.cardActionsGroup}>
-                    <TouchableOpacity
-                      style={styles.actionBtn}
-                      onPress={() => handleOpenEditModal(item)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="pencil" size={14} color="#7c3aed" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.actionBtn}
-                      onPress={() => handleToggleHideSong(item)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                    >
-                      <Ionicons
-                        name={item.isHidden ? 'eye-outline' : 'eye-off-outline'}
-                        size={14}
-                        color="#94a3b8"
-                      />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.actionBtn}
-                      onPress={() => handleDeleteMasterSong(item)}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                    >
-                      <Ionicons name="trash-outline" size={14} color="#ef4444" />
-                    </TouchableOpacity>
+              {/* Right: Audio / Stems Indicator & Chevron */}
+              <View style={styles.trackRightCol}>
+                {hasStems ? (
+                  <View style={styles.stemsBadgeSmall}>
+                    <Ionicons name="layers" size={13} color="#7c3aed" />
                   </View>
-                ) : (
-                  <View style={styles.cardActionsGroup}>
-                    <TouchableOpacity
-                      style={styles.actionBtn}
-                      onPress={() => {
-                        setSelectedDetailSong(item);
-                        setDetailModalVisible(true);
-                      }}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                    >
-                      <Ionicons name="eye-outline" size={15} color="#7c3aed" />
-                    </TouchableOpacity>
+                ) : hasAudio ? (
+                  <View style={styles.audioBadgeSmall}>
+                    <Ionicons name="musical-note" size={13} color="#059669" />
                   </View>
-                )}
+                ) : null}
+
+                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
               </View>
             </TouchableOpacity>
           );
         }}
       />
 
-      {/* ── DETAIL INSPECTOR MODAL ─────────────────────────────────────────── */}
-      <MasterSongDetailModal
-        visible={detailModalVisible}
-        song={selectedDetailSong}
-        onClose={() => setDetailModalVisible(false)}
-        onEdit={songToEdit => {
-          setDetailModalVisible(false);
-          handleOpenEditModal(songToEdit);
-        }}
-        canEdit={Boolean(adminUser?.isHQAdmin)}
-      />
-
-      {/* ── CREATE / EDIT MASTER SONG MODAL ────────────────────────────────── */}
+      {/* ── 4. ALL-IN-ONE DIRECT EDIT / WORKSPACE MODAL ────────────────── */}
       <MasterEditSongModal
         visible={editModalVisible}
         song={editModalSong}
@@ -684,29 +490,12 @@ export default function MasterLibraryScreen({ navigation }: any) {
         onClose={() => {
           setEditModalVisible(false);
           setEditModalSong(null);
-          setEditingOriginalMaster(null);
         }}
         onSaved={handleMasterSongSaved}
         onDelete={handleMasterSongDeleted}
       />
 
-      {/* ── ZONAL REGIONAL SONG FORM MODAL ─────────────────────────────────── */}
-      {showZoneForm && (
-        <ZoneSongFormModal
-          visible={showZoneForm}
-          onClose={() => {
-            setShowZoneForm(false);
-            setEditingZoneSong(null);
-          }}
-          onSaved={() => {
-            setShowZoneForm(false);
-            setEditingZoneSong(null);
-            fetchZoneSongs();
-          }}
-          editSong={editingZoneSong}
-        />
-      )}
-      {/* ── REORDER MASTER COLLECTIONS MODAL ─────────────────────────────── */}
+      {/* ── 5. REORDER MASTER COLLECTIONS MODAL ────────────────────────── */}
       <ReorderCategoriesModal
         visible={reorderModalVisible}
         onClose={() => setReorderModalVisible(false)}
@@ -718,7 +507,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
         isSaving={isSavingCollectionsOrder}
       />
 
-      {/* ── IMPORT FROM PROGRAM MODAL ─────────────────────────────────────── */}
+      {/* ── 6. IMPORT FROM PROGRAM MODAL ──────────────────────────────── */}
       <ImportToMasterModal
         visible={importModalVisible}
         onClose={() => setImportModalVisible(false)}
@@ -736,10 +525,10 @@ export default function MasterLibraryScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
   },
   center: {
-    paddingVertical: 50,
+    paddingVertical: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -786,344 +575,122 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
   },
-  cleanSearchRow: {
+
+  /* Navigation Bar */
+  navBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  navBackBtn: { padding: 6, borderRadius: 10, backgroundColor: '#f8fafc' },
+  navTitleCenter: { flex: 1, alignItems: 'center', paddingHorizontal: 12 },
+  navTitleText: { fontSize: 16, fontWeight: '800', color: '#0f172a', letterSpacing: -0.3 },
+  navMetaSub: { fontSize: 11, color: '#64748b', fontWeight: '500', marginTop: 1 },
+  navRightRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  addBtnNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7c3aed',
+    paddingHorizontal: 10,
+    paddingVertical: 5.5,
+    borderRadius: 8,
+  },
+  addBtnNavText: { fontSize: 11, fontWeight: '700', color: '#ffffff' },
+  navActionBtn: { padding: 6, borderRadius: 10, backgroundColor: '#f8fafc' },
+
+  /* Streamlined Filter Section */
+  filterSection: {
+    backgroundColor: '#ffffff',
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 6,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
     gap: 8,
   },
-  cleanSearchBox: {
+  searchAndFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchBarWrap: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 12,
-    height: 38,
+    paddingHorizontal: 10,
+    height: 34,
   },
-  cleanSearchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0f172a',
-    paddingVertical: 0,
-  },
-  cleanActionsAndTabsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 6,
-    paddingTop: 2,
-  },
-  cleanTabsScroll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  cleanActionButtonsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  cleanAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#7c3aed',
-    paddingHorizontal: 11,
-    height: 38,
-    borderRadius: 12,
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  cleanAddBtnText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  cleanImportBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f5f3ff',
-    borderWidth: 1,
-    borderColor: '#ddd6fe',
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-  },
-  cleanImportBtnText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: '#7c3aed',
-  },
+  searchBarInput: { flex: 1, fontSize: 12, color: '#0f172a', padding: 0 },
+
   segmentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f1f5f9',
-    borderRadius: 10,
-    padding: 3,
-    marginHorizontal: 16,
-    marginBottom: 6,
-    gap: 3,
+    borderRadius: 8,
+    padding: 2,
+    height: 34,
   },
   segmentTab: {
-    flex: 1,
-    paddingVertical: 6,
+    paddingHorizontal: 7,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 7,
+    borderRadius: 6,
   },
   segmentTabActive: {
     backgroundColor: '#ffffff',
     shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
-  segmentTabText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  segmentTabTextActive: {
-    color: '#7c3aed',
-    fontWeight: '800',
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    gap: 10,
-  },
-  cleanCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  cardArtworkPlaceholder: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#f5f3ff',
-    borderWidth: 1,
-    borderColor: '#ede9fe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  cleanCardHidden: {
-    opacity: 0.6,
-    backgroundColor: '#f8fafc',
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  cardArtworkThumb: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#e2e8f0',
-    marginRight: 10,
-  },
-  cardTitleText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.2,
-  },
-  cardSubtitleText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748b',
+  segmentTabText: { fontSize: 10.5, fontWeight: '600', color: '#64748b' },
+  segmentTabTextActive: { color: '#7c3aed', fontWeight: '700' },
+
+  categoryBarWrap: {
     marginTop: 2,
   },
-  keyTempoGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  keyBadge: {
-    backgroundColor: '#f5f3ff',
-    borderWidth: 1,
-    borderColor: '#ddd6fe',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  keyBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#7c3aed',
-  },
-  tempoBadge: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    paddingHorizontal: 6,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  tempoBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: '#f1f5f9',
-    marginVertical: 10,
-  },
-  cardFooterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cardTagsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-    flex: 1,
-  },
-  categoryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  categoryPillText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  collectionFilterContainer: {
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    backgroundColor: '#ffffff',
-  },
-  collectionFilterScroll: {
-    paddingHorizontal: 16,
+  categoryBarScroll: {
     gap: 6,
     alignItems: 'center',
   },
-  collectionPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: 20,
+  catChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+    borderRadius: 8,
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  collectionPillActive: {
+  catChipActive: {
     backgroundColor: '#f5f3ff',
     borderColor: '#c4b5fd',
   },
-  collectionPillText: {
-    fontSize: 11.5,
+  catChipText: {
+    fontSize: 11,
     fontWeight: '600',
     color: '#64748b',
   },
-  collectionPillTextActive: {
+  catChipTextActive: {
     color: '#7c3aed',
     fontWeight: '700',
-  },
-  stemsPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#faf5ff',
-    borderWidth: 1,
-    borderColor: '#e9d5ff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  stemsPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#7c3aed',
-  },
-  audioTrackPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ecfdf5',
-    borderWidth: 1,
-    borderColor: '#a7f3d0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  audioTrackPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  hqPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#eef2ff',
-    borderWidth: 1,
-    borderColor: '#c7d2fe',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  hqPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#4338ca',
-  },
-  hiddenPill: {
-    backgroundColor: '#fee2e2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  hiddenPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#dc2626',
-  },
-  cardActionsGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   reorderChipBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 8,
     backgroundColor: '#f5f3ff',
     borderWidth: 1,
     borderColor: '#ddd6fe',
@@ -1132,5 +699,108 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#7c3aed',
+  },
+
+  /* Tracklist List & Cards */
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 8,
+  },
+  trackCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  trackCardHidden: {
+    opacity: 0.6,
+    backgroundColor: '#f8fafc',
+  },
+  trackIndexBox: {
+    width: 28,
+    marginRight: 10,
+    alignItems: 'center',
+  },
+  trackIndexNum: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94a3b8',
+    fontVariant: ['tabular-nums'],
+  },
+  artworkThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#e2e8f0',
+    marginRight: 12,
+  },
+  trackInfoCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  trackTitleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  trackMetaText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 2,
+  },
+  hqPillSmall: {
+    backgroundColor: '#eef2ff',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  hqPillSmallText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#4f46e5',
+  },
+  hiddenPillSmall: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  hiddenPillSmallText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  trackRightCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stemsBadgeSmall: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: '#f5f3ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioBadgeSmall: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: '#ecfdf5',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

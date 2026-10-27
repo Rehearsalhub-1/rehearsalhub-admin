@@ -236,11 +236,7 @@ export function ProgramsScreen({ navigation }: any) {
     <SafeAreaView style={styles.safe}>
       <ZoneHeader
         title={isChurchMode ? 'Church Programs' : 'Programs'}
-        subtitle={
-          isChurchMode
-            ? (activeChurch?.name || 'Local church rehearsals & setlists')
-            : (activeZone?.name || 'Rehearsal programs & setlists')
-        }
+        subtitle={isChurchMode ? activeChurch?.name : activeZone?.name}
         rightElement={
           <TouchableOpacity
             style={styles.createBtn}

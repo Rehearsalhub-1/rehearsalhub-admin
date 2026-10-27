@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import { customAlert } from '../../context/AlertContext';
 import { htmlToEditorText, editorTextToHtml } from '../../lib/lyricsFormat';
 import { DEFAULT_COLLECTIONS } from './types';
+import { useSongHistoryManager } from '../editSong/useSongHistoryManager';
 
 interface UseMasterEditSongStateProps {
   visible: boolean;
@@ -13,6 +14,36 @@ interface UseMasterEditSongStateProps {
   onClose: () => void;
   onSaved: (song: MasterSong, isNew: boolean) => void;
   onDelete?: (songId: string) => void;
+}
+
+function resolveSongHistoryText(s: any): string {
+  if (!s) return '';
+  if (typeof s.history === 'string' && s.history.trim()) {
+    return htmlToEditorText(s.history);
+  }
+  if (typeof s.coordinatorComment === 'string' && s.coordinatorComment.trim()) {
+    return htmlToEditorText(s.coordinatorComment);
+  }
+  if (typeof s.coordinatorNotes === 'string' && s.coordinatorNotes.trim()) {
+    return htmlToEditorText(s.coordinatorNotes);
+  }
+  if (typeof s.notes === 'string' && s.notes.trim()) {
+    return htmlToEditorText(s.notes);
+  }
+  if (typeof s.background === 'string' && s.background.trim()) {
+    return htmlToEditorText(s.background);
+  }
+  if (typeof s.rehearsalNotes === 'string' && s.rehearsalNotes.trim()) {
+    return htmlToEditorText(s.rehearsalNotes);
+  }
+  if (Array.isArray(s.comments) && s.comments.length > 0) {
+    const last = s.comments[s.comments.length - 1];
+    const text = typeof last === 'string' ? last : (last?.text || last?.content || last?.comment || last?.description || '');
+    if (typeof text === 'string' && text.trim()) {
+      return htmlToEditorText(text);
+    }
+  }
+  return '';
 }
 
 export function useMasterEditSongState({
@@ -61,6 +92,29 @@ export function useMasterEditSongState({
   const [lyricsSelection, setLyricsSelection] = useState({ start: 0, end: 0 });
   const [solfa, setSolfa] = useState('');
   const [history, setHistory] = useState('');
+
+  // Song Revision History Manager
+  const historyManager = useSongHistoryManager({
+    song: song as any,
+    songTitle: title,
+    songCategories: categories,
+    songProgram: category || 'All Ministered',
+    songStatus: 'active',
+    songKey: key,
+    songTempo: tempo,
+    songLeadSinger: leadSinger,
+    songWriter: writer,
+    songConductor: conductor,
+    songLeadKeyboardist: leadKeyboardist,
+    songLeadGuitarist: '',
+    songBassGuitarist: bassGuitarist,
+    songDrummer: drummer,
+    songLyrics: lyrics,
+    songSolfas: solfa,
+    songNotation: '',
+    songAudioFile: audioUrls.full || '',
+    coordinatorComment: history,
+  });
 
   // Media Selector
   const [mediaTarget, setMediaTarget] = useState<string | null>(null);
@@ -158,7 +212,73 @@ export function useMasterEditSongState({
         setIsHQOnly(Boolean(song.isHQOnly || song.isHqOnly));
         setLyrics(htmlToEditorText(song.lyrics || ''));
         setSolfa(htmlToEditorText(song.solfas || song.solfa || song.conductorGuide || ''));
-        setHistory(htmlToEditorText(song.history || song.coordinatorComment || song.coordinatorNotes || ''));
+        
+        const initialHistory = resolveSongHistoryText(song);
+        setHistory(initialHistory);
+
+        // Load song revision history
+        const initialCheckpoints = Array.isArray(song.history)
+          ? song.history
+          : (Array.isArray((song as any).historyEntries) ? (song as any).historyEntries : []);
+        historyManager.setHistoryEntries(initialCheckpoints);
+
+        const fetchedForSongId = song.id;
+        if (song.id) {
+          // 1. Fetch full song record from server to hydrate fields not in the summary list
+          api.songs.getById(song.id)
+            .then((res: any) => {
+              if (lastLoadedSongIdRef.current !== fetchedForSongId) return;
+              const fullSong = res?.data || res;
+              if (fullSong && typeof fullSong === 'object') {
+                const fullHistory = resolveSongHistoryText(fullSong);
+                if (fullHistory) {
+                  setHistory(prev => (prev.trim() ? prev : fullHistory));
+                }
+                if (fullSong.lyrics && typeof fullSong.lyrics === 'string') {
+                  setLyrics(prev => (prev.trim() ? prev : htmlToEditorText(fullSong.lyrics)));
+                }
+                const solfaSource = fullSong.solfas || fullSong.solfa || fullSong.conductorGuide;
+                if (solfaSource && typeof solfaSource === 'string') {
+                  setSolfa(prev => (prev.trim() ? prev : htmlToEditorText(solfaSource)));
+                }
+                if (Array.isArray(fullSong.history) && fullSong.history.length > 0) {
+                  historyManager.setHistoryEntries(prev => (prev.length > 0 ? prev : fullSong.history));
+                }
+                if (Array.isArray(fullSong.historyEntries) && fullSong.historyEntries.length > 0) {
+                  historyManager.setHistoryEntries(prev => (prev.length > 0 ? prev : fullSong.historyEntries));
+                }
+              }
+            })
+            .catch(() => {});
+
+          // 2. Fetch revision history audit checkpoints from API
+          api.songs.getSongHistory(song.id)
+            .then((res: any) => {
+              if (lastLoadedSongIdRef.current !== fetchedForSongId) return;
+              const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+              const seen = new Set();
+              const deduplicated = list.filter((item: any) => {
+                if (!item?.id) return true;
+                if (seen.has(item.id)) return false;
+                seen.add(item.id);
+                return true;
+              });
+              historyManager.setHistoryEntries(deduplicated);
+
+              // If history notes were still empty, check if an entry contains notes/commentary
+              const latestComment = deduplicated.find((e: any) => {
+                const t = (e.type || '').toLowerCase();
+                return t === 'comments' || t === 'comment' || t.includes('comment') || t === 'history';
+              });
+              if (latestComment) {
+                const text = latestComment.new_value || latestComment.notes || latestComment.description || latestComment.title || '';
+                if (text && typeof text === 'string' && text.trim()) {
+                  setHistory(prev => (prev.trim() ? prev : htmlToEditorText(text)));
+                }
+              }
+            })
+            .catch(() => {});
+        }
 
         if (dedupedCats.length > 0) {
           setCollectionsList(prev => Array.from(new Set([...dedupedCats, ...prev])));
@@ -217,6 +337,10 @@ export function useMasterEditSongState({
         setHistory('');
         setAudioUrls({ full: '', soprano: '', alto: '', tenor: '', bass: '' });
         setCustomParts([]);
+        historyManager.setHistoryEntries([]);
+        historyManager.setShowHistoryList(false);
+        historyManager.setShowHistoryForm(false);
+        historyManager.setEditingHistoryEntryId(null);
       }
     } else {
       if (player) {
@@ -225,6 +349,9 @@ export function useMasterEditSongState({
         setPlayer(null);
       }
       setPlayingKey(null);
+      historyManager.setShowHistoryList(false);
+      historyManager.setShowHistoryForm(false);
+      historyManager.setEditingHistoryEntryId(null);
     }
   }, [visible, song, isCreate]);
 
@@ -364,6 +491,9 @@ export function useMasterEditSongState({
         solfa: editorTextToHtml(solfa.trim()),
         conductorGuide: editorTextToHtml(solfa.trim()),
         history: editorTextToHtml(history.trim()),
+        coordinatorComment: editorTextToHtml(history.trim()),
+        coordinatorNotes: editorTextToHtml(history.trim()),
+        notes: editorTextToHtml(history.trim()),
         imageUrl: normalizedImageUrl,
         isHQOnly,
         isHqOnly: isHQOnly,
@@ -420,6 +550,29 @@ export function useMasterEditSongState({
         },
       ]
     );
+  }
+
+  function handleRestoreHistoryEntry(entry: any) {
+    if (!entry) return;
+    const type = (entry.type || '').toLowerCase();
+    const val = entry.new_value ?? entry.old_value ?? entry.notes ?? entry.description ?? '';
+    if (!val) return;
+
+    if (type === 'lyrics') {
+      setLyrics(htmlToEditorText(String(val)));
+      customAlert('Restored', 'Lyrics restored from revision checkpoint.');
+    } else if (type === 'solfas' || type === 'solfa' || type === 'notation') {
+      setSolfa(htmlToEditorText(String(val)));
+      customAlert('Restored', 'Solfa notes restored from revision checkpoint.');
+    } else if (type === 'comments' || type === 'comment' || type === 'history') {
+      setHistory(htmlToEditorText(String(val)));
+      customAlert('Restored', 'Background notes restored from revision checkpoint.');
+    } else if (type === 'audio') {
+      if (typeof val === 'string' && (val.startsWith('http') || val.includes('/'))) {
+        setAudioUrls(prev => ({ ...prev, full: val }));
+        customAlert('Restored', 'Audio track restored from revision checkpoint.');
+      }
+    }
   }
 
   return {
@@ -483,8 +636,11 @@ export function useMasterEditSongState({
     setMediaModalVisible,
     playingKey,
     handleToggleStemAudio,
+    handleTogglePlay: (url: string) => handleToggleStemAudio('history', url),
+    historyManager,
     saving,
     handleSave,
     handleDelete,
+    handleRestoreHistoryEntry,
   };
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './membersStyles';
+import { customAlert } from '../../context/AlertContext';
 import type { Member } from '../../hooks/useMembers';
 
 interface MemberListItemProps {
@@ -20,8 +21,32 @@ export default function MemberListItem({ item, onRemove, onShowBadge, onEdit }: 
   const isChurch = item.role === 'church_admin';
   const isZone = item.role === 'zone_admin' || item.role === 'zone_coordinator';
 
+  const handleOpenMenu = () => {
+    const options: any[] = [];
+    if (onEdit) {
+      options.push({ text: 'Edit Profile', onPress: () => onEdit(item) });
+    }
+    if (onShowBadge) {
+      options.push({ text: 'View QR Attendance Badge', onPress: () => onShowBadge(item) });
+    }
+    if (onRemove && !isHQ) {
+      options.push({
+        text: 'Remove from Directory',
+        style: 'destructive',
+        onPress: () => onRemove(item.id),
+      });
+    }
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    customAlert(fullName, 'Manage choir member', options);
+  };
+
   return (
-    <View style={styles.memberCard}>
+    <TouchableOpacity
+      style={styles.memberCard}
+      onPress={() => (onEdit ? onEdit(item) : handleOpenMenu())}
+      activeOpacity={0.8}
+    >
       <View style={styles.avatarWrap}>
         {item.profile_image_url ? (
           <Image source={{ uri: item.profile_image_url }} style={styles.avatarImg} />
@@ -68,61 +93,40 @@ export default function MemberListItem({ item, onRemove, onShowBadge, onEdit }: 
         </Text>
       </View>
 
-      {/* Edit Member Profile Button */}
-      {onEdit && (
-        <TouchableOpacity
-          onPress={() => onEdit(item)}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={{
-            padding: 8,
-            borderRadius: 8,
-            backgroundColor: '#ede9fe',
-            marginLeft: 8,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="pencil-outline" size={16} color="#7c3aed" />
-        </TouchableOpacity>
-      )}
+      {/* Right Column: Clean QR Shortcut + Overflow Action Menu */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        {onShowBadge && (
+          <TouchableOpacity
+            onPress={() => onShowBadge(item)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 6 }}
+            style={{
+              padding: 7,
+              borderRadius: 8,
+              backgroundColor: '#f5f3ff',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="qr-code-outline" size={16} color="#7c3aed" />
+          </TouchableOpacity>
+        )}
 
-      {/* View Attendance QR Badge Button */}
-      {onShowBadge && (
         <TouchableOpacity
-          onPress={() => onShowBadge(item)}
+          onPress={handleOpenMenu}
           activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
           style={{
-            padding: 8,
+            padding: 7,
             borderRadius: 8,
-            backgroundColor: '#f5f3ff',
-            marginLeft: 8,
+            backgroundColor: '#f8fafc',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Ionicons name="qr-code-outline" size={17} color="#7c3aed" />
+          <Ionicons name="ellipsis-vertical" size={15} color="#94a3b8" />
         </TouchableOpacity>
-      )}
-
-      {onRemove && !isHQ && (
-        <TouchableOpacity
-          onPress={() => onRemove(item.id)}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={{
-            padding: 8,
-            borderRadius: 8,
-            backgroundColor: '#fef2f2',
-            marginLeft: 8,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Ionicons name="trash-outline" size={16} color="#ef4444" />
-        </TouchableOpacity>
-      )}
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 }
