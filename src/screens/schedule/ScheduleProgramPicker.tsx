@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from './scheduleStyles';
+import { customAlert } from '../../context/AlertContext';
 import type { ScheduleProgram } from './types';
 
 interface ScheduleProgramPickerProps {
@@ -56,6 +57,54 @@ export default function ScheduleProgramPicker({
   setRenameProgramName,
   onRenameProgram,
 }: ScheduleProgramPickerProps) {
+  const handleOpenProgramMenu = () => {
+    if (!activeProgram) return;
+    const isArchived = Boolean(viewHistory || activeProgram.isArchived);
+    const isCurrent = Boolean(activeProgram.isCurrent);
+
+    const options: Array<{ text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }> = [];
+
+    if (!isArchived && !isCurrent) {
+      options.push({
+        text: '★ Make Current Schedule',
+        onPress: onMakeCurrent,
+      });
+    }
+
+    if (!isArchived) {
+      options.push({
+        text: '✏️ Rename Schedule',
+        onPress: () => {
+          setRenameProgramName(activeProgram.name);
+          setShowRenameModal(true);
+        },
+      });
+    }
+
+    options.push({
+      text: isArchived ? '🔄 Restore to Active Schedules' : '📦 Move to Archive',
+      onPress: onToggleArchive,
+    });
+
+    options.push({
+      text: '🗑️ Delete Schedule',
+      style: 'destructive',
+      onPress: onDeleteProgram,
+    });
+
+    options.push({
+      text: 'Cancel',
+      style: 'cancel',
+    });
+
+    customAlert(
+      activeProgram.name,
+      isArchived ? 'Archived schedule • Select action' : (isCurrent ? 'Live current schedule • Select action' : 'Active schedule • Select action'),
+      options,
+      { cancelable: true }
+    );
+  };
+
   return (
     <>
       {/* ── 1. STUDIO HEADER & CONTROLS ──────────────────────────────────────── */}
@@ -128,33 +177,48 @@ export default function ScheduleProgramPicker({
 
         {activeProgram && (
           <View style={styles.programActionRow}>
-            {!viewHistory && !activeProgram.isCurrent && (
-              <TouchableOpacity style={styles.actionBtnSmall} onPress={onMakeCurrent} activeOpacity={0.75}>
-                <Ionicons name="star" size={13} color="#d97706" style={{ marginRight: 4 }} />
-                <Text style={styles.actionBtnSmallText}>Make Current</Text>
-              </TouchableOpacity>
-            )}
+            <View style={styles.programActionLeft}>
+              {activeProgram.isCurrent ? (
+                <View style={[styles.programStatusTag, styles.programStatusTagActive]}>
+                  <Ionicons name="star" size={11} color="#d97706" style={{ marginRight: 4 }} />
+                  <Text style={[styles.programStatusTagText, { color: '#b45309' }]}>LIVE CURRENT</Text>
+                </View>
+              ) : viewHistory ? (
+                <View style={[styles.programStatusTag, styles.programStatusTagArchived]}>
+                  <Ionicons name="archive" size={11} color="#64748b" style={{ marginRight: 4 }} />
+                  <Text style={styles.programStatusTagText}>ARCHIVED</Text>
+                </View>
+              ) : (
+                <View style={styles.programStatusTag}>
+                  <Ionicons name="calendar-outline" size={11} color="#64748b" style={{ marginRight: 4 }} />
+                  <Text style={styles.programStatusTagText}>SCHEDULE</Text>
+                </View>
+              )}
+            </View>
 
-            {!viewHistory && (
+            <View style={styles.programActionRight}>
+              {!viewHistory && !activeProgram.isCurrent && (
+                <TouchableOpacity
+                  style={styles.actionBtnSmall}
+                  onPress={onMakeCurrent}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Make Current Schedule"
+                >
+                  <Ionicons name="star" size={12} color="#d97706" style={{ marginRight: 4 }} />
+                  <Text style={styles.actionBtnSmallText}>Make Current</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity
-                style={styles.iconActionBtn}
-                onPress={() => {
-                  setRenameProgramName(activeProgram.name);
-                  setShowRenameModal(true);
-                }}
+                style={styles.programActionMenuBtn}
+                onPress={handleOpenProgramMenu}
                 activeOpacity={0.75}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel="Schedule options menu"
               >
-                <Ionicons name="pencil" size={14} color="#64748b" />
+                <Ionicons name="ellipsis-horizontal" size={18} color="#475569" />
               </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={styles.iconActionBtn} onPress={onToggleArchive} activeOpacity={0.75}>
-              <Ionicons name={viewHistory ? 'refresh' : 'archive'} size={14} color="#64748b" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.iconActionBtn} onPress={onDeleteProgram} activeOpacity={0.75}>
-              <Ionicons name="trash-outline" size={14} color="#ef4444" />
-            </TouchableOpacity>
+            </View>
           </View>
         )}
       </View>

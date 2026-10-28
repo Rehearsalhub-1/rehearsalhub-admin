@@ -62,6 +62,7 @@ export function useMasterEditSongState({
   const [key, setKey] = useState(''), [tempo, setTempo] = useState(''), [conductor, setConductor] = useState('');
   const [leadKeyboardist, setLeadKeyboardist] = useState(''), [bassGuitarist, setBassGuitarist] = useState(''), [drummer, setDrummer] = useState('');
   const [category, setCategory] = useState(''), [imageUrl, setImageUrl] = useState(''), [isHQOnly, setIsHQOnly] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
 
   function toggleCategory(cat: string) {
@@ -209,7 +210,15 @@ export function useMasterEditSongState({
         setCategories(dedupedCats);
         setCategory(dedupedCats[0] || '');
         setImageUrl(song.imageUrl || '');
-        setIsHQOnly(Boolean(song.isHQOnly || song.isHqOnly));
+        const isSongHqOnly = Boolean(
+          song.isHQOnly ||
+          song.isHqOnly ||
+          song.isHidden ||
+          (song as any).scope === 'hq' ||
+          song.status === 'hq_only'
+        );
+        setIsHQOnly(isSongHqOnly);
+        setIsHidden(isSongHqOnly);
         setLyrics(htmlToEditorText(song.lyrics || ''));
         setSolfa(htmlToEditorText(song.solfas || song.solfa || song.conductorGuide || ''));
         
@@ -497,6 +506,8 @@ export function useMasterEditSongState({
         imageUrl: normalizedImageUrl,
         isHQOnly,
         isHqOnly: isHQOnly,
+        isHidden: isHQOnly,
+        scope: isHQOnly ? 'hq' : 'global',
         isMaster: true,
         isMinistered: true,
       };
@@ -607,6 +618,8 @@ export function useMasterEditSongState({
     setImageUrl,
     isHQOnly,
     setIsHQOnly,
+    isHidden,
+    setIsHidden,
     collectionsList,
     showNewCatInput,
     setShowNewCatInput,

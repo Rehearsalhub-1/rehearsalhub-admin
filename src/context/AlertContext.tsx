@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -56,6 +57,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const pendingActionRef = useRef<(() => void | Promise<void>) | null>(null);
 
   const animateIn = useCallback(() => {
     scaleAnim.setValue(0.92);
@@ -78,10 +80,24 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   const hideAlert = useCallback(() => {
     Animated.timing(opacityAnim, {
       toValue: 0,
-      duration: 140,
+      duration: 100,
       useNativeDriver: true,
     }).start(() => {
       setVisible(false);
+      // Fallback for non-iOS platforms where onDismiss doesn't fire:
+      if (Platform.OS !== 'ios') {
+        const action = pendingActionRef.current;
+        pendingActionRef.current = null;
+        if (action) {
+          setTimeout(() => {
+            try {
+              action();
+            } catch (err) {
+              console.error('[CustomAlert] onPress error:', err);
+            }
+          }, 40);
+        }
+      }
     });
   }, [opacityAnim]);
 
@@ -160,60 +176,67 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   globalShowAlert = showAlert;
 
   const handleButtonPress = (button: AlertButton) => {
+    pendingActionRef.current = button.onPress || null;
     hideAlert();
-    if (button.onPress) {
-      setTimeout(() => {
-        try {
-          button.onPress?.();
-        } catch (err) {
-          console.error('[CustomAlert] onPress error:', err);
-        }
-      }, 150);
-    }
   };
 
   const getThemeProps = (type: AlertType) => {
     switch (type) {
       case 'success':
         return {
-          icon: 'checkmark-circle' as const,
-          iconColor: Colors.success,
+          icon: 'checkmark-circle-outline' as const,
+          iconColor: '#059669',
           badgeBg: '#ecfdf5',
           badgeBorder: '#a7f3d0',
-          accentColor: Colors.success,
+          eyebrowBg: '#d1fae5',
+          eyebrowText: '#065f46',
+          eyebrowLabel: 'COMPLETED',
+          accentColor: '#059669',
         };
       case 'danger':
         return {
-          icon: 'alert-circle' as const,
-          iconColor: Colors.danger,
-          badgeBg: '#fef2f2',
-          badgeBorder: '#fecaca',
-          accentColor: Colors.danger,
+          icon: 'trash-outline' as const,
+          iconColor: '#0f172a',
+          badgeBg: '#f1f5f9',
+          badgeBorder: '#cbd5e1',
+          eyebrowBg: '#f1f5f9',
+          eyebrowText: '#334155',
+          eyebrowLabel: 'ACTION REQUIRED',
+          accentColor: '#0f172a',
         };
       case 'warning':
         return {
-          icon: 'warning' as const,
-          iconColor: Colors.warning,
+          icon: 'warning-outline' as const,
+          iconColor: '#d97706',
           badgeBg: '#fffbeb',
           badgeBorder: '#fde68a',
-          accentColor: Colors.warning,
+          eyebrowBg: '#fef3c7',
+          eyebrowText: '#92400e',
+          eyebrowLabel: 'ATTENTION',
+          accentColor: '#d97706',
         };
       case 'confirm':
         return {
-          icon: 'help-circle' as const,
-          iconColor: Colors.accent,
-          badgeBg: '#f3e8ff',
-          badgeBorder: '#e9d5ff',
-          accentColor: Colors.accent,
+          icon: 'help-circle-outline' as const,
+          iconColor: '#7c3aed',
+          badgeBg: '#f5f3ff',
+          badgeBorder: '#ddd6fe',
+          eyebrowBg: '#ede9fe',
+          eyebrowText: '#6d28d9',
+          eyebrowLabel: 'CONFIRMATION',
+          accentColor: '#7c3aed',
         };
       case 'info':
       default:
         return {
-          icon: 'information-circle' as const,
-          iconColor: Colors.info,
-          badgeBg: '#eff6ff',
-          badgeBorder: '#bfdbfe',
-          accentColor: Colors.info,
+          icon: 'information-circle-outline' as const,
+          iconColor: '#7c3aed',
+          badgeBg: '#f5f3ff',
+          badgeBorder: '#ddd6fe',
+          eyebrowBg: '#ede9fe',
+          eyebrowText: '#6d28d9',
+          eyebrowLabel: 'NOTICE',
+          accentColor: '#7c3aed',
         };
     }
   };
@@ -222,7 +245,8 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   const theme = getThemeProps(currentType);
   const displayIcon = config.icon || theme.icon;
   const buttons = config.buttons || [{ text: 'OK', style: 'default' }];
-  const isHorizontalButtons = buttons.length === 2;
+  const isBinaryChoice = buttons.length === 2;
+  const isActionSheet = buttons.length > 2;
 
   return (
     <AlertContext.Provider value={{ showAlert, hideAlert }}>
@@ -236,13 +260,26 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             hideAlert();
           }
         }}
+        onDismiss={() => {
+          const action = pendingActionRef.current;
+          pendingActionRef.current = null;
+          if (action) {
+            setTimeout(() => {
+              try {
+                action();
+              } catch (err) {
+                console.error('[CustomAlert] onPress error:', err);
+              }
+            }, 40);
+          }
+        }}
       >
         <Animated.View style={[styles.backdrop, { opacity: opacityAnim }]}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
             onPress={() => {
-              if (config.cancelable !== false && buttons.length === 1) {
+              if (config.cancelable !== false) {
                 hideAlert();
               }
             }}
@@ -255,59 +292,172 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
               },
             ]}
           >
-            {/* Icon Badge */}
+            {/* Top Grabber */}
+            <View style={styles.cardGrabber} />
+
+            {/* Quick Dismiss Button */}
+            {config.cancelable !== false && (
+              <TouchableOpacity
+                style={styles.closeIconBtn}
+                onPress={hideAlert}
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              >
+                <Ionicons name="close" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
+
+            {/* Hero Squircle Badge */}
             <View
               style={[
                 styles.iconBadge,
                 { backgroundColor: theme.badgeBg, borderColor: theme.badgeBorder },
               ]}
             >
-              <Ionicons name={displayIcon} size={32} color={theme.iconColor} />
+              <Ionicons name={displayIcon} size={28} color={theme.iconColor} />
             </View>
 
-            {/* Title & Message */}
-            <Text style={styles.title}>{config.title}</Text>
-            {!!config.message && <Text style={styles.message}>{config.message}</Text>}
+            {/* Eyebrow Chip */}
+            <View style={[styles.eyebrowChip, { backgroundColor: theme.eyebrowBg }]}>
+              <Text style={[styles.eyebrowText, { color: theme.eyebrowText }]}>
+                {theme.eyebrowLabel}
+              </Text>
+            </View>
 
-            {/* Actions */}
-            <View
-              style={[
-                styles.buttonsContainer,
-                isHorizontalButtons ? styles.horizontalButtons : styles.verticalButtons,
-              ]}
-            >
-              {buttons.map((btn, index) => {
-                const isDestructive = btn.style === 'destructive';
-                const isCancel = btn.style === 'cancel';
-                const isDefault = !isDestructive && !isCancel;
+            {/* Title */}
+            <Text style={styles.title} numberOfLines={2}>
+              {config.title}
+            </Text>
 
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    activeOpacity={0.8}
-                    style={[
-                      styles.button,
-                      isHorizontalButtons && styles.flexButton,
-                      isDestructive && styles.destructiveButton,
-                      isCancel && styles.cancelButton,
-                      isDefault && [styles.defaultButton, { backgroundColor: theme.accentColor }],
-                    ]}
-                    onPress={() => handleButtonPress(btn)}
-                  >
-                    <Text
+            {/* Enclosed Message Container */}
+            {!!config.message && (
+              <View style={styles.messageBox}>
+                <Text style={styles.messageText}>{config.message}</Text>
+              </View>
+            )}
+
+            {/* Actions: Case 1 - Binary Choice (Cancel + Action) */}
+            {isBinaryChoice && (
+              <View style={styles.binaryButtonsRow}>
+                {buttons.map((btn, index) => {
+                  const isDestructive = btn.style === 'destructive';
+                  const isCancel = btn.style === 'cancel';
+                  const isDefault = !isDestructive && !isCancel;
+
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      activeOpacity={0.82}
                       style={[
-                        styles.buttonText,
-                        isDestructive && styles.destructiveButtonText,
-                        isCancel && styles.cancelButtonText,
-                        isDefault && styles.defaultButtonText,
+                        styles.binaryBtn,
+                        isCancel && styles.binaryCancelBtn,
+                        isDestructive && styles.binaryDestructiveBtn,
+                        isDefault && [styles.binaryDefaultBtn, { backgroundColor: theme.accentColor }],
                       ]}
+                      onPress={() => handleButtonPress(btn)}
                     >
-                      {btn.text}
-                    </Text>
+                      {isDestructive && (
+                        <Ionicons name="trash-outline" size={15} color="#ffffff" style={{ marginRight: 6 }} />
+                      )}
+                      {isCancel && (
+                        <Ionicons name="close-circle-outline" size={15} color="#64748b" style={{ marginRight: 5 }} />
+                      )}
+                      {isDefault && (
+                        <Ionicons name="checkmark-circle-outline" size={16} color="#ffffff" style={{ marginRight: 5 }} />
+                      )}
+                      <Text
+                        style={[
+                          styles.binaryBtnText,
+                          isCancel && styles.binaryCancelBtnText,
+                          isDestructive && styles.binaryDestructiveBtnText,
+                          isDefault && styles.binaryDefaultBtnText,
+                        ]}
+                      >
+                        {btn.text}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Actions: Case 2 - Single Button (e.g. OK) */}
+            {buttons.length === 1 && (
+              <View style={styles.singleButtonContainer}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.singleBtn, { backgroundColor: theme.accentColor }]}
+                  onPress={() => handleButtonPress(buttons[0])}
+                >
+                  <Text style={styles.singleBtnText}>{buttons[0].text}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Actions: Case 3 - Action Sheet (3+ buttons) */}
+            {isActionSheet && (
+              <View style={styles.actionSheetContainer}>
+                {buttons
+                  .filter(b => b.style !== 'cancel')
+                  .map((btn, index) => {
+                    const isDestructive = btn.style === 'destructive';
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        activeOpacity={0.75}
+                        style={[
+                          styles.sheetRowBtn,
+                          isDestructive && styles.sheetRowDestructiveBtn,
+                        ]}
+                        onPress={() => handleButtonPress(btn)}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                          <Ionicons
+                            name={isDestructive ? 'trash-outline' : 'chevron-forward-circle-outline'}
+                            size={16}
+                            color={isDestructive ? '#0f172a' : '#7c3aed'}
+                            style={{ marginRight: 8 }}
+                          />
+                          <Text
+                            style={[
+                              styles.sheetRowText,
+                              isDestructive && styles.sheetRowDestructiveText,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {btn.text}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={14} color="#cbd5e1" />
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                {/* Cancel row for Action Sheet */}
+                {buttons.some(b => b.style === 'cancel') ? (
+                  buttons
+                    .filter(b => b.style === 'cancel')
+                    .map((btn, index) => (
+                      <TouchableOpacity
+                        key={`cancel-${index}`}
+                        activeOpacity={0.75}
+                        style={styles.sheetCancelBtn}
+                        onPress={() => handleButtonPress(btn)}
+                      >
+                        <Text style={styles.sheetCancelText}>{btn.text}</Text>
+                      </TouchableOpacity>
+                    ))
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    style={styles.sheetCancelBtn}
+                    onPress={hideAlert}
+                  >
+                    <Text style={styles.sheetCancelText}>Cancel</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </View>
+                )}
+              </View>
+            )}
           </Animated.View>
         </Animated.View>
       </Modal>
@@ -330,7 +480,7 @@ export function useAlert() {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -343,100 +493,200 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 12,
+    paddingHorizontal: 20,
     paddingBottom: 20,
     alignItems: 'center',
     shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 28,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.16,
+    shadowRadius: 32,
+    elevation: 14,
+    position: 'relative',
+  },
+  cardGrabber: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#e2e8f0',
+    marginBottom: 14,
+  },
+  closeIconBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   iconBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 58,
+    height: 58,
+    borderRadius: 20,
     borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+  },
+  eyebrowChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  eyebrowText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0f172a',
     textAlign: 'center',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+    paddingHorizontal: 8,
   },
-  message: {
-    fontSize: 14,
-    lineHeight: 20,
+  messageBox: {
+    width: '100%',
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  messageText: {
+    fontSize: 13,
+    lineHeight: 19,
     color: '#475569',
     textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: 4,
   },
-  buttonsContainer: {
-    width: '100%',
-    marginTop: 24,
-  },
-  horizontalButtons: {
+
+  // Binary Buttons (Cancel + Confirm)
+  binaryButtonsRow: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  verticalButtons: {
-    flexDirection: 'column',
+    width: '100%',
     gap: 10,
+    marginTop: 18,
   },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  binaryBtn: {
+    flex: 1,
+    height: 46,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
   },
-  buttonText: {
+  binaryBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  flexButton: {
-    flex: 1,
-  },
-  defaultButton: {
-    backgroundColor: Colors.accent,
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  defaultButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  cancelButton: {
+  binaryCancelBtn: {
     backgroundColor: '#f1f5f9',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  cancelButtonText: {
+  binaryCancelBtnText: {
     color: '#475569',
-    fontSize: 14,
-    fontWeight: '600',
   },
-  destructiveButton: {
-    backgroundColor: '#ef4444',
-    shadowColor: '#ef4444',
+  binaryDestructiveBtn: {
+    backgroundColor: '#0f172a',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  binaryDestructiveBtnText: {
+    color: '#ffffff',
+  },
+  binaryDefaultBtn: {
+    shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 3,
   },
-  destructiveButtonText: {
+  binaryDefaultBtnText: {
+    color: '#ffffff',
+  },
+
+  // Single Button
+  singleButtonContainer: {
+    width: '100%',
+    marginTop: 18,
+  },
+  singleBtn: {
+    width: '100%',
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  singleBtnText: {
     color: '#ffffff',
     fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Action Sheet List (3+ buttons)
+  actionSheetContainer: {
+    width: '100%',
+    marginTop: 14,
+    gap: 6,
+  },
+  sheetRowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  sheetRowDestructiveBtn: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+  },
+  sheetRowText: {
+    fontSize: 13.5,
     fontWeight: '600',
+    color: '#0f172a',
+  },
+  sheetRowDestructiveText: {
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  sheetCancelBtn: {
+    marginTop: 6,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetCancelText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#64748b',
   },
 });

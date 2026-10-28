@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PraiseSong } from './types';
 import { styles } from './programSongsStyles';
+import { customAlert } from '../../context/AlertContext';
 
 interface SongCardProps {
   item: PraiseSong;
@@ -29,6 +30,32 @@ export default function SongCard({
     item.key ? `Key ${item.key}` : null,
     item.tempo ? `${item.tempo} BPM` : null,
   ].filter(Boolean);
+
+  const handleOpenMenu = (e?: any) => {
+    e?.stopPropagation?.();
+    const options: any[] = [
+      {
+        text: '✏️ Edit Song Details',
+        onPress: onPress,
+      },
+      {
+        text: isLive ? '⏹ End LIVE Status' : '📻 Broadcast as LIVE Active Song',
+        onPress: onToggleActive,
+      },
+      {
+        text: isHeard ? '⭕ Mark as Left (Unheard)' : '✓ Mark as Rehearsed (Heard)',
+        onPress: onToggleHeard,
+      },
+      {
+        text: '🗑️ Remove from Rehearsal Setlist',
+        style: 'destructive',
+        onPress: onRemove,
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ];
+
+    customAlert(item.title || 'Rehearsal Song', 'Song Setlist Actions', options);
+  };
 
   return (
     <TouchableOpacity
@@ -87,7 +114,7 @@ export default function SongCard({
         </Text>
       </View>
 
-      {/* Right Column: Broadcast Trigger & Heard Toggle */}
+      {/* Right Column: Broadcast Trigger, Heard Toggle & Action Menu */}
       <View style={styles.trackRightCol}>
         {/* 1-Tap Go LIVE (discreet broadcast icon) */}
         {!isLive && (
@@ -113,6 +140,16 @@ export default function SongCard({
             size={22}
             color={isHeard ? '#10b981' : '#cbd5e1'}
           />
+        </TouchableOpacity>
+
+        {/* 3-Dots Action Menu */}
+        <TouchableOpacity
+          style={styles.menuTouchBtn}
+          onPress={handleOpenMenu}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 6, right: 8 }}
+        >
+          <Ionicons name="ellipsis-vertical" size={15} color="#94a3b8" />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>

@@ -59,6 +59,8 @@ export interface MasterSong {
   isHidden?: boolean;
   isHistory?: boolean;
   isMinistered?: boolean;
+  scope?: 'hq' | 'global';
+  status?: string;
 }
 
 interface MasterSongDetailModalProps {

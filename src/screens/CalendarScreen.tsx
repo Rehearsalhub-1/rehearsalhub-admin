@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -38,7 +37,7 @@ type DateFilter = 'all' | 'today' | 'tomorrow' | 'week' | 'upcoming';
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { activeZone, isChurchMode, activeChurch } = useZoneContext();
+  const { activeZone, isChurchMode } = useZoneContext();
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,6 +157,21 @@ export default function CalendarScreen() {
           }
         },
       },
+    ]);
+  };
+
+  const handleOpenEventMenu = (evt: CalendarEvent) => {
+    customAlert(evt.title, `${evt.date} • ${getCategoryLabel(evt.category)}`, [
+      {
+        text: '✏️ Edit Event Details',
+        onPress: () => handleOpenEdit(evt),
+      },
+      {
+        text: '🗑️ Delete Event',
+        style: 'destructive',
+        onPress: () => handleDeleteEvent(evt.id, evt.title),
+      },
+      { text: 'Cancel', style: 'cancel' },
     ]);
   };
 
@@ -355,7 +369,11 @@ export default function CalendarScreen() {
           const weekdayStr = parsedDate.toLocaleDateString('en-US', { weekday: 'short' });
 
           return (
-            <View style={styles.eventCard}>
+            <TouchableOpacity
+              style={styles.eventCard}
+              onPress={() => handleOpenEdit(item)}
+              activeOpacity={0.85}
+            >
               {/* Date Box */}
               <View style={[styles.dateBox, { borderColor: catColor + '30', backgroundColor: catColor + '10' }]}>
                 <Text style={[styles.dateBoxMonth, { color: catColor }]}>{monthStr}</Text>
@@ -367,14 +385,27 @@ export default function CalendarScreen() {
               <View style={styles.eventContent}>
                 <View style={styles.eventCardHeader}>
                   <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
-                  <View style={[styles.catBadge, { backgroundColor: catColor + '15', borderColor: catColor + '30' }]}>
-                    <Text style={[styles.catBadgeText, { color: catColor }]}>{getCategoryLabel(item.category)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={[styles.catBadge, { backgroundColor: catColor + '15', borderColor: catColor + '30' }]}>
+                      <Text style={[styles.catBadgeText, { color: catColor }]}>{getCategoryLabel(item.category)}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.eventMenuBtn}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleOpenEventMenu(item);
+                      }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={15} color="#64748b" />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
                 {/* Time & Venue */}
                 <View style={styles.metaRow}>
-                  {item.startTime && (
+                  {Boolean(item.startTime) && (
                     <View style={styles.metaItem}>
                       <Ionicons name="time-outline" size={13} color="#64748b" style={{ marginRight: 4 }} />
                       <Text style={styles.metaText}>
@@ -382,27 +413,15 @@ export default function CalendarScreen() {
                       </Text>
                     </View>
                   )}
-                  {item.location && (
+                  {Boolean(item.location) && (
                     <View style={styles.metaItem}>
                       <Ionicons name="location-outline" size={13} color="#64748b" style={{ marginRight: 4 }} />
                       <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
                     </View>
                   )}
                 </View>
-
-                {/* Actions */}
-                <View style={styles.cardActions}>
-                  <TouchableOpacity style={styles.cardActionBtn} onPress={() => handleOpenEdit(item)}>
-                    <Ionicons name="pencil" size={13} color="#64748b" style={{ marginRight: 3 }} />
-                    <Text style={styles.cardActionBtnText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.cardActionBtn} onPress={() => handleDeleteEvent(item.id, item.title)}>
-                    <Ionicons name="trash-outline" size={13} color="#ef4444" style={{ marginRight: 3 }} />
-                    <Text style={[styles.cardActionBtnText, { color: '#ef4444' }]}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         }}
       />
@@ -631,6 +650,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   catBadgeText: { fontSize: 10, fontWeight: '700' },
+  eventMenuBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   metaRow: { marginTop: 6, gap: 4 },
   metaItem: { flexDirection: 'row', alignItems: 'center' },

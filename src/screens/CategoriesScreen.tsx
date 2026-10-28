@@ -34,9 +34,6 @@ export default function CategoriesScreen({ navigation }: any) {
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRESET_COLORS[0]);
 
-  const [songs, setSongs] = useState<any[]>([]);
-  const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
-
   async function fetchCategories() {
     try {
       const result = await api.categories.getAll();
@@ -49,18 +46,8 @@ export default function CategoriesScreen({ navigation }: any) {
     }
   }
 
-  async function fetchSongs() {
-    try {
-      const res = await api.songs.getMasterSongs();
-      setSongs(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
   useEffect(() => {
     fetchCategories();
-    fetchSongs();
   }, []);
 
   // Live updates via WebSocket
@@ -173,69 +160,40 @@ export default function CategoriesScreen({ navigation }: any) {
             onRefresh={() => {
               setRefreshing(true);
               fetchCategories();
-              fetchSongs();
             }}
             tintColor={Colors.accent}
           />
         }
-        renderItem={({ item }) => {
-          const isExpanded = expandedCatId === item.id;
-          const matchingSongs = songs.filter(
-            s => (s.category || '').trim().toLowerCase() === item.name.trim().toLowerCase()
-          );
-
-          return (
-            <View style={styles.card}>
-              <TouchableOpacity
-                style={styles.cardHeader}
-                onPress={() => setExpandedCatId(isExpanded ? null : item.id)}
-                activeOpacity={0.7}
-              >
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View style={styles.cardRow}>
+              <View style={styles.catInfoLeft}>
                 <View style={[styles.dot, { backgroundColor: item.color || '#7c3aed' }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.catName}>{item.name}</Text>
-                  <Text style={styles.songCount}>{matchingSongs.length} songs</Text>
-                </View>
-                <View style={styles.actions}>
-                  <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(item)}>
-                    <Text style={styles.editBtnText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.delBtn} onPress={() => handleDelete(item.id)}>
-                    <Text style={styles.delBtnText}>Delete</Text>
-                  </TouchableOpacity>
-                  <Ionicons
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={18}
-                    color="#94a3b8"
-                    style={{ marginLeft: 4 }}
-                  />
-                </View>
-              </TouchableOpacity>
+                <Text style={styles.catName} numberOfLines={1}>{item.name}</Text>
+              </View>
 
-              {isExpanded && (
-                <View style={styles.expandedSongList}>
-                  {matchingSongs.length === 0 ? (
-                    <Text style={styles.emptyCategoryText}>No songs tagged under "{item.name}" yet.</Text>
-                  ) : (
-                    matchingSongs.map((s, idx) => (
-                      <View key={s.id || idx} style={styles.songRow}>
-                        <Ionicons name="musical-note" size={14} color={item.color || Colors.accent} style={{ marginRight: 8 }} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.songTitle} numberOfLines={1}>{s.title || 'Untitled'}</Text>
-                          <Text style={styles.songMeta}>
-                            {s.key ? `Key: ${s.key}` : ''}
-                            {s.tempo ? ` · ${s.tempo} BPM` : ''}
-                            {s.leadSinger ? ` · Lead: ${s.leadSinger}` : ''}
-                          </Text>
-                        </View>
-                      </View>
-                    ))
-                  )}
-                </View>
-              )}
+              <View style={styles.catActionsRight}>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => openEdit(item)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="pencil" size={12} color="#7c3aed" style={{ marginRight: 4 }} />
+                  <Text style={styles.editBtnText}>Edit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.delBtn}
+                  onPress={() => handleDelete(item.id)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="trash-outline" size={12} color="#64748b" style={{ marginRight: 4 }} />
+                  <Text style={styles.delBtnText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          );
-        }}
+          </View>
+        )}
       />
 
       {/* Add / Edit Modal */}
@@ -293,21 +251,25 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   list: { paddingHorizontal: 16, gap: 10, paddingBottom: 40 },
   card: {
-    backgroundColor: '#ffffff', borderRadius: 16, padding: 14,
+    backgroundColor: '#ffffff', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14,
     borderWidth: 1, borderColor: '#e2e8f0',
-    shadowColor: '#64748b', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+    shadowColor: '#64748b', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
-  cardHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
+  cardRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  catInfoLeft: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 12,
+  },
+  catActionsRight: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
   },
   dot: { width: 14, height: 14, borderRadius: 7 },
   catName: { color: '#0f172a', fontSize: 14, fontWeight: '700' },
-  songCount: { color: '#94a3b8', fontSize: 11, fontWeight: '600', marginTop: 1 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  editBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe' },
+  editBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe' },
   editBtnText: { color: '#7c3aed', fontSize: 12, fontWeight: '700' },
-  delBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
-  delBtnText: { color: '#dc2626', fontSize: 12, fontWeight: '700' },
+  delBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0' },
+  delBtnText: { color: '#64748b', fontSize: 12, fontWeight: '700' },
   expandedSongList: {
     marginTop: 12,
     paddingTop: 12,

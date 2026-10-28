@@ -36,7 +36,7 @@ export default function SubmissionActionButtons({
             onPress={onOpenReject}
             activeOpacity={0.8}
           >
-            <Ionicons name="close-circle-outline" size={15} color="#e11d48" style={{ marginRight: 3 }} />
+            <Ionicons name="close-circle-outline" size={15} color="#64748b" style={{ marginRight: 4 }} />
             <Text style={styles.declineBtnText}>Decline</Text>
           </TouchableOpacity>
 
@@ -63,7 +63,7 @@ export default function SubmissionActionButtons({
           <Ionicons
             name={isApproved ? 'checkmark-circle' : 'close-circle'}
             size={18}
-            color={isApproved ? '#10b981' : '#e11d48'}
+            color={isApproved ? '#10b981' : '#64748b'}
             style={{ marginRight: 6 }}
           />
           <Text style={styles.reviewedNoticeText}>

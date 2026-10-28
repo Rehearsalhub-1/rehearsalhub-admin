@@ -147,6 +147,50 @@ export default function SubmittedSongsScreen({ navigation }: any) {
     rejected: songs.filter(s => s.status === 'rejected').length,
   }), [songs]);
 
+  function handleOpenSubmissionMenu(song: SongSubmission) {
+    const isPending = song.status === 'pending' || !song.status;
+    const isApproved = song.status === 'approved';
+    const isRejected = song.status === 'rejected';
+    const hasAudio = Boolean(song.audioUrl || (song as any).rawData?.audioUrl);
+
+    const options: any[] = [];
+
+    if (hasAudio) {
+      options.push({
+        text: playingSongId === song.id ? '⏸ Pause Audio Track' : '▶ Play Audio Track',
+        onPress: () => handleToggleQuickAudio(song),
+      });
+    }
+
+    if (isPending || isRejected) {
+      options.push({
+        text: '✓ Approve Song for Choir',
+        onPress: () => handleApproveSong(song),
+      });
+    }
+
+    if (isPending || isApproved) {
+      options.push({
+        text: '✕ Decline Submission...',
+        onPress: () => {
+          setTimeout(() => handleOpenRejectModal(song), 300);
+        },
+      });
+    }
+
+    options.push({
+      text: '🗑️ Delete Submission',
+      style: 'destructive',
+      onPress: () => {
+        setTimeout(() => handleDeleteSong(song), 300);
+      },
+    });
+
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    showAlert(song.title, `Submission by ${getCleanSubmitterName(song).name}`, options);
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.controlBarCard}>
@@ -227,6 +271,14 @@ export default function SubmittedSongsScreen({ navigation }: any) {
                     <Ionicons name="chatbubble-ellipses" size={14} color="#7c3aed" />
                     {commentsCount > 0 && <Text style={styles.listChatBtnCount}>{commentsCount}</Text>}
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cardActionMenuBtn}
+                    onPress={() => handleOpenSubmissionMenu(item)}
+                    hitSlop={{ top: 10, bottom: 10, left: 8, right: 10 }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={15} color="#64748b" />
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             );
@@ -239,10 +291,20 @@ export default function SubmittedSongsScreen({ navigation }: any) {
                   <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
                   <Text style={styles.cardWriter} numberOfLines={1}>By <Text style={styles.cardWriterBold}>{(item as any).writer || 'Unknown'}</Text></Text>
                 </View>
-                <View style={[styles.statusPill, isApproved && styles.statusPillApproved, isRejected && styles.statusPillRejected, isPending && styles.statusPillPending]}>
-                  <Text style={[styles.statusPillText, isApproved && styles.statusPillTextApproved, isRejected && styles.statusPillTextRejected, isPending && styles.statusPillTextPending]}>
-                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[styles.statusPill, isApproved && styles.statusPillApproved, isRejected && styles.statusPillRejected, isPending && styles.statusPillPending]}>
+                    <Text style={[styles.statusPillText, isApproved && styles.statusPillTextApproved, isRejected && styles.statusPillTextRejected, isPending && styles.statusPillTextPending]}>
+                      {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.cardActionMenuBtn}
+                    onPress={() => handleOpenSubmissionMenu(item)}
+                    hitSlop={{ top: 10, bottom: 10, left: 6, right: 8 }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="ellipsis-vertical" size={15} color="#64748b" />
+                  </TouchableOpacity>
                 </View>
               </View>
               <View style={styles.submitterRow}>
@@ -266,24 +328,17 @@ export default function SubmittedSongsScreen({ navigation }: any) {
                     <Text style={[styles.audioBtnText, isPlaying && styles.audioBtnTextPlaying]}>{isPlaying ? 'Playing' : 'Audio'}</Text>
                   </TouchableOpacity>
                 ) : <Text style={styles.noAudioText}>No audio</Text>}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <TouchableOpacity style={styles.chatStudioBtn} onPress={() => { setSelectedSong(item); setReviewModalVisible(true); }} activeOpacity={0.8}>
-                    <Ionicons name="chatbubbles" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
+                    <Ionicons name="chatbubbles" size={13} color="#7c3aed" style={{ marginRight: 4 }} />
                     <Text style={styles.chatStudioBtnText}>Chat {commentsCount > 0 ? `(${commentsCount})` : ''}</Text>
                   </TouchableOpacity>
                   {isPending && (
-                    <>
-                      <TouchableOpacity style={styles.quickRejectBtn} onPress={() => handleOpenRejectModal(item)} activeOpacity={0.8}>
-                        <Ionicons name="close" size={14} color="#e11d48" />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.quickApproveBtn} onPress={() => handleApproveSong(item)} activeOpacity={0.8}>
-                        <Text style={styles.quickApproveBtnText}>Approve</Text>
-                      </TouchableOpacity>
-                    </>
+                    <TouchableOpacity style={styles.quickApproveBtn} onPress={() => handleApproveSong(item)} activeOpacity={0.8}>
+                      <Ionicons name="checkmark" size={13} color="#ffffff" style={{ marginRight: 3 }} />
+                      <Text style={styles.quickApproveBtnText}>Approve</Text>
+                    </TouchableOpacity>
                   )}
-                  <TouchableOpacity style={styles.quickDeleteBtn} onPress={() => handleDeleteSong(item)} activeOpacity={0.7}>
-                    <Ionicons name="trash-outline" size={14} color="#cbd5e1" />
-                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -312,7 +367,7 @@ export default function SubmittedSongsScreen({ navigation }: any) {
         <View style={styles.modalBackdrop}>
           <View style={styles.rejectCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Ionicons name="alert-circle" size={18} color="#e11d48" style={{ marginRight: 6 }} />
+              <Ionicons name="chatbox-ellipses-outline" size={18} color="#7c3aed" style={{ marginRight: 6 }} />
               <Text style={styles.rejectCardTitle}>Decline Song Submission</Text>
             </View>
             <Text style={styles.rejectCardSub}>Provide guidance so the songwriter can revise and resubmit.</Text>
@@ -351,7 +406,7 @@ const styles = StyleSheet.create({
   statusTabBtnAllActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
   statusTabBtnPendingActive: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
   statusTabBtnApprovedActive: { backgroundColor: '#10b981', borderColor: '#10b981' },
-  statusTabBtnRejectedActive: { backgroundColor: '#e11d48', borderColor: '#e11d48' },
+  statusTabBtnRejectedActive: { backgroundColor: '#475569', borderColor: '#475569' },
   statusTabText: { fontSize: 11, fontWeight: '600', color: '#64748b' },
   statusTabTextActive: { color: '#ffffff', fontWeight: '800' },
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', paddingHorizontal: 10, height: 36 },
@@ -365,11 +420,11 @@ const styles = StyleSheet.create({
   statusPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   statusPillPending: { backgroundColor: '#fffbeb' },
   statusPillApproved: { backgroundColor: '#ecfdf5' },
-  statusPillRejected: { backgroundColor: '#fff1f2' },
+  statusPillRejected: { backgroundColor: '#f1f5f9' },
   statusPillText: { fontSize: 10, fontWeight: '800' },
   statusPillTextPending: { color: '#b45309' },
   statusPillTextApproved: { color: '#047857' },
-  statusPillTextRejected: { color: '#e11d48' },
+  statusPillTextRejected: { color: '#475569' },
   submitterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4, borderTopWidth: 1, borderTopColor: '#f8fafc' },
   submitterNameText: { fontSize: 11, fontWeight: '600', color: '#475569' },
   submitterDateText: { fontSize: 10, color: '#94a3b8' },
@@ -389,8 +444,9 @@ const styles = StyleSheet.create({
   noAudioText: { fontSize: 10.5, color: '#94a3b8', fontStyle: 'italic' },
   chatStudioBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff', paddingHorizontal: 8, paddingVertical: 4.5, borderRadius: 7 },
   chatStudioBtnText: { fontSize: 11, fontWeight: '700', color: '#7c3aed' },
-  quickRejectBtn: { width: 26, height: 26, borderRadius: 6, backgroundColor: '#fff1f2', alignItems: 'center', justifyContent: 'center' },
-  quickApproveBtn: { backgroundColor: '#10b981', paddingHorizontal: 9, paddingVertical: 4.5, borderRadius: 7 },
+  cardActionMenuBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
+  quickRejectBtn: { width: 26, height: 26, borderRadius: 6, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' },
+  quickApproveBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#10b981', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   quickApproveBtnText: { fontSize: 11, fontWeight: '700', color: '#ffffff' },
   quickDeleteBtn: { padding: 4 },
   listRowCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#f1f5f9', gap: 8 },
@@ -406,6 +462,6 @@ const styles = StyleSheet.create({
   rejectActionsRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
   rejectCancelBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: '#f1f5f9' },
   rejectCancelBtnText: { fontSize: 12, fontWeight: '600', color: '#64748b' },
-  rejectConfirmBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: '#e11d48' },
+  rejectConfirmBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, backgroundColor: '#334155' },
   rejectConfirmBtnText: { fontSize: 12, fontWeight: '700', color: '#ffffff' },
 });

@@ -138,7 +138,6 @@ export default function MoreScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ZoneHeader title="Admin Console" showBack={false} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
         {/* Profile card */}

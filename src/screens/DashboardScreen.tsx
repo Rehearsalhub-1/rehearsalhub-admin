@@ -54,7 +54,7 @@ export default function DashboardScreen({ navigation }: any) {
           <View style={styles.scopeBadgeRow}>
             <View style={styles.pulseDot} />
             <Text style={styles.liveScopeText} numberOfLines={1}>
-              {liveScopeTitle} • Executive Portal
+              {liveScopeTitle}
             </Text>
           </View>
         </View>
@@ -174,10 +174,10 @@ export default function DashboardScreen({ navigation }: any) {
             onPress={() => navigation.navigate('MasterLibrary')}
             activeOpacity={0.75}
           >
-            <View style={[styles.quickActionIconWrap, { backgroundColor: '#eff6ff' }]}>
-              <Ionicons name="library-outline" size={19} color="#2563eb" />
+            <View style={[styles.quickActionIconWrap, { backgroundColor: '#f5f3ff' }]}>
+              <Ionicons name="musical-notes-outline" size={19} color="#7c3aed" />
             </View>
-            <Text style={styles.quickActionLabel}>Library</Text>
+            <Text style={styles.quickActionLabel}>All Ministered</Text>
           </TouchableOpacity>
         </View>
 
@@ -223,7 +223,7 @@ export default function DashboardScreen({ navigation }: any) {
                 <Ionicons name="musical-notes" size={16} color="#d97706" />
               </View>
             </View>
-            <Text style={styles.metricLabel}>Ministered Songs</Text>
+            <Text style={styles.metricLabel}>All Ministered</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

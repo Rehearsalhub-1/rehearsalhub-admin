@@ -233,6 +233,8 @@ export default function MasterEditSongModal({
               <MasterAccessControl
                 isHQOnly={state.isHQOnly}
                 setIsHQOnly={state.setIsHQOnly}
+                isHidden={state.isHidden}
+                setIsHidden={state.setIsHidden}
               />
             )}
 

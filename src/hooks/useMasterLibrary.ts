@@ -162,17 +162,49 @@ export function useMasterLibrary(activeDomainTab: 'master' | 'zone', searchQuery
   const toggleHideMasterSong = useCallback(async (id: string) => {
     const previous = masterSongs.find(s => s.id === id);
     if (!previous) return;
-    const nextHidden = !previous.isHidden;
+    const isCurrentlyHQ = Boolean(
+      previous.isHQOnly ||
+      previous.isHidden ||
+      (previous as any).isHqOnly ||
+      (previous as any).scope === 'hq' ||
+      previous.status === 'hq_only'
+    );
+    const nextHQOnly = !isCurrentlyHQ;
+
     // Optimistic update
     setMasterSongs(prev =>
-      prev.map(s => (s.id === id ? { ...s, isHidden: nextHidden } : s))
+      prev.map(s =>
+        s.id === id
+          ? {
+              ...s,
+              isHQOnly: nextHQOnly,
+              isHqOnly: nextHQOnly,
+              isHidden: nextHQOnly,
+              scope: nextHQOnly ? 'hq' : 'global',
+              status: nextHQOnly ? 'hq_only' : 'active',
+            }
+          : s
+      )
     );
+
+    const payload = {
+      isHQOnly: nextHQOnly,
+      isHqOnly: nextHQOnly,
+      isHidden: nextHQOnly,
+      scope: nextHQOnly ? 'hq' : 'global',
+      status: nextHQOnly ? 'hq_only' : 'active',
+    };
+
     try {
-      await apiClient.patch(`/master-songs/${id}`, { isHidden: nextHidden });
+      try {
+        await apiClient.patch(`/master-songs/${id}`, payload);
+      } catch {
+        await api.songs.update(id, payload);
+      }
     } catch (err: any) {
       // Rollback on failure
       setMasterSongs(prev =>
-        prev.map(s => (s.id === id ? { ...s, isHidden: previous.isHidden } : s))
+        prev.map(s => (s.id === id ? previous : s))
       );
       Alert.alert('Error', err?.message || 'Failed to update song visibility. Please try again.');
     }

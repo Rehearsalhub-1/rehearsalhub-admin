@@ -373,9 +373,9 @@ export default function SubmissionReviewModal({
               </View>
 
               {song.rejectNotes ? (
-                <View style={[styles.contentCard, { backgroundColor: '#fff1f2', borderColor: '#fecdd3' }]}>
-                  <Text style={[styles.cardHeaderTitle, { color: '#e11d48' }]}>Rejection Feedback</Text>
-                  <Text style={[styles.notesText, { color: '#be123c' }]}>
+                <View style={[styles.contentCard, { backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }]}>
+                  <Text style={[styles.cardHeaderTitle, { color: '#334155' }]}>Feedback Notes</Text>
+                  <Text style={[styles.notesText, { color: '#475569' }]}>
                     {song.rejectNotes}
                   </Text>
                 </View>
@@ -398,13 +398,13 @@ export default function SubmissionReviewModal({
           }}
         />
 
-        {/* ── REJECTION MODAL ── */}
-        <Modal visible={showRejectBox} transparent animationType="fade">
+        {/* ── INLINE DECLINE OVERLAY (NON-MODAL TO PREVENT SCREEN FREEZE) ── */}
+        {showRejectBox && (
           <View style={styles.modalBackdrop}>
             <View style={styles.rejectCard}>
               <View style={styles.rejectCardHeader}>
-                <Ionicons name="alert-circle" size={20} color="#e11d48" style={{ marginRight: 6 }} />
-                <Text style={styles.rejectCardTitle}>Decline Submission</Text>
+                <Ionicons name="chatbox-ellipses-outline" size={19} color="#7c3aed" style={{ marginRight: 8 }} />
+                <Text style={styles.rejectCardTitle}>Decline Feedback</Text>
               </View>
 
               <Text style={styles.rejectCardSub}>
@@ -419,6 +419,7 @@ export default function SubmissionReviewModal({
                 numberOfLines={3}
                 value={rejectReason}
                 onChangeText={setRejectReason}
+                autoFocus
               />
 
               <View style={styles.rejectActionsRow}>
@@ -433,12 +434,12 @@ export default function SubmissionReviewModal({
                   style={styles.rejectConfirmBtn}
                   onPress={handleConfirmReject}
                 >
-                  <Text style={styles.rejectConfirmBtnText}>Confirm Decline</Text>
+                  <Text style={styles.rejectConfirmBtnText}>Decline Submission</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
-        </Modal>
+        )}
       </SafeAreaView>
     </Modal>
   );

@@ -102,37 +102,80 @@ export function ProgramsScreen({ navigation }: any) {
     ]);
   }, [removeProgram]);
 
+  const handleSetStage = useCallback(
+    async (program: Program, nextStage: ProgramStage) => {
+      const isArchived = nextStage === 'archive';
+      const isOngoing = nextStage === 'ongoing';
+      const payload: Record<string, any> = {
+        category: nextStage,
+        status: nextStage,
+        stage: nextStage,
+        isActive: isOngoing,
+        isArchived,
+      };
+      const res = await api.programs.update(program.id, payload).catch(() => null);
+      const updated = res?.data ? { ...program, ...res.data, ...payload } : { ...program, ...payload };
+      upsertProgram(updated);
+      customAlert(
+        isArchived ? 'Moved to Archive' : (isOngoing ? 'Set as Active' : 'Stage Updated'),
+        `"${program.name}" is now ${isArchived ? 'archived' : (isOngoing ? 'ongoing / active' : nextStage)}.`
+      );
+    },
+    [upsertProgram]
+  );
+
   const handleOpenMenu = useCallback(
     (program: Program) => {
+      const stage = normalizeProgramStage(program);
+      const isArchived = stage === 'archive';
+      const isOngoing = stage === 'ongoing';
+
+      const options: Array<{ text: string; style?: 'default' | 'cancel' | 'destructive'; onPress?: () => void }> = [];
+
+      if (!isOngoing) {
+        options.push({
+          text: '★ Set as Active (Ongoing)',
+          onPress: () => handleSetStage(program, 'ongoing'),
+        });
+      }
+
+      options.push({
+        text: isArchived ? '🔄 Restore from Archive' : '📦 Move to Archive',
+        onPress: () => handleSetStage(program, isArchived ? 'pre-rehearsal' : 'archive'),
+      });
+
+      options.push({
+        text: '✏️ Edit Details',
+        onPress: () => {
+          setEditingProgram(program);
+          setShowProgramModal(true);
+        },
+      });
+
+      options.push({
+        text: '📋 Duplicate',
+        onPress: () => handleDuplicate(program),
+      });
+
+      options.push({
+        text: '🗑️ Delete Program',
+        style: 'destructive',
+        onPress: () => handleDelete(program),
+      });
+
+      options.push({
+        text: 'Cancel',
+        style: 'cancel',
+      });
+
       customAlert(
         program.name,
-        'Manage this rehearsal program',
-        [
-          {
-            text: 'Edit Details',
-            onPress: () => {
-              setEditingProgram(program);
-              setShowProgramModal(true);
-            },
-          },
-          {
-            text: 'Duplicate',
-            onPress: () => handleDuplicate(program),
-          },
-          {
-            text: 'Delete Program',
-            style: 'destructive',
-            onPress: () => handleDelete(program),
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ],
+        `Stage: ${stage.toUpperCase()} • Manage program`,
+        options,
         { cancelable: true }
       );
     },
-    [handleDuplicate, handleDelete]
+    [handleDuplicate, handleDelete, handleSetStage]
   );
 
   const filteredPrograms = useMemo(() => {

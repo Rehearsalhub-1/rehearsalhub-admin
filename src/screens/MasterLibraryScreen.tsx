@@ -50,6 +50,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
     loadMore,
     upsertMasterSong,
     removeMasterSong,
+    toggleHideMasterSong,
   } = useMasterLibrary('master', debouncedSearch);
 
   // Status Tab Filters
@@ -78,14 +79,25 @@ export default function MasterLibraryScreen({ navigation }: any) {
       .catch(() => {});
   }, []);
 
+  // Helper to determine if a song is restricted to Loveworld Singers HQ (hidden from other zones)
+  const isSongHQOnly = useCallback((song: MasterSong) => {
+    return Boolean(
+      song.isHQOnly ||
+      song.isHidden ||
+      (song as any).isHqOnly ||
+      (song as any).scope === 'hq' ||
+      song.status === 'hq_only'
+    );
+  }, []);
+
   // Compute metrics
   const masterStats = useMemo(() => {
     const total = masterSongs.length;
-    const active = masterSongs.filter(s => !s.isHistory && !s.isHidden).length;
+    const active = masterSongs.filter(s => !s.isHistory && !isSongHQOnly(s)).length;
     const history = masterSongs.filter(s => Boolean(s.isHistory)).length;
-    const hidden = masterSongs.filter(s => Boolean(s.isHidden)).length;
+    const hidden = masterSongs.filter(s => isSongHQOnly(s)).length;
     return { total, active, history, hidden };
-  }, [masterSongs]);
+  }, [masterSongs, isSongHQOnly]);
 
   // Distinct Collections for horizontal filter chips
   const masterCollectionsList = useMemo(() => {
@@ -160,9 +172,10 @@ export default function MasterLibraryScreen({ navigation }: any) {
   // Filtered master songs
   const filteredMasterSongs = useMemo(() => {
     return masterSongs.filter(song => {
-      if (masterStatusTab === 'active' && (song.isHistory || song.isHidden)) return false;
+      const isHQ = isSongHQOnly(song);
+      if (masterStatusTab === 'active' && (song.isHistory || isHQ)) return false;
       if (masterStatusTab === 'history' && !song.isHistory) return false;
-      if (masterStatusTab === 'hidden' && !song.isHidden) return false;
+      if (masterStatusTab === 'hidden' && !isHQ) return false;
 
       if (selectedCollection !== 'all') {
         const songColl = ((song as any).program || (song as any).programName || song.category || '').toLowerCase();
@@ -212,6 +225,60 @@ export default function MasterLibraryScreen({ navigation }: any) {
     setEditModalVisible(false);
     api.songs.delete(songId).catch(() => {});
   }
+
+  const handleToggleVisibility = async (song: MasterSong) => {
+    const isCurrentlyHQ = isSongHQOnly(song);
+    const willBeHQ = !isCurrentlyHQ;
+    await toggleHideMasterSong(song.id);
+    customAlert(
+      willBeHQ ? 'Restricted to HQ Only' : 'Shared with All Zones',
+      `"${song.title}" is now ${
+        willBeHQ
+          ? 'restricted to Loveworld Singers HQ and hidden from other zones.'
+          : 'set to Global and visible across all regional and zonal church portals.'
+      }`
+    );
+  };
+
+  const handleOpenSongMenu = (song: MasterSong) => {
+    const isHQ = isSongHQOnly(song);
+    customAlert(
+      song.title,
+      `${isHQ ? '🔒 Loveworld Singers HQ Only (Hidden from Zones)' : '🌐 Global (Visible to All Zones)'} • Select action`,
+      [
+        {
+          text: isHQ
+            ? '🌐 Make Global (Visible to All Zones)'
+            : '🔒 Restrict to HQ Only (Hide from Other Zones)',
+          onPress: () => handleToggleVisibility(song),
+        },
+        {
+          text: '✏️ Edit Song Details',
+          onPress: () => handleOpenSong(song),
+        },
+        {
+          text: '🗑️ Delete Song',
+          style: 'destructive',
+          onPress: () => {
+            customAlert(
+              'Delete Master Song',
+              `Permanently delete "${song.title}" from All Ministered catalog?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () => handleMasterSongDeleted(song.id),
+                },
+              ]
+            );
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
 
   // Action Menu
   const handleOpenActionMenu = () => {
@@ -305,9 +372,9 @@ export default function MasterLibraryScreen({ navigation }: any) {
           <View style={styles.segmentContainer}>
             {([
               { id: 'all' as const, label: 'All', count: masterStats.total },
-              { id: 'active' as const, label: 'Active', count: masterStats.active },
+              { id: 'active' as const, label: 'Global', count: masterStats.active },
+              { id: 'hidden' as const, label: 'HQ Only', count: masterStats.hidden },
               { id: 'history' as const, label: 'History', count: masterStats.history },
-              { id: 'hidden' as const, label: 'Hidden', count: masterStats.hidden },
             ]).map(f => {
               const active = masterStatusTab === f.id;
               return (
@@ -420,13 +487,15 @@ export default function MasterLibraryScreen({ navigation }: any) {
             item.program || (item as any).programName || item.category || null,
           ].filter(Boolean);
 
+          const isHQ = isSongHQOnly(item);
+
           return (
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={() => handleOpenSong(item)}
               style={[
                 styles.trackCard,
-                item.isHidden && styles.trackCardHidden,
+                isHQ && styles.trackCardHidden,
               ]}
             >
               {/* Left: Thumbnail Artwork or Index Box */}
@@ -442,18 +511,19 @@ export default function MasterLibraryScreen({ navigation }: any) {
 
               {/* Center: Title & Musical Metadata */}
               <View style={styles.trackInfoCol}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                   <Text style={styles.trackTitleText} numberOfLines={1}>
                     {item.title}
                   </Text>
-                  {item.isHQOnly && (
+                  {isHQ ? (
                     <View style={styles.hqPillSmall}>
-                      <Text style={styles.hqPillSmallText}>HQ</Text>
+                      <Ionicons name="lock-closed" size={9} color="#4338ca" style={{ marginRight: 2 }} />
+                      <Text style={styles.hqPillSmallText}>HQ Only</Text>
                     </View>
-                  )}
-                  {item.isHidden && (
-                    <View style={styles.hiddenPillSmall}>
-                      <Text style={styles.hiddenPillSmallText}>Hidden</Text>
+                  ) : (
+                    <View style={styles.globalPillSmall}>
+                      <Ionicons name="globe-outline" size={9} color="#15803d" style={{ marginRight: 2 }} />
+                      <Text style={styles.globalPillSmallText}>Global</Text>
                     </View>
                   )}
                 </View>
@@ -463,7 +533,7 @@ export default function MasterLibraryScreen({ navigation }: any) {
                 </Text>
               </View>
 
-              {/* Right: Audio / Stems Indicator & Chevron */}
+              {/* Right: Audio / Stems Indicator, Visibility Toggle & Actions */}
               <View style={styles.trackRightCol}>
                 {hasStems ? (
                   <View style={styles.stemsBadgeSmall}>
@@ -475,7 +545,37 @@ export default function MasterLibraryScreen({ navigation }: any) {
                   </View>
                 ) : null}
 
-                <Ionicons name="chevron-forward" size={16} color="#cbd5e1" />
+                {/* Quick Scope/Visibility Toggle: Global <-> HQ Only */}
+                <TouchableOpacity
+                  style={[styles.visibilityBtn, isHQ && styles.visibilityBtnHidden]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleToggleVisibility(item);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  activeOpacity={0.7}
+                  accessibilityLabel={isHQ ? 'Switch to Global' : 'Restrict to HQ Only'}
+                >
+                  <Ionicons
+                    name={isHQ ? 'lock-closed' : 'globe-outline'}
+                    size={14}
+                    color={isHQ ? '#4338ca' : '#16a34a'}
+                  />
+                </TouchableOpacity>
+
+                {/* 3-Dots Action Menu */}
+                <TouchableOpacity
+                  style={styles.moreActionBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleOpenSongMenu(item);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Song options"
+                >
+                  <Ionicons name="ellipsis-vertical" size={15} color="#94a3b8" />
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           );
@@ -761,26 +861,34 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   hqPillSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
     paddingHorizontal: 5,
-    paddingVertical: 1,
+    paddingVertical: 1.5,
     borderRadius: 4,
   },
   hqPillSmallText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#4f46e5',
+    color: '#4338ca',
   },
-  hiddenPillSmall: {
-    backgroundColor: '#f1f5f9',
+  globalPillSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
     paddingHorizontal: 5,
-    paddingVertical: 1,
+    paddingVertical: 1.5,
     borderRadius: 4,
   },
-  hiddenPillSmallText: {
+  globalPillSmallText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#64748b',
+    color: '#15803d',
   },
   trackRightCol: {
     flexDirection: 'row',
@@ -800,6 +908,30 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 8,
     backgroundColor: '#ecfdf5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  visibilityBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#f5f3ff',
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  visibilityBtnHidden: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+  },
+  moreActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
   },
