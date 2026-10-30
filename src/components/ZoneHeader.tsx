@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useZoneContext, ChurchOption, ZoneOption } from '../context/ZoneContext';
 import { useAuth } from '../context/AuthContext';
+import AdminScopeModal from './AdminScopeModal';
 
 interface Props {
   /** Screen title shown in the header */
@@ -37,6 +38,7 @@ export default function ZoneHeader({
   showZonePicker = true,
 }: Props) {
   const navigation = useNavigation<any>();
+  const [scopeModalVisible, setScopeModalVisible] = useState(false);
   const {
     activeZone,
     isChurchMode,
@@ -96,15 +98,21 @@ export default function ZoneHeader({
               ) : null}
 
               {isMainAdminTitle && (
-                <View style={[styles.scopeBadge, { backgroundColor: scopeBadgeBg, borderColor: scopeBadgeBorder }]}>
+                <TouchableOpacity
+                  style={[styles.scopeBadge, { backgroundColor: scopeBadgeBg, borderColor: scopeBadgeBorder }]}
+                  onPress={() => setScopeModalVisible(true)}
+                  activeOpacity={0.75}
+                >
                   <Ionicons
                     name={isChurchMode ? 'business' : isHQ ? 'shield-checkmark' : 'location'}
                     size={11}
                     color={scopeBadgeColor}
                     style={{ marginRight: 3 }}
                   />
-                  <Text style={[styles.scopeBadgeText, { color: scopeBadgeColor }]}>{scopeTitle}</Text>
-                </View>
+                  <Text style={[styles.scopeBadgeText, { color: scopeBadgeColor }]} numberOfLines={1}>
+                    {scopeTitle}
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
 
@@ -120,11 +128,13 @@ export default function ZoneHeader({
           {rightElement ? (
             rightElement
           ) : showZonePicker ? (
-            <View
+            <TouchableOpacity
               style={[
                 styles.zonePill,
                 isChurchMode ? styles.churchPillActive : styles.zonePillActive,
               ]}
+              onPress={() => setScopeModalVisible(true)}
+              activeOpacity={0.75}
             >
               <Ionicons
                 name={isChurchMode ? 'business-outline' : 'globe-outline'}
@@ -138,10 +148,21 @@ export default function ZoneHeader({
               >
                 {badgeLabel}
               </Text>
-            </View>
+              <Ionicons
+                name="chevron-down"
+                size={12}
+                color={isChurchMode ? '#d97706' : '#7c3aed'}
+                style={{ marginLeft: 3 }}
+              />
+            </TouchableOpacity>
           ) : null}
         </View>
       </View>
+
+      <AdminScopeModal
+        visible={scopeModalVisible}
+        onClose={() => setScopeModalVisible(false)}
+      />
     </>
   );
 }

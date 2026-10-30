@@ -30,9 +30,9 @@ export function useZoneContext() {
     activeChurch: session?.churchId
       ? { id: session.churchId, name: session.churchName || '' }
       : null,
-    userChurches: session?.churchId
-      ? [{ id: session.churchId, name: session.churchName || '' }]
-      : [],
+    userChurches: (session?.churches && session.churches.length > 0)
+      ? session.churches
+      : (session?.churchId ? [{ id: session.churchId, name: session.churchName || '' }] : []),
     isChurchMode: session?.mode === 'church',
     activeRoleMode: (session?.mode === 'church' ? 'church' : 'org') as 'church' | 'org',
     setActiveZone: (_zoneId: string) => {

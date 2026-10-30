@@ -10,9 +10,18 @@ interface MemberListItemProps {
   onRemove?: (id: string) => void;
   onShowBadge?: (member: Member) => void;
   onEdit?: (member: Member) => void;
+  onToggleRole?: (member: Member, nextRole: Member['role']) => void;
+  isChurchMode?: boolean;
 }
 
-export default function MemberListItem({ item, onRemove, onShowBadge, onEdit }: MemberListItemProps) {
+export default function MemberListItem({
+  item,
+  onRemove,
+  onShowBadge,
+  onEdit,
+  onToggleRole,
+  isChurchMode = false,
+}: MemberListItemProps) {
   const fullName = `${item.first_name} ${item.last_name}`.trim();
   const initial = `${item.first_name[0] || 'S'}${item.last_name[0] || ''}`.toUpperCase();
 
@@ -24,14 +33,27 @@ export default function MemberListItem({ item, onRemove, onShowBadge, onEdit }: 
   const handleOpenMenu = () => {
     const options: any[] = [];
     if (onEdit) {
-      options.push({ text: 'Edit Profile', onPress: () => onEdit(item) });
+      options.push({ text: 'Edit Profile & Role', onPress: () => onEdit(item) });
+    }
+    if (onToggleRole && !isHQ) {
+      if (isChurchMode) {
+        options.push({
+          text: isChurch ? 'Remove Church Admin Role' : 'Make Church Admin',
+          onPress: () => onToggleRole(item, isChurch ? 'member' : 'church_admin'),
+        });
+      } else {
+        options.push({
+          text: isZone ? 'Remove Zone Admin Role' : 'Make Zone Admin',
+          onPress: () => onToggleRole(item, isZone ? 'member' : 'zone_admin'),
+        });
+      }
     }
     if (onShowBadge) {
       options.push({ text: 'View QR Attendance Badge', onPress: () => onShowBadge(item) });
     }
     if (onRemove && !isHQ) {
       options.push({
-        text: 'Remove from Directory',
+        text: isChurchMode ? 'Remove from Church Choir' : 'Remove from Directory',
         style: 'destructive',
         onPress: () => onRemove(item.id),
       });

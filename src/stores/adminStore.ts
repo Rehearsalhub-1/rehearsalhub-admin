@@ -30,13 +30,28 @@ function syncScopeFromSession(session: AdminSession | null) {
   });
 }
 
+export interface LinkedAccountItem {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  zoneId?: string | null;
+  churchId?: string | null;
+  zoneName?: string | null;
+  churchName?: string | null;
+  isCurrent: boolean;
+}
+
 interface AdminStore {
   session: AdminSession | null;
   isAuthenticated: boolean;
   loading: boolean;
+  linkedAccounts: LinkedAccountItem[];
   bootstrap: () => Promise<void>;
   setMode: (mode: 'zone' | 'church') => Promise<void>;
   setChurch: (churchId: string) => Promise<void>;
+  fetchLinkedAccounts: () => Promise<LinkedAccountItem[]>;
+  switchAccount: (targetUserId: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -50,6 +65,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   session: null,
   isAuthenticated: false,
   loading: true,
+  linkedAccounts: [],
 
   bootstrap: async () => {
     // Mutex: if a bootstrap is already running, await it and return.
@@ -152,27 +168,78 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
         const churchAdminRoles = new Set([
           'church_admin', 'church_coordinator', 'subgroup_admin', 'subgroup_coordinator',
           'group_admin', 'group_coordinator', 'coordinator',
+          'zone_admin', 'zone_coordinator', 'hq_admin', 'admin', 'super_admin',
         ]);
         const adminChurchMemberships = memberships.filter(m =>
+          Boolean(m.groupId || m.subgroupId || m.group?.id || m.subgroup?.id) &&
           churchAdminRoles.has(String(m.role || '').toLowerCase())
         );
-        const churches = adminChurchMemberships
-          .map(m => ({
-            id: String(m.groupId || m.group?.id || ''),
-            name: m.group?.name || m.groupName || 'Church',
-          }))
-          .filter((church, index, list) => church.id && list.findIndex(item => item.id === church.id) === index);
+
+        const churchMap = new Map<string, { id: string; name: string }>();
+        const addChurchOption = (idRaw: any, nameRaw: any) => {
+          const cid = String(idRaw || '').trim();
+          if (!cid) return;
+          const cname = String(nameRaw || 'Church Choir').trim() || 'Church Choir';
+          if (!churchMap.has(cid)) {
+            churchMap.set(cid, { id: cid, name: cname });
+          }
+        };
+
+        if (Array.isArray(raw.churches)) {
+          for (const c of raw.churches) {
+            addChurchOption(c?.id || c?.churchId || c?.groupId, c?.name || c?.churchName || c?.groupName);
+          }
+        }
+        for (const m of adminChurchMemberships) {
+          addChurchOption(
+            m.groupId || m.subgroupId || m.group?.id || m.subgroup?.id,
+            m.group?.name || m.subgroup?.name || m.groupName || m.subgroupName
+          );
+        }
+        if (Array.isArray(raw.rawData?.churches)) {
+          for (const c of raw.rawData.churches) {
+            addChurchOption(c?.id || c?.churchId || c?.groupId, c?.name || c?.churchName || c?.groupName);
+          }
+        }
+        if (raw.churchId || raw.rawData?.churchId) {
+          addChurchOption(
+            raw.churchId || raw.rawData?.churchId,
+            raw.churchName || raw.church || raw.rawData?.church || 'Church Choir'
+          );
+        }
+
+        // Also query /subgroups/coordinated to ensure all coordinated churches are discovered
+        try {
+          const coordRes = await apiClient.get<{ success: boolean; data: any[] }>('/subgroups/coordinated');
+          if (Array.isArray(coordRes?.data)) {
+            for (const g of coordRes.data) {
+              addChurchOption(g?.id, g?.name);
+            }
+          }
+        } catch {}
+
+        const churches = Array.from(churchMap.values());
+
         const churchMem = churches.find(church => church.id === get().session?.churchId) || churches[0];
         const churchId =
           churchMem?.id ||
           raw.churchId ||
+          raw.rawData?.churchId ||
           null;
         const churchName =
           churchMem?.name ||
           raw.churchName ||
+          raw.church ||
+          raw.rawData?.church ||
           null;
 
-        const hasZoneRole = role === 'hq_admin' || role === 'zone_admin';
+        const hasZoneRole =
+          role === 'hq_admin' ||
+          role === 'zone_admin' ||
+          memberships.some(m => {
+            const r = String(m.role || '').toLowerCase();
+            return r === 'zone_admin' || r === 'zone_coordinator' || r === 'hq_admin' || r === 'admin' || r === 'super_admin';
+          });
         const hasChurchRole = role === 'church_admin' || churches.length > 0;
         const isDualRole = hasZoneRole && hasChurchRole;
 
@@ -242,13 +309,27 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   setMode: async (mode) => {
     const { session } = get();
     if (!session) return;
-    const updated: AdminSession = { ...session, mode };
+    let targetChurchId = session.churchId;
+    let targetChurchName = session.churchName;
+    if (mode === 'church' && (!targetChurchId || targetChurchId === '')) {
+      if (session.churches.length > 0) {
+        targetChurchId = session.churches[0].id;
+        targetChurchName = session.churches[0].name;
+      }
+    }
+    const updated: AdminSession = {
+      ...session,
+      mode,
+      churchId: mode === 'church' ? targetChurchId : session.churchId,
+      churchName: mode === 'church' ? targetChurchName : session.churchName,
+    };
     try {
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated));
     } catch (err) {
       console.warn('[AdminStore] setMode: SecureStore write failed:', err);
     }
     syncScopeFromSession(updated);
+    apiClient.clearCache();
     set({ session: updated });
   },
 
@@ -256,15 +337,77 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
     const { session } = get();
     if (!session) return;
     const church = session.churches.find(item => item.id === churchId);
-    if (!church) return;
-    const updated: AdminSession = { ...session, mode: 'church', churchId: church.id, churchName: church.name };
+    const updated: AdminSession = {
+      ...session,
+      mode: 'church',
+      churchId: church ? church.id : churchId,
+      churchName: church ? church.name : (session.churchName || 'Church Choir'),
+    };
     try {
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updated));
     } catch (err) {
       console.warn('[AdminStore] setChurch: SecureStore write failed:', err);
     }
     syncScopeFromSession(updated);
+    apiClient.clearCache();
     set({ session: updated });
+  },
+
+  fetchLinkedAccounts: async () => {
+    try {
+      const res = await apiClient.get<any>('/auth/linked-accounts');
+      const rawList: any[] = Array.isArray(res?.data)
+        ? res.data
+        : Array.isArray(res?.data?.accounts)
+        ? res.data.accounts
+        : Array.isArray(res?.accounts)
+        ? res.accounts
+        : [];
+      if (rawList.length > 0) {
+        const normalized: LinkedAccountItem[] = rawList.map((acc: any) => ({
+          id: String(acc.id),
+          email: acc.email || '',
+          name: acc.name || [acc.firstName, acc.lastName].filter(Boolean).join(' ') || acc.email || 'Admin',
+          role: acc.role || 'member',
+          zoneId: acc.zoneId || acc.zoneCode || null,
+          churchId: acc.churchId || null,
+          zoneName: acc.zoneName || acc.zoneCode || null,
+          churchName: acc.churchName || acc.church || null,
+          isCurrent: Boolean(acc.isCurrent),
+        }));
+        set({ linkedAccounts: normalized });
+        return normalized;
+      }
+    } catch (err) {
+      console.warn('[AdminStore] fetchLinkedAccounts error:', err);
+    }
+    return [];
+  },
+
+  switchAccount: async (targetUserId: string) => {
+    set({ loading: true });
+    try {
+      const res = await apiClient.post<{ success: boolean; data?: { accessToken: string; refreshToken: string; user: any }; error?: string }>(
+        '/auth/switch-account',
+        { targetUserId }
+      );
+      if (res?.data?.accessToken && res?.data?.refreshToken) {
+        await apiClient.storeTokens(
+          res.data.accessToken,
+          res.data.refreshToken,
+          res.data.user?.id || targetUserId
+        );
+        await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => {});
+        await get().bootstrap();
+      } else {
+        throw new Error(res?.error || 'Failed to switch account');
+      }
+    } catch (err: any) {
+      console.error('[AdminStore] switchAccount failed:', err);
+      throw err;
+    } finally {
+      set({ loading: false });
+    }
   },
 
   signOut: async () => {

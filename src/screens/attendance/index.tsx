@@ -176,7 +176,6 @@ export default function AttendanceScreen({ navigation }: any) {
       addRecord(newRecord);
       setScanFeedback({ type: 'success', title: '✓ Checked In', message: `${singerName} marked Present!` });
 
-      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
       api.attendance.recordCheckIn({
         idempotencyKey,
         userId: parsedUserId,
@@ -184,7 +183,9 @@ export default function AttendanceScreen({ navigation }: any) {
         eventName,
         status: 'present',
         checkInTime: newRecord.checkInTime,
-        zoneId: scopeId,
+        zoneId: activeZone?.id,
+        subGroupId: isChurchMode ? activeChurch?.id : undefined,
+        churchId: isChurchMode ? activeChurch?.id : undefined,
         method: 'scanner',
       }).catch(() => {});
 
@@ -228,14 +229,15 @@ export default function AttendanceScreen({ navigation }: any) {
     setManualName('');
 
     try {
-      const scopeId = isChurchMode ? activeChurch?.id : activeZone?.id;
       await api.attendance.recordCheckIn({
         idempotencyKey,
         user_name: newRecord.userName,
         eventName: newRecord.eventName,
         status: 'present',
         checkInTime: newRecord.checkInTime,
-        zoneId: scopeId,
+        zoneId: activeZone?.id,
+        subGroupId: isChurchMode ? activeChurch?.id : undefined,
+        churchId: isChurchMode ? activeChurch?.id : undefined,
         method: 'manual',
       });
     } catch {}
@@ -249,7 +251,9 @@ export default function AttendanceScreen({ navigation }: any) {
         return;
       }
 
-      const zoneName = activeZone?.name || 'Loveworld Singers';
+      const scopeTitle = isChurchMode
+        ? (activeChurch?.name || 'Church Choir')
+        : (activeZone?.name || 'Loveworld Singers');
       const headers = ['#', 'Singer Name', 'Event', 'Date', 'Time', 'Method', 'Status'];
       const rows = dailyRecords.map((r, i) => [
         String(i + 1),
@@ -263,7 +267,7 @@ export default function AttendanceScreen({ navigation }: any) {
 
       await exportTableReport(
         {
-          title: `${zoneName} Attendance Report`,
+          title: `${scopeTitle} Attendance Report`,
           subtitle: `Date: ${selectedDate} • Total Present: ${dailyRecords.length}`,
           fileBaseName: `Attendance_${selectedDate}`,
           headers,

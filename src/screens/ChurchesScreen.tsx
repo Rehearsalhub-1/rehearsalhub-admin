@@ -17,7 +17,17 @@ import { customAlert } from '../context/AlertContext';
 export default function ChurchesScreen({ navigation }: any) {
   const { activeZone, isChurchMode } = useZoneContext();
   const { adminUser } = useAuth();
-  const { churches, loading, refreshing, refetch, createChurch, assignCoordinator } = useChurches();
+  const {
+    churches,
+    loading,
+    refreshing,
+    refetch,
+    createChurch,
+    updateChurch,
+    deleteChurch,
+    assignCoordinator,
+    removeCoordinator,
+  } = useChurches();
 
   const [search, setSearch] = useState('');
 
@@ -26,6 +36,14 @@ export default function ChurchesScreen({ navigation }: any) {
   const [churchName, setChurchName] = useState('');
   const [createCoordinatorEmail, setCreateCoordinatorEmail] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // Edit church modal
+  const [editModal, setEditModal] = useState(false);
+  const [editChurchName, setEditChurchName] = useState('');
+  const [updatingChurch, setUpdatingChurch] = useState(false);
+
+  // Church options bottom sheet
+  const [optionsModal, setOptionsModal] = useState(false);
 
   // Assign coordinator modal
   const [assignModal, setAssignModal] = useState(false);
@@ -57,6 +75,22 @@ export default function ChurchesScreen({ navigation }: any) {
     setCreating(false);
   }
 
+  async function handleUpdateChurch() {
+    if (!editChurchName.trim() || !selectedChurch) {
+      customAlert('Missing Name', 'Please enter a church name.');
+      return;
+    }
+    setUpdatingChurch(true);
+    const newName = editChurchName.trim();
+    const ok = await updateChurch(selectedChurch.id, newName);
+    if (ok) {
+      setSelectedChurch(prev => prev ? { ...prev, name: newName } : null);
+      setEditModal(false);
+      setEditChurchName('');
+    }
+    setUpdatingChurch(false);
+  }
+
   async function handleAssignCoordinator() {
     if (!coordinatorEmail.trim() || !selectedChurch) {
       customAlert('Missing Email', 'Enter the member email to appoint as coordinator.');
@@ -72,13 +106,54 @@ export default function ChurchesScreen({ navigation }: any) {
     setAssigning(false);
   }
 
+  function handleRemoveCoordinator(church: Church, userId?: string) {
+    customAlert(
+      'Remove Church Admin',
+      `Remove ${userId ? 'this coordinator' : (church.coordinatorName || 'the current coordinator')} as admin of "${church.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove Admin',
+          style: 'destructive',
+          onPress: async () => {
+            setAssigning(true);
+            const ok = await removeCoordinator(church.id, userId);
+            if (ok) {
+              setSelectedChurch(prev => {
+                if (!prev) return null;
+                if (!userId) {
+                  return { ...prev, coordinatorId: undefined, coordinatorName: undefined, coordinatorEmail: undefined, coordinators: [] };
+                }
+                const remaining = (prev.coordinators || []).filter(c => c.id !== userId);
+                return {
+                  ...prev,
+                  coordinators: remaining,
+                  coordinatorId: remaining[0]?.id,
+                  coordinatorName: remaining.length > 0 ? remaining.map(c => c.name).join(', ') : undefined,
+                  coordinatorEmail: remaining[0]?.email,
+                };
+              });
+              setAssignModal(false);
+              if (membersModal) {
+                const membersRes = await api.churches.getMembers(church.id).catch(() => ({ data: [] }));
+                setChurchMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
+              }
+            }
+            setAssigning(false);
+          },
+        },
+      ]
+    );
+  }
+
   async function handlePromoteToAdmin(member: any) {
     if (!selectedChurch) return;
     const prof = member.profile || {};
     const email = prof.email || member.email;
-    const name = [prof.firstName || prof.first_name, prof.lastName || prof.last_name].filter(Boolean).join(' ') || email;
-    if (!email) {
-      customAlert('No Email', 'This singer does not have a registered email address.');
+    const targetId = member.userId || member.id;
+    const name = [prof.firstName || prof.first_name || member.firstName, prof.lastName || prof.last_name || member.lastName].filter(Boolean).join(' ') || member.name || email;
+    if (!email && !targetId) {
+      customAlert('No Identifier', 'This singer does not have a registered email or user ID.');
       return;
     }
     customAlert(
@@ -90,9 +165,21 @@ export default function ChurchesScreen({ navigation }: any) {
           text: 'Appoint',
           onPress: async () => {
             setAssigning(true);
-            const ok = await assignCoordinator(selectedChurch.id, email.toLowerCase());
+            const ok = await assignCoordinator(selectedChurch.id, (email || targetId).toLowerCase());
             if (ok) {
-              setSelectedChurch(prev => prev ? { ...prev, coordinatorName: name, coordinatorEmail: email } : null);
+              setSelectedChurch(prev => {
+                if (!prev) return null;
+                const existing = prev.coordinators || [];
+                const nextCoords = existing.some(c => c.id === targetId)
+                  ? existing
+                  : [...existing, { id: targetId, name, email: email || '' }];
+                return {
+                  ...prev,
+                  coordinators: nextCoords,
+                  coordinatorName: nextCoords.map(c => c.name).join(', '),
+                  coordinatorEmail: prev.coordinatorEmail || email,
+                };
+              });
               const membersRes = await api.churches.getMembers(selectedChurch.id).catch(() => ({ data: [] }));
               setChurchMembers(Array.isArray(membersRes.data) ? membersRes.data : []);
               refetch();
@@ -262,7 +349,7 @@ export default function ChurchesScreen({ navigation }: any) {
                 <View style={styles.adminIndicator}>
                   <Ionicons name="shield-checkmark" size={12} color={item.coordinatorName ? '#7c3aed' : '#94a3b8'} />
                   <Text style={[styles.churchMetaText, item.coordinatorName && styles.churchMetaTextActive]} numberOfLines={1}>
-                    {item.coordinatorName || 'No Admin Assigned'}
+                    {item.coordinatorName || 'No Admin'}
                   </Text>
                 </View>
                 <Text style={styles.dotSeparator}>•</Text>
@@ -272,39 +359,183 @@ export default function ChurchesScreen({ navigation }: any) {
               </View>
             </View>
 
-            <View style={styles.cardActionsRight}>
+            <TouchableOpacity
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: '#f8fafc',
+                borderWidth: 1,
+                borderColor: '#e2e8f0',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onPress={() => {
+                setSelectedChurch(item);
+                setOptionsModal(true);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="ellipsis-vertical" size={16} color="#475569" />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+      />
+
+      {/* Church Options Bottom Sheet */}
+      <Modal visible={optionsModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setOptionsModal(false)}
+        >
+          <View style={[styles.modalContent, { paddingBottom: 28 }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.modalTitle} numberOfLines={1}>{selectedChurch?.name}</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                  {selectedChurch?.coordinatorName
+                    ? `Admin: ${selectedChurch.coordinatorName}`
+                    : 'No Church Admin Assigned'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setOptionsModal(false)}>
+                <Ionicons name="close" size={22} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ gap: 8, marginTop: 4 }}>
               <TouchableOpacity
-                style={styles.actionChipBtn}
-                onPress={() => handleOpenMembersModal(item)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 13,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  backgroundColor: '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                  gap: 12,
+                }}
+                onPress={() => {
+                  setOptionsModal(false);
+                  if (selectedChurch) handleOpenMembersModal(selectedChurch);
+                }}
                 activeOpacity={0.75}
               >
-                <Ionicons name="people" size={13} color="#7c3aed" style={{ marginRight: 3 }} />
-                <Text style={styles.actionChipText}>Singers</Text>
+                <Ionicons name="people-outline" size={19} color="#7c3aed" />
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#0f172a' }}>
+                  Manage Choir Singers
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionChipBtn, !item.coordinatorName && styles.actionChipBtnHighlight]}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 13,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  backgroundColor: '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                  gap: 12,
+                }}
                 onPress={() => {
-                  setSelectedChurch(item);
-                  setCoordinatorEmail(item.coordinatorEmail || '');
+                  setOptionsModal(false);
+                  setCoordinatorEmail(selectedChurch?.coordinatorEmail || '');
                   setAssignModal(true);
                 }}
                 activeOpacity={0.75}
               >
-                <Ionicons
-                  name={item.coordinatorName ? "shield-outline" : "person-add"}
-                  size={13}
-                  color={!item.coordinatorName ? "#ffffff" : "#475569"}
-                  style={{ marginRight: 3 }}
-                />
-                <Text style={[styles.actionChipText, !item.coordinatorName && { color: '#ffffff' }]}>
-                  {item.coordinatorName ? 'Admin' : 'Appoint'}
+                <Ionicons name="shield-checkmark-outline" size={19} color="#0284c7" />
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#0f172a' }}>
+                  {selectedChurch?.coordinatorName ? 'Change Church Admin' : 'Appoint Church Admin'}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+
+              {(selectedChurch?.coordinatorName || selectedChurch?.coordinatorEmail) && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 13,
+                    paddingHorizontal: 14,
+                    borderRadius: 14,
+                    backgroundColor: '#fffbeb',
+                    borderWidth: 1,
+                    borderColor: '#fde68a',
+                    gap: 12,
+                  }}
+                  onPress={() => {
+                    setOptionsModal(false);
+                    if (selectedChurch) handleRemoveCoordinator(selectedChurch);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="person-remove-outline" size={19} color="#d97706" />
+                  <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#92400e' }}>
+                    Unassign Current Admin
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 13,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  backgroundColor: '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                  gap: 12,
+                }}
+                onPress={() => {
+                  setOptionsModal(false);
+                  setEditChurchName(selectedChurch?.name || '');
+                  setEditModal(true);
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="create-outline" size={19} color="#475569" />
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: '#0f172a' }}>
+                  Rename Church
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 13,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  backgroundColor: '#fff1f2',
+                  borderWidth: 1,
+                  borderColor: '#fecdd3',
+                  gap: 12,
+                }}
+                onPress={() => {
+                  setOptionsModal(false);
+                  if (selectedChurch) deleteChurch(selectedChurch.id, selectedChurch.name);
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="trash-outline" size={19} color={Colors.danger} />
+                <Text style={{ flex: 1, fontSize: 14, fontWeight: '700', color: Colors.danger }}>
+                  Delete Church
                 </Text>
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        )}
-      />
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Create Church Modal (No Church Code Box!) */}
       <Modal visible={createModal} transparent animationType="slide">
@@ -351,6 +582,41 @@ export default function ChurchesScreen({ navigation }: any) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Edit Church Modal */}
+      <Modal visible={editModal} transparent animationType="slide">
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Church</Text>
+                <TouchableOpacity onPress={() => setEditModal(false)}>
+                  <Ionicons name="close" size={22} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.inputLabel}>Church Name *</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={editChurchName}
+                onChangeText={setEditChurchName}
+                placeholder="e.g. Christ Embassy Central Church"
+                placeholderTextColor={Colors.textMuted}
+                autoFocus
+              />
+
+              <TouchableOpacity
+                style={[styles.modalSubmitBtn, (!editChurchName.trim() || updatingChurch) && { opacity: 0.6 }]}
+                onPress={handleUpdateChurch}
+                disabled={updatingChurch || !editChurchName.trim()}
+                activeOpacity={0.85}
+              >
+                {updatingChurch ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Save Changes</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Assign Coordinator Modal */}
       <Modal visible={assignModal} transparent animationType="slide">
         <KeyboardAvoidingView
@@ -388,6 +654,28 @@ export default function ChurchesScreen({ navigation }: any) {
             >
               {assigning ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSubmitText}>Appoint Coordinator</Text>}
             </TouchableOpacity>
+
+            {(selectedChurch?.coordinatorName || selectedChurch?.coordinatorEmail) && (
+              <TouchableOpacity
+                style={{
+                  marginTop: 10,
+                  paddingVertical: 11,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#fecdd3',
+                  backgroundColor: '#fff1f2',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={() => selectedChurch && handleRemoveCoordinator(selectedChurch)}
+                disabled={assigning}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: Colors.danger, fontSize: 13, fontWeight: '700' }}>
+                  Remove Current Admin ({selectedChurch.coordinatorName || selectedChurch.coordinatorEmail})
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         </KeyboardAvoidingView>
@@ -400,7 +688,8 @@ export default function ChurchesScreen({ navigation }: any) {
           style={{ flex: 1 }}
         >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '85%' }]}>            <View style={styles.modalHeader}>
+          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>{selectedChurch?.name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
@@ -502,12 +791,18 @@ export default function ChurchesScreen({ navigation }: any) {
                 renderItem={({ item: m }) => {
                   const prof = m.profile || {};
                   const email = prof.email || m.email || '';
-                  const name = [prof.firstName || prof.first_name, prof.lastName || prof.last_name].filter(Boolean).join(' ') || email || 'Singer';
+                  const memberUid = m.userId || m.id;
+                  const name = [prof.firstName || prof.first_name || m.firstName, prof.lastName || prof.last_name || m.lastName].filter(Boolean).join(' ') || m.name || email || 'Singer';
                   const isCoord = Boolean(
+                    m.isAdmin === true ||
+                    m.role === 'church_admin' ||
                     m.role === 'coordinator' ||
                     m.role === 'admin' ||
-                    (selectedChurch?.coordinatorEmail && email.toLowerCase() === selectedChurch.coordinatorEmail.toLowerCase()) ||
-                    (selectedChurch?.coordinatorName && name.toLowerCase() === selectedChurch.coordinatorName.toLowerCase())
+                    String(m.rawRole || '').toUpperCase() === 'GROUP_ADMIN' ||
+                    selectedChurch?.coordinators?.some(
+                      c => c.id === memberUid || (c.email && email && c.email.toLowerCase() === email.toLowerCase())
+                    ) ||
+                    (selectedChurch?.coordinatorEmail && email && email.toLowerCase() === selectedChurch.coordinatorEmail.toLowerCase())
                   );
 
                   return (
@@ -533,15 +828,28 @@ export default function ChurchesScreen({ navigation }: any) {
                       </View>
 
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        {!isCoord && (
-                          <TouchableOpacity
-                            onPress={() => handlePromoteToAdmin(m)}
-                            style={styles.makeAdminBtn}
-                            activeOpacity={0.75}
-                          >
-                            <Text style={styles.makeAdminBtnText}>Make Admin</Text>
-                          </TouchableOpacity>
-                        )}
+                        <TouchableOpacity
+                          onPress={() =>
+                            isCoord
+                              ? selectedChurch && handleRemoveCoordinator(selectedChurch, m.userId || m.id)
+                              : handlePromoteToAdmin(m)
+                          }
+                          style={[
+                            styles.memberRemoveBtn,
+                            {
+                              backgroundColor: isCoord ? '#f5f3ff' : '#f8fafc',
+                              borderWidth: 1,
+                              borderColor: isCoord ? '#ddd6fe' : '#e2e8f0',
+                            },
+                          ]}
+                          activeOpacity={0.75}
+                        >
+                          <Ionicons
+                            name={isCoord ? 'shield-checkmark' : 'shield-outline'}
+                            size={15}
+                            color={isCoord ? '#7c3aed' : '#64748b'}
+                          />
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                           onPress={() => handleRemoveChurchMember(m.userId || m.id)}

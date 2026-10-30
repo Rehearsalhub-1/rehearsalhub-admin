@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,14 @@ import { Colors } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import ZoneHeader from '../components/ZoneHeader';
+import AdminScopeModal from '../components/AdminScopeModal';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 export default function DashboardScreen({ navigation }: any) {
   const { adminUser } = useAuth();
   const { activeZone, isChurchMode, activeChurch } = useZoneContext();
   const { stats, recentPrograms, refreshing, refetch } = useDashboardData();
+  const [scopeModalVisible, setScopeModalVisible] = useState(false);
 
   const rawZoneName = activeZone?.name;
   const cleanZoneName =
@@ -46,17 +48,24 @@ export default function DashboardScreen({ navigation }: any) {
           <RefreshControl refreshing={refreshing} onRefresh={refetch} tintColor={Colors.accent} colors={[Colors.accent]} />
         }
       >
-        {/* ── 1. CALM GREETING & CONSOLE HEADER ───────────────────────── */}
         <View style={styles.greetingSection}>
           <Text style={styles.greetingName}>
             Welcome, {adminUser?.name ? adminUser.name.split(' ')[0] : 'Director'} 👋
           </Text>
-          <View style={styles.scopeBadgeRow}>
+          <TouchableOpacity
+            style={styles.scopeBadgeRow}
+            onPress={() => setScopeModalVisible(true)}
+            activeOpacity={0.75}
+          >
             <View style={styles.pulseDot} />
             <Text style={styles.liveScopeText} numberOfLines={1}>
               {liveScopeTitle}
             </Text>
-          </View>
+            <View style={styles.switchScopePill}>
+              <Ionicons name="swap-horizontal" size={11} color="#7c3aed" />
+              <Text style={styles.switchScopeText}>Switch</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* ── 2. REHEARSAL LIVE SPOTLIGHT (HERO COMMAND CARD) ─────────── */}
@@ -115,7 +124,7 @@ export default function DashboardScreen({ navigation }: any) {
         )}
 
         {/* ── 3. ACTION QUEUE (Song Submissions Alert) ────────────────── */}
-        {stats.pendingSongs > 0 && (
+        {stats.pendingSongs > 0 && !isChurchMode && (
           <TouchableOpacity
             style={styles.actionQueueCard}
             onPress={() => navigation.navigate('SubmittedSongs')}
@@ -171,13 +180,19 @@ export default function DashboardScreen({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.quickActionTile}
-            onPress={() => navigation.navigate('MasterLibrary')}
+            onPress={() => navigation.navigate(adminUser?.isHQAdmin ? 'MasterLibrary' : 'Schedule')}
             activeOpacity={0.75}
           >
             <View style={[styles.quickActionIconWrap, { backgroundColor: '#f5f3ff' }]}>
-              <Ionicons name="musical-notes-outline" size={19} color="#7c3aed" />
+              <Ionicons
+                name={adminUser?.isHQAdmin ? 'musical-notes-outline' : 'calendar-outline'}
+                size={19}
+                color="#7c3aed"
+              />
             </View>
-            <Text style={styles.quickActionLabel}>All Ministered</Text>
+            <Text style={styles.quickActionLabel}>
+              {adminUser?.isHQAdmin ? 'All Ministered' : 'Schedule'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -214,7 +229,7 @@ export default function DashboardScreen({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.metricCard}
-            onPress={() => navigation.navigate('MasterLibrary')}
+            onPress={() => navigation.navigate(adminUser?.isHQAdmin ? 'MasterLibrary' : 'Programs')}
             activeOpacity={0.75}
           >
             <View style={styles.metricTopRow}>
@@ -223,32 +238,39 @@ export default function DashboardScreen({ navigation }: any) {
                 <Ionicons name="musical-notes" size={16} color="#d97706" />
               </View>
             </View>
-            <Text style={styles.metricLabel}>All Ministered</Text>
+            <Text style={styles.metricLabel}>
+              {isChurchMode ? 'Church Songs' : adminUser?.isHQAdmin ? 'All Ministered' : 'Zone Songs'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.metricCard}
-            onPress={() => navigation.navigate('SubmittedSongs')}
+            onPress={() => navigation.navigate(isChurchMode ? 'Schedule' : 'SubmittedSongs')}
             activeOpacity={0.75}
           >
             <View style={styles.metricTopRow}>
-              <Text style={[styles.metricValue, stats.pendingSongs > 0 && { color: '#e11d48' }]}>
-                {stats.pendingSongs}
+              <Text style={[styles.metricValue, !isChurchMode && stats.pendingSongs > 0 && { color: '#e11d48' }]}>
+                {isChurchMode ? stats.activePrograms : stats.pendingSongs}
               </Text>
-              <View style={[styles.metricIconWrap, { backgroundColor: stats.pendingSongs > 0 ? '#ffe4e6' : '#f1f5f9' }]}>
+              <View style={[styles.metricIconWrap, { backgroundColor: !isChurchMode && stats.pendingSongs > 0 ? '#ffe4e6' : '#f1f5f9' }]}>
                 <Ionicons
-                  name="cloud-upload"
+                  name={isChurchMode ? 'time-outline' : 'cloud-upload'}
                   size={16}
-                  color={stats.pendingSongs > 0 ? '#e11d48' : '#64748b'}
+                  color={!isChurchMode && stats.pendingSongs > 0 ? '#e11d48' : '#64748b'}
                 />
               </View>
             </View>
-            <Text style={styles.metricLabel}>Review Queue</Text>
+            <Text style={styles.metricLabel}>{isChurchMode ? 'Rehearsal Schedule' : 'Review Queue'}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={{ height: 28 }} />
       </ScrollView>
+
+      <AdminScopeModal
+        visible={scopeModalVisible}
+        onClose={() => setScopeModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -271,7 +293,25 @@ const styles = StyleSheet.create({
   scopeBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  switchScopePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f3ff',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd6fe',
+    marginLeft: 8,
+    gap: 3,
+  },
+  switchScopeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#7c3aed',
   },
   pulseDot: {
     width: 7,

@@ -17,8 +17,10 @@ export default function ModePickerScreen({ navigation }: any) {
   const setChurch = useAdminStore(s => s.setChurch);
   const signOut = useAdminStore(s => s.signOut);
   const { showAlert } = useAlert();
-  const [choosingChurch, setChoosingChurch] = useState(false);
   const hasZoneAccess = session?.role === 'hq_admin' || session?.role === 'zone_admin';
+  const [choosingChurch, setChoosingChurch] = useState(
+    () => !hasZoneAccess && (session?.churches?.length || 0) > 1
+  );
 
   const pick = (mode: 'zone' | 'church') => {
     if (mode === 'church') {
@@ -61,8 +63,8 @@ export default function ModePickerScreen({ navigation }: any) {
           <Text style={styles.title}>{choosingChurch ? 'Choose Church' : 'Choose Admin Mode'}</Text>
           <Text style={styles.sub}>
             {choosingChurch
-              ? 'Select the church workspace you want to manage.'
-              : 'Pick the workspace you want to manage. You can switch by logging out.'}
+              ? 'Select the church workspace you want to manage. You can switch anytime from the header or More tab.'
+              : 'Pick the workspace you want to manage. You can switch anytime from the header or More tab.'}
           </Text>
         </View>
 
@@ -80,10 +82,12 @@ export default function ModePickerScreen({ navigation }: any) {
                 <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.backChoice} onPress={() => setChoosingChurch(false)}>
-              <Ionicons name="arrow-back" size={16} color="#64748b" />
-              <Text style={styles.backChoiceText}>Back to admin modes</Text>
-            </TouchableOpacity>
+            {hasZoneAccess && (
+              <TouchableOpacity style={styles.backChoice} onPress={() => setChoosingChurch(false)}>
+                <Ionicons name="arrow-back" size={16} color="#64748b" />
+                <Text style={styles.backChoiceText}>Back to admin modes</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <>

@@ -20,6 +20,10 @@ export const api = {
     storeTokens: (accessToken: string, refreshToken: string, userId: string = '') =>
       apiClient.storeTokens(accessToken, refreshToken, userId),
     clearTokens: () => apiClient.clearTokens(),
+    getLinkedAccounts: () =>
+      apiClient.get<{ success: boolean; data: { currentUserId: string; accounts: any[] } }>('/auth/linked-accounts'),
+    switchAccount: (targetUserId: string) =>
+      apiClient.post<{ success: boolean; data?: { accessToken: string; refreshToken: string; user: any }; error?: string }>('/auth/switch-account', { targetUserId }),
   },
 
   // ── Dashboard Metrics ────────────────────────────────────────────────────
@@ -220,12 +224,18 @@ export const api = {
       apiClient.get<{ success: boolean; data: any[] }>(`/subgroups/requests${zoneId ? `?zoneId=${encodeURIComponent(zoneId)}` : ''}`),
     create: (data: Record<string, any>) =>
       apiClient.post<{ success: boolean; data?: any }>('/subgroups', data),
+    update: (churchId: string, data: { name?: string; description?: string; status?: string }) =>
+      apiClient.patch<{ success: boolean; data?: any }>(`/subgroups/${churchId}`, data),
+    delete: (churchId: string) =>
+      apiClient.delete<{ success: boolean; message?: string }>(`/subgroups/${churchId}`),
     approve: (churchId: string) =>
       apiClient.post<{ success: boolean }>(`/subgroups/${churchId}/approve`, {}),
     reject: (churchId: string, reason = 'Declined by coordinator') =>
       apiClient.post<{ success: boolean }>(`/subgroups/${churchId}/reject`, { reason }),
     addCoordinator: (churchId: string, data: { userId?: string; identifier?: string; name?: string }) =>
       apiClient.post<{ success: boolean }>(`/subgroups/${churchId}/coordinators`, data),
+    removeCoordinator: (churchId: string, userId?: string) =>
+      apiClient.post<{ success: boolean; message?: string }>(`/subgroups/${churchId}/remove-coordinator`, { userId }),
     getMembers: (churchId: string) =>
       apiClient.get<{ success: boolean; data: any[] }>(`/subgroups/${churchId}/members`),
     addMember: (data: { subGroupId: string; userId: string; role?: string }) =>

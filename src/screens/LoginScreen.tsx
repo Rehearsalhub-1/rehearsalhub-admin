@@ -66,7 +66,8 @@ export default function LoginScreen({ navigation }: Props) {
       await api.auth.storeTokens(accessToken, refreshToken, user.id);
       await refreshUser();
       const currentSession = useAdminStore.getState().session;
-      navigation.replace(currentSession?.isDualRole ? 'ModePicker' : 'MainTabs');
+      const needsPicker = Boolean(currentSession?.isDualRole || (currentSession?.churches?.length || 0) > 1);
+      navigation.replace(needsPicker ? 'ModePicker' : 'MainTabs');
     } catch (error: any) {
       if (error instanceof SessionExpiredError) {
         customAlert('Login Failed', 'Session expired. Please try again.');

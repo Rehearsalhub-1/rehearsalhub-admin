@@ -114,14 +114,15 @@ export default function NotificationsScreen() {
       } else {
         const resolvedOrg = isChurchMode ? activeChurch?.id : activeZone?.id;
         if (!resolvedOrg) {
-          showAlert('No Zone Selected', 'Please make sure you are logged into a zone before broadcasting.');
+          showAlert('No Scope Selected', 'Please make sure you are logged into a zone or church before broadcasting.');
           setSending(false);
           return;
         }
-        payload.targetOrgId = resolvedOrg;
-        payload.targetChurchId = isChurchMode ? resolvedOrg : undefined;
-        payload.zoneId = isChurchMode ? undefined : resolvedOrg;
-        payload.groupId = isChurchMode ? resolvedOrg : undefined;
+        payload.targetOrgId = activeZone?.id || resolvedOrg;
+        payload.targetChurchId = isChurchMode ? activeChurch?.id : undefined;
+        payload.zoneId = activeZone?.id;
+        payload.groupId = isChurchMode ? activeChurch?.id : undefined;
+        payload.subGroupId = isChurchMode ? activeChurch?.id : undefined;
         payload.targetAudience = isChurchMode ? 'church' : 'zone';
       }
 
@@ -254,7 +255,11 @@ export default function NotificationsScreen() {
                   style={{ marginRight: 6 }}
                 />
                 <Text style={[styles.audienceBtnText, audienceType === 'all' && styles.audienceBtnTextActive]}>
-                  {isHQ ? 'All HQ Singers' : `All ${activeZone?.name || 'Zone'} Singers`}
+                  {isChurchMode
+                    ? `All ${activeChurch?.name || 'Church'} Singers`
+                    : isHQ
+                      ? 'All HQ Singers'
+                      : `All ${activeZone?.name || 'Zone'} Singers`}
                 </Text>
               </TouchableOpacity>
 

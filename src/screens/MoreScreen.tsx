@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useZoneContext } from '../context/ZoneContext';
 import { useAdminStore } from '../stores/adminStore';
 import ZoneHeader from '../components/ZoneHeader';
+import AdminScopeModal from '../components/AdminScopeModal';
 import { useAlert } from '../context/AlertContext';
 import { useOTAUpdates } from '../hooks/useOTAUpdates';
 
@@ -82,6 +83,7 @@ export default function MoreScreen({ navigation }: any) {
   }
 
   const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [scopeModalVisible, setScopeModalVisible] = useState(false);
   const { checkManually } = useOTAUpdates();
 
   async function handleCheckForUpdates() {
@@ -175,49 +177,38 @@ export default function MoreScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* ── Dual-Role Scope Switcher Card (only for dual-role admins) ── */}
-        {hasDualRole && (
-          <TouchableOpacity style={styles.scopeCard} onPress={() => {
-            showAlert(
-              'Switch Admin Mode',
-              'To switch between Zone Admin and Church Admin mode, sign out and choose your mode on the next login.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Sign Out & Switch',
-                  style: 'destructive',
-                  onPress: () => handleLogout(),
-                },
-              ]
-            );
-          }} activeOpacity={0.85}>
-            <View style={styles.scopeCardLeft}>
-              <View style={[styles.scopeIconWrap, { backgroundColor: isChurchMode ? '#fff7ed' : '#eef2ff' }]}>
-                <Ionicons
-                  name={isChurchMode ? 'home' : 'shield-half-outline'}
-                  size={20}
-                  color={isChurchMode ? '#ea580c' : '#4f46e5'}
-                />
-              </View>
-              <View>
-                <Text style={styles.scopeTitle}>
-                  {isChurchMode ? '⛪ Church Admin Mode' : '🏛️ Zone Admin Mode'}
-                </Text>
-                <Text style={styles.scopeSub}>
-                  {isChurchMode
-                    ? `Operating as: ${activeChurch?.name || 'Church'}`
-                    : `Operating as: ${activeZone?.name || 'Zone Admin'}`}
-                </Text>
-              </View>
+        {/* ── Workspace Switcher Card ── */}
+        <TouchableOpacity
+          style={styles.scopeCard}
+          onPress={() => setScopeModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.scopeCardLeft}>
+            <View style={[styles.scopeIconWrap, { backgroundColor: isChurchMode ? '#fff7ed' : '#faf5ff' }]}>
+              <Ionicons
+                name={isChurchMode ? 'business' : 'globe-outline'}
+                size={20}
+                color={isChurchMode ? '#ea580c' : '#7c3aed'}
+              />
             </View>
-            <View style={[styles.scopeTogglePill, { backgroundColor: isChurchMode ? '#fff7ed' : '#eef2ff' }]}>
-              <Ionicons name="swap-horizontal" size={14} color={isChurchMode ? '#ea580c' : '#4f46e5'} style={{ marginRight: 4 }} />
-              <Text style={[styles.scopeToggleText, { color: isChurchMode ? '#ea580c' : '#4f46e5' }]}>
-                Switch
+            <View style={{ flex: 1 }}>
+              <Text style={styles.scopeTitle}>
+                {isChurchMode ? '⛪ Church Admin Mode' : '🏛️ Zone Admin Mode'}
+              </Text>
+              <Text style={styles.scopeSub} numberOfLines={1}>
+                {isChurchMode
+                  ? `Active: ${activeChurch?.name || 'Church Choir'}`
+                  : `Active: ${cleanZoneName}`}
               </Text>
             </View>
-          </TouchableOpacity>
-        )}
+          </View>
+          <View style={[styles.scopeTogglePill, { backgroundColor: isChurchMode ? '#fff7ed' : '#faf5ff' }]}>
+            <Ionicons name="swap-horizontal" size={14} color={isChurchMode ? '#ea580c' : '#7c3aed'} style={{ marginRight: 4 }} />
+            <Text style={[styles.scopeToggleText, { color: isChurchMode ? '#ea580c' : '#7c3aed' }]}>
+              Switch
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* ── Catalog & Sets ────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Catalog & Sets</Text>
@@ -345,8 +336,16 @@ export default function MoreScreen({ navigation }: any) {
         </View>
 
         {/* ── Account ───────────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Account</Text>
+        <Text style={styles.sectionLabel}>Account & Workspace</Text>
         <View style={styles.menuGroup}>
+          <MenuItem
+            iconName="swap-horizontal-outline"
+            iconColor="#7c3aed"
+            iconBg="#faf5ff"
+            label="Switch Workspace / Church"
+            sub={isChurchMode ? `Active: ${activeChurch?.name || 'Church Choir'}` : `Active: ${cleanZoneName}`}
+            onPress={() => setScopeModalVisible(true)}
+          />
           <MenuItem
             iconName="log-out-outline"
             iconColor="#dc2626"
@@ -359,6 +358,11 @@ export default function MoreScreen({ navigation }: any) {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      <AdminScopeModal
+        visible={scopeModalVisible}
+        onClose={() => setScopeModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

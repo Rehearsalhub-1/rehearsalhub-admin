@@ -8,8 +8,9 @@ interface EditMemberModalProps {
   visible: boolean;
   member: Member | null;
   onClose: () => void;
-  onSave: (updated: { firstName: string; lastName: string; phone: string; designation: string }) => Promise<void>;
+  onSave: (updated: { firstName: string; lastName: string; phone: string; designation: string; role?: Member['role'] }) => Promise<void>;
   loading: boolean;
+  isChurchMode?: boolean;
 }
 
 export default function EditMemberModal({
@@ -18,11 +19,13 @@ export default function EditMemberModal({
   onClose,
   onSave,
   loading,
+  isChurchMode = false,
 }: EditMemberModalProps) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [designation, setDesignation] = useState('');
+  const [role, setRole] = useState<Member['role']>('member');
 
   useEffect(() => {
     if (member) {
@@ -30,6 +33,7 @@ export default function EditMemberModal({
       setLastName(member.last_name || '');
       setPhone(member.phone || '');
       setDesignation(member.designation || '');
+      setRole(member.role || 'member');
     }
   }, [member]);
 
@@ -39,6 +43,7 @@ export default function EditMemberModal({
       lastName: lastName.trim(),
       phone: phone.trim(),
       designation: designation.trim(),
+      role,
     });
   };
 
@@ -97,6 +102,57 @@ export default function EditMemberModal({
               onChangeText={setDesignation}
               autoCapitalize="words"
             />
+
+            {member?.role !== 'hq_admin' && (
+              <>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b', marginBottom: 6 }}>MEMBER ROLE</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                  {(
+                    isChurchMode
+                      ? [
+                          { id: 'member', label: 'Singer' },
+                          { id: 'church_admin', label: 'Church Admin' },
+                        ]
+                      : [
+                          { id: 'member', label: 'Singer' },
+                          { id: 'church_admin', label: 'Church Admin' },
+                          { id: 'zone_admin', label: 'Zone Admin' },
+                        ]
+                  ).map(opt => {
+                    const isSelected =
+                      opt.id === 'zone_admin'
+                        ? role === 'zone_admin' || role === 'zone_coordinator'
+                        : role === opt.id;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: isSelected ? '#7c3aed' : '#e2e8f0',
+                          backgroundColor: isSelected ? '#f5f3ff' : '#f8fafc',
+                          alignItems: 'center',
+                        }}
+                        onPress={() => setRole(opt.id as Member['role'])}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: '700',
+                            color: isSelected ? '#7c3aed' : '#475569',
+                          }}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </ScrollView>
 
           <View style={styles.modalActionsRow}>

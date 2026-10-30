@@ -6,6 +6,10 @@ import {
   RefreshControl,
   Share,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  FlatList,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,6 +54,46 @@ export default function MembersScreen() {
 
   // Multi-format Member Export Modal
   const [exportModalVisible, setExportModalVisible] = useState(false);
+
+  // Add Singer to Church Modal (Church Mode)
+  const [addChurchMemberModal, setAddChurchMemberModal] = useState(false);
+  const [zoneDirectory, setZoneDirectory] = useState<any[]>([]);
+  const [loadingDirectory, setLoadingDirectory] = useState(false);
+  const [directorySearch, setDirectorySearch] = useState('');
+  const [addingSingerId, setAddingSingerId] = useState<string | null>(null);
+
+  const handleOpenAddChurchMember = useCallback(async () => {
+    if (!activeChurch?.id) return;
+    setAddChurchMemberModal(true);
+    setDirectorySearch('');
+    setLoadingDirectory(true);
+    try {
+      const res = await api.members.getDirectory(activeZone?.id).catch(() => ({ data: [] }));
+      setZoneDirectory(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setZoneDirectory([]);
+    } finally {
+      setLoadingDirectory(false);
+    }
+  }, [activeChurch?.id, activeZone?.id]);
+
+  const handleAddSingerToChurch = useCallback(async (userId: string) => {
+    if (!activeChurch?.id) return;
+    setAddingSingerId(userId);
+    try {
+      await api.churches.addMember({
+        subGroupId: activeChurch.id,
+        userId,
+        role: 'member',
+      });
+      showAlert('Singer Added', `Singer added to ${activeChurch.name || 'your church'} choir.`);
+      refetch();
+    } catch (e: any) {
+      showAlert('Error', e?.message || 'Failed to add singer to church.');
+    } finally {
+      setAddingSingerId(null);
+    }
+  }, [activeChurch?.id, activeChurch?.name, refetch, showAlert]);
 
   // Filtered members by search
   const filteredMembers = useMemo(() => {
@@ -201,22 +245,51 @@ export default function MembersScreen() {
     }
   };
 
+  // Toggle member role (Zone Admin / Church Admin / Singer)
+  const handleToggleMemberRole = useCallback(
+    async (member: Member, nextRole: Member['role']) => {
+      try {
+        if (isChurchMode && activeChurch?.id) {
+          if (nextRole === 'church_admin') {
+            await api.churches.addCoordinator(activeChurch.id, {
+              userId: member.id,
+              identifier: member.email || member.id,
+            });
+          } else {
+            await api.churches.removeCoordinator(activeChurch.id, member.id);
+          }
+        } else {
+          await api.members.updateRole(member.id, nextRole || 'member');
+        }
+        showAlert('Role Updated', `${member.first_name} ${member.last_name}'s role has been updated.`);
+        refetch();
+      } catch (err: any) {
+        showAlert('Update Failed', err?.message || 'Could not update member role.');
+      }
+    },
+    [isChurchMode, activeChurch?.id, refetch, showAlert]
+  );
+
   // Save edited member profile details
   const handleSaveMemberDetails = async (updated: {
     firstName: string;
     lastName: string;
     phone: string;
     designation: string;
+    role?: Member['role'];
   }) => {
     if (!selectedEditMember) return;
     setEditMemberLoading(true);
     try {
+      const roleChanged = updated.role && updated.role !== selectedEditMember.role;
+
       saveMember({
         ...selectedEditMember,
         first_name: updated.firstName,
         last_name: updated.lastName,
         phone: updated.phone,
         designation: updated.designation,
+        role: updated.role || selectedEditMember.role,
       });
 
       await api.members.updateProfile(selectedEditMember.id, {
@@ -225,10 +298,27 @@ export default function MembersScreen() {
         phone: updated.phone,
         voicePart: updated.designation,
         designation: updated.designation,
+        ...(updated.role ? { role: updated.role } : {}),
       });
+
+      if (roleChanged && updated.role) {
+        if (isChurchMode && activeChurch?.id) {
+          if (updated.role === 'church_admin') {
+            await api.churches.addCoordinator(activeChurch.id, {
+              userId: selectedEditMember.id,
+              identifier: selectedEditMember.email || selectedEditMember.id,
+            });
+          } else {
+            await api.churches.removeCoordinator(activeChurch.id, selectedEditMember.id);
+          }
+        } else {
+          await api.members.updateRole(selectedEditMember.id, updated.role);
+        }
+      }
 
       setSelectedEditMember(null);
       showAlert('Profile Updated', 'Member details have been updated successfully.');
+      refetch();
     } catch (err: any) {
       showAlert('Update Failed', err?.message || 'Could not update member profile.');
       refetch();
@@ -241,9 +331,9 @@ export default function MembersScreen() {
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>
-            {isChurchMode ? `${activeChurch?.name || 'Church'} Members` : (activeZone?.name || 'Loveworld Singers HQ')}
+        <View style={[styles.headerLeft, { flex: 1, marginRight: 8 }]}>
+          <Text style={[styles.headerTitle, { flexShrink: 1 }]} numberOfLines={1}>
+            {isChurchMode ? (activeChurch?.name || 'Church Choir') : (activeZone?.name || 'Loveworld Singers HQ')}
           </Text>
           <View style={styles.countBadge}>
             <Text style={styles.countBadgeText}>
@@ -252,6 +342,16 @@ export default function MembersScreen() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          {isChurchMode && activeChurch?.id && (
+            <TouchableOpacity
+              style={[styles.iconBtn, { backgroundColor: '#f5f3ff', borderColor: '#ddd6fe', borderWidth: 1 }]}
+              onPress={handleOpenAddChurchMember}
+              activeOpacity={0.75}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="person-add-outline" size={18} color="#7c3aed" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => setExportModalVisible(true)}
@@ -316,6 +416,8 @@ export default function MembersScreen() {
               onRemove={removeFromZone}
               onShowBadge={(m) => setSelectedBadgeMember(m)}
               onEdit={(m) => setSelectedEditMember(m)}
+              onToggleRole={handleToggleMemberRole}
+              isChurchMode={isChurchMode}
             />
           )}
         />
@@ -381,6 +483,7 @@ export default function MembersScreen() {
         onClose={() => setSelectedEditMember(null)}
         onSave={handleSaveMemberDetails}
         loading={editMemberLoading}
+        isChurchMode={isChurchMode}
       />
 
       {/* ─── MEMBER EXPORT MODAL ────────────────────────────────────────── */}
@@ -390,6 +493,92 @@ export default function MembersScreen() {
         onExport={handleExport}
         memberCount={filteredMembers.length}
       />
+
+      {/* ─── ADD SINGER TO CHURCH MODAL (CHURCH MODE) ───────────────────── */}
+      <Modal visible={addChurchMemberModal} transparent animationType="slide">
+        <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: '80%' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: '#0f172a' }}>
+                    Add Singer to {activeChurch?.name || 'Church'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                    Select registered singers from {activeZone?.name || 'your zone'} directory
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setAddChurchMemberModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={22} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', paddingHorizontal: 12, height: 42, marginBottom: 12 }}>
+                <Ionicons name="search-outline" size={16} color="#94a3b8" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={{ flex: 1, fontSize: 13, color: '#0f172a' }}
+                  placeholder="Search zone singers by name or email..."
+                  placeholderTextColor="#94a3b8"
+                  value={directorySearch}
+                  onChangeText={setDirectorySearch}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {loadingDirectory ? (
+                <ActivityIndicator size="large" color="#7c3aed" style={{ marginVertical: 24 }} />
+              ) : (
+                <FlatList
+                  data={zoneDirectory.filter(p => {
+                    const pid = p.userId || p.id;
+                    const alreadyInChurch = members.some(m => m.id === pid);
+                    if (alreadyInChurch) return false;
+                    if (!directorySearch.trim()) return true;
+                    const q = directorySearch.toLowerCase();
+                    const fullName = `${p.first_name || p.firstName || ''} ${p.last_name || p.lastName || ''}`.toLowerCase();
+                    return fullName.includes(q) || (p.email && p.email.toLowerCase().includes(q));
+                  })}
+                  keyExtractor={p => p.userId || p.id}
+                  style={{ maxHeight: 360 }}
+                  renderItem={({ item: person }) => {
+                    const pid = person.userId || person.id;
+                    const fullName = `${person.first_name || person.firstName || 'Singer'} ${person.last_name || person.lastName || ''}`.trim();
+                    return (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#0f172a' }} numberOfLines={1}>
+                            {fullName}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#64748b' }} numberOfLines={1}>
+                            {person.email || person.voicePart || 'Zone Singer'}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={{ backgroundColor: '#7c3aed', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 }}
+                          onPress={() => handleAddSingerToChurch(pid)}
+                          disabled={addingSingerId === pid}
+                          activeOpacity={0.8}
+                        >
+                          {addingSingerId === pid ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>+ Add</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  }}
+                  ListEmptyComponent={
+                    <Text style={{ color: '#64748b', fontSize: 12, textAlign: 'center', paddingVertical: 20 }}>
+                      No additional zone singers found matching your search.
+                    </Text>
+                  }
+                />
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
