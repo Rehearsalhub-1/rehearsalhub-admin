@@ -260,7 +260,7 @@ export function useMembers() {
 
   const saveMember = useCallback(async (updated: Member, newPassword?: string) => {
     try {
-      if (updated.role) await api.members.updateRole(updated.id, updated.role);
+      if (updated.role && updated.role !== 'hq_admin') await api.members.updateRole(updated.id, updated.role);
       await api.members.updateProfile(updated.id, {
         role: updated.role,
         is_active: updated.is_active,

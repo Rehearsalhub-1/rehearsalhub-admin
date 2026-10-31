@@ -26,6 +26,7 @@ interface AttendanceRecordListProps {
   refetch: () => void;
   insetsBottom: number;
   onSelectRecord?: (record: AttendanceRecord) => void;
+  onDeleteRecord?: (record: AttendanceRecord) => void;
 }
 
 export default function AttendanceRecordList({
@@ -41,24 +42,10 @@ export default function AttendanceRecordList({
   refetch,
   insetsBottom,
   onSelectRecord,
+  onDeleteRecord,
 }: AttendanceRecordListProps) {
   return (
     <>
-      {/* ── Daily attendance view tab ── */}
-      <View style={styles.viewModeTabsContainer}>
-        <View style={[styles.viewModeTab, styles.viewModeTabActive]}>
-          <Ionicons
-            name="calendar-outline"
-            size={14}
-            color="#7c3aed"
-            style={{ marginRight: 6 }}
-          />
-          <Text style={[styles.viewModeTabText, styles.viewModeTabTextActive]}>
-            Daily Logs
-          </Text>
-        </View>
-      </View>
-
       {/* ── Date Navigation Strip ── */}
       <View style={styles.dateFilterStrip}>
         <TouchableOpacity
@@ -129,7 +116,9 @@ export default function AttendanceRecordList({
             </View>
           )
         }
-        renderItem={({ item }) => <AttendanceRecordCard item={item} onPress={onSelectRecord} />}
+        renderItem={({ item }) => (
+          <AttendanceRecordCard item={item} onPress={onSelectRecord} onDelete={onDeleteRecord} />
+        )}
       />
     </>
   );

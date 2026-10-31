@@ -35,6 +35,8 @@ export default function AttendanceScreen({ navigation }: any) {
     refetch,
     toggleClockinSession,
     addRecord,
+    updateRecord,
+    deleteRecord,
   } = useAttendance();
 
   const [search, setSearch] = useState('');
@@ -64,7 +66,7 @@ export default function AttendanceScreen({ navigation }: any) {
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [manualModalVisible, setManualModalVisible] = useState(false);
   const [manualName, setManualName] = useState('');
-  const [manualEvent, setManualEvent] = useState('Your Loveworld Rehearsal');
+  const [manualEvent, setManualEvent] = useState('Rehearsal Session');
 
   const shiftDate = (days: number) => {
     const current = new Date(selectedDate);
@@ -142,7 +144,7 @@ export default function AttendanceScreen({ navigation }: any) {
 
       const singerName = parsedName || (parsedUserId ? `Singer (${parsedUserId})` : 'Choir Singer');
       const todayDateString = TODAY_STR;
-      const eventName = 'Your Loveworld Rehearsal';
+      const eventName = 'Rehearsal Session';
       const rawKey = parsedUserId || singerName.toLowerCase().replace(/[^a-z0-9]/g, '_');
       const idempotencyKey = `idem_${rawKey}_${todayDateString}`;
 
@@ -160,8 +162,9 @@ export default function AttendanceScreen({ navigation }: any) {
         return;
       }
 
+      const tempId = `att-${idempotencyKey}`;
       const newRecord: AttendanceRecord = {
-        id: `att-${idempotencyKey}`,
+        id: tempId,
         idempotencyKey,
         userId: parsedUserId,
         userName: singerName,
@@ -179,7 +182,7 @@ export default function AttendanceScreen({ navigation }: any) {
       api.attendance.recordCheckIn({
         idempotencyKey,
         userId: parsedUserId,
-        user_name: singerName,
+        user_name: parsedName || undefined,
         eventName,
         status: 'present',
         checkInTime: newRecord.checkInTime,
@@ -187,6 +190,18 @@ export default function AttendanceScreen({ navigation }: any) {
         subGroupId: isChurchMode ? activeChurch?.id : undefined,
         churchId: isChurchMode ? activeChurch?.id : undefined,
         method: 'scanner',
+      }).then((res) => {
+        if (res?.data) {
+          const resolvedName = res.data.userName || singerName;
+          updateRecord(tempId, {
+            id: res.data.id || tempId,
+            userName: resolvedName,
+            eventName: res.data.eventName || eventName,
+          });
+          if (resolvedName !== singerName) {
+            setScanFeedback({ type: 'success', title: '✓ Checked In', message: `${resolvedName} marked Present!` });
+          }
+        }
       }).catch(() => {});
 
       setTimeout(() => { isProcessingScan.current = false; }, 1800);
@@ -212,8 +227,9 @@ export default function AttendanceScreen({ navigation }: any) {
       return;
     }
 
+    const tempId = `att-manual-${Date.now()}`;
     const newRecord: AttendanceRecord = {
-      id: `att-manual-${Date.now()}`,
+      id: tempId,
       idempotencyKey,
       userName: normalizedName,
       eventName: manualEvent.trim() || 'Rehearsal Session',
@@ -229,7 +245,7 @@ export default function AttendanceScreen({ navigation }: any) {
     setManualName('');
 
     try {
-      await api.attendance.recordCheckIn({
+      const res = await api.attendance.recordCheckIn({
         idempotencyKey,
         user_name: newRecord.userName,
         eventName: newRecord.eventName,
@@ -240,6 +256,9 @@ export default function AttendanceScreen({ navigation }: any) {
         churchId: isChurchMode ? activeChurch?.id : undefined,
         method: 'manual',
       });
+      if (res?.data?.id) {
+        updateRecord(tempId, { id: res.data.id });
+      }
     } catch {}
     customAlert('Clocked In', `${newRecord.userName} has been logged as present.`);
   };
@@ -321,6 +340,7 @@ export default function AttendanceScreen({ navigation }: any) {
         refetch={refetch}
         insetsBottom={insets.bottom}
         onSelectRecord={(rec) => setSelectedRecordForBadge(rec)}
+        onDeleteRecord={deleteRecord}
       />
 
       <AttendanceActionMenuModal

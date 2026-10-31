@@ -37,13 +37,19 @@ export default function EditMemberModal({
     }
   }, [member]);
 
+  const isTargetHq =
+    member?.role === 'hq_admin' ||
+    (member as any)?.isHqAdmin === true ||
+    (member as any)?.hasHqAccess === true ||
+    (member as any)?.has_hq_access === true;
+
   const handleSubmit = () => {
     onSave({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       phone: phone.trim(),
       designation: designation.trim(),
-      role,
+      role: isTargetHq ? 'hq_admin' : role,
     });
   };
 
@@ -103,7 +109,17 @@ export default function EditMemberModal({
               autoCapitalize="words"
             />
 
-            {member?.role !== 'hq_admin' && (
+            {isTargetHq ? (
+              <View style={{ marginBottom: 12, padding: 12, borderRadius: 10, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Ionicons name="shield-checkmark" size={16} color="#7c3aed" />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#6d28d9' }}>HQ Administrator</Text>
+                </View>
+                <Text style={{ fontSize: 11, color: '#7c3aed', lineHeight: 16 }}>
+                  This user holds top-level platform privileges. Appointing them to local churches preserves their HQ Administrator access.
+                </Text>
+              </View>
+            ) : (
               <>
                 <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748b', marginBottom: 6 }}>MEMBER ROLE</Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>

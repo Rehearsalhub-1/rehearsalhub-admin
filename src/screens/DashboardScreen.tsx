@@ -52,20 +52,12 @@ export default function DashboardScreen({ navigation }: any) {
           <Text style={styles.greetingName}>
             Welcome, {adminUser?.name ? adminUser.name.split(' ')[0] : 'Director'} 👋
           </Text>
-          <TouchableOpacity
-            style={styles.scopeBadgeRow}
-            onPress={() => setScopeModalVisible(true)}
-            activeOpacity={0.75}
-          >
+          <View style={styles.scopeBadgeRow}>
             <View style={styles.pulseDot} />
             <Text style={styles.liveScopeText} numberOfLines={1}>
               {liveScopeTitle}
             </Text>
-            <View style={styles.switchScopePill}>
-              <Ionicons name="swap-horizontal" size={11} color="#7c3aed" />
-              <Text style={styles.switchScopeText}>Switch</Text>
-            </View>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── 2. REHEARSAL LIVE SPOTLIGHT (HERO COMMAND CARD) ─────────── */}
@@ -245,22 +237,22 @@ export default function DashboardScreen({ navigation }: any) {
 
           <TouchableOpacity
             style={styles.metricCard}
-            onPress={() => navigation.navigate(isChurchMode ? 'Schedule' : 'SubmittedSongs')}
+            onPress={() => navigation.navigate(isChurchMode ? 'AttendanceTab' : 'SubmittedSongs')}
             activeOpacity={0.75}
           >
             <View style={styles.metricTopRow}>
               <Text style={[styles.metricValue, !isChurchMode && stats.pendingSongs > 0 && { color: '#e11d48' }]}>
-                {isChurchMode ? stats.activePrograms : stats.pendingSongs}
+                {isChurchMode ? stats.todayAttendance : stats.pendingSongs}
               </Text>
-              <View style={[styles.metricIconWrap, { backgroundColor: !isChurchMode && stats.pendingSongs > 0 ? '#ffe4e6' : '#f1f5f9' }]}>
+              <View style={[styles.metricIconWrap, { backgroundColor: isChurchMode ? '#ecfdf5' : (stats.pendingSongs > 0 ? '#ffe4e6' : '#f1f5f9') }]}>
                 <Ionicons
-                  name={isChurchMode ? 'time-outline' : 'cloud-upload'}
+                  name={isChurchMode ? 'checkmark-done' : 'cloud-upload'}
                   size={16}
-                  color={!isChurchMode && stats.pendingSongs > 0 ? '#e11d48' : '#64748b'}
+                  color={isChurchMode ? '#059669' : (stats.pendingSongs > 0 ? '#e11d48' : '#64748b')}
                 />
               </View>
             </View>
-            <Text style={styles.metricLabel}>{isChurchMode ? 'Rehearsal Schedule' : 'Review Queue'}</Text>
+            <Text style={styles.metricLabel}>{isChurchMode ? "Today's Check-ins" : 'Review Queue'}</Text>
           </TouchableOpacity>
         </View>
 

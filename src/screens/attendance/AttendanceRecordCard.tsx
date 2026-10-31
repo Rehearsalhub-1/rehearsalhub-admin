@@ -7,9 +7,10 @@ import type { AttendanceRecord } from './types';
 interface AttendanceRecordCardProps {
   item: AttendanceRecord;
   onPress?: (item: AttendanceRecord) => void;
+  onDelete?: (item: AttendanceRecord) => void;
 }
 
-export default function AttendanceRecordCard({ item, onPress }: AttendanceRecordCardProps) {
+export default function AttendanceRecordCard({ item, onPress, onDelete }: AttendanceRecordCardProps) {
   const name = item.userName || item.user_name || 'Choir Singer';
   const initial = name.charAt(0).toUpperCase();
   const event = item.eventName || item.event_name || 'Rehearsal Session';
@@ -51,11 +52,19 @@ export default function AttendanceRecordCard({ item, onPress }: AttendanceRecord
         </Text>
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={styles.statusBadge}>
           <Text style={styles.statusBadgeText}>Present</Text>
         </View>
-        <Ionicons name="qr-code-outline" size={16} color="#7c3aed" />
+        {onDelete && (
+          <TouchableOpacity
+            onPress={() => onDelete(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="trash-outline" size={16} color="#ef4444" />
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );

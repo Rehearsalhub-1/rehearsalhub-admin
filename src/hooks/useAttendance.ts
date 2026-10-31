@@ -106,6 +106,38 @@ export function useAttendance() {
     setAllRecords(prev => [record, ...prev]);
   }, []);
 
+  /** Update an optimistic record once server responds with real ID / userName */
+  const updateRecord = useCallback((tempId: string, patch: Partial<AttendanceRecord>) => {
+    setAllRecords(prev => prev.map(r => (r.id === tempId ? { ...r, ...patch } : r)));
+  }, []);
+
+  /** Delete an attendance record */
+  const deleteRecord = useCallback((record: AttendanceRecord) => {
+    const name = record.userName || record.user_name || 'this singer';
+    customAlert(
+      'Remove Attendance Record',
+      `Remove ${name}'s check-in record?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setAllRecords(prev => prev.filter(r => r.id !== record.id));
+            try {
+              if (!record.id.startsWith('att-manual-') && !record.id.startsWith('att-idem_')) {
+                await api.attendance.deleteRecord(record.id);
+              }
+            } catch (e: any) {
+              console.warn('[useAttendance] deleteRecord:', e);
+              fetchAttendance();
+            }
+          },
+        },
+      ]
+    );
+  }, [fetchAttendance]);
+
   return {
     allRecords,
     loading,
@@ -115,5 +147,7 @@ export function useAttendance() {
     refetch,
     toggleClockinSession,
     addRecord,
+    updateRecord,
+    deleteRecord,
   };
 }

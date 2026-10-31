@@ -7,6 +7,7 @@ export interface DashboardStats {
   activePrograms: number;
   totalSongs: number;
   pendingSongs: number;
+  todayAttendance: number;
 }
 
 const EMPTY_STATS: DashboardStats = {
@@ -14,6 +15,7 @@ const EMPTY_STATS: DashboardStats = {
   activePrograms: 0,
   totalSongs: 0,
   pendingSongs: 0,
+  todayAttendance: 0,
 };
 
 export function useDashboardData() {
@@ -33,8 +35,8 @@ export function useDashboardData() {
     // Scope by mode — ONE clear rule
     const statsQuery =
       session.mode === 'church' && session.churchId
-        ? `?churchId=${session.churchId}`
-        : `?zoneId=${session.zoneId}`;
+        ? `?churchId=${encodeURIComponent(session.churchId)}${session.zoneId ? `&zoneId=${encodeURIComponent(session.zoneId)}` : ''}`
+        : `?zoneId=${encodeURIComponent(session.zoneId || '')}`;
 
     const programsUrl =
       session.mode === 'church' && session.churchId
@@ -71,6 +73,7 @@ export function useDashboardData() {
           activePrograms: statsRes.data.activePrograms ?? 0,
           totalSongs: statsRes.data.totalSongs ?? 0,
           pendingSongs: statsRes.data.pendingSongs ?? 0,
+          todayAttendance: statsRes.data.todayAttendance ?? 0,
         });
       }
 
