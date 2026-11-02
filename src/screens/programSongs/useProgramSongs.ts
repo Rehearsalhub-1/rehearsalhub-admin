@@ -287,10 +287,11 @@ export function useProgramSongs(initialProgram: Program) {
         status: nextLive ? 'live' : (songIsHeard ? 'heard' : 'unheard'),
       } : s))
     );
+    const effectiveGroupId = currentProgram?.groupId || (currentProgram as any)?.subGroupId || (currentProgram as any)?.churchId || undefined;
     api.songs.toggleActive(song.id, nextLive, songIsHeard, {
       programId: currentProgram?.id,
       zoneId: currentProgram?.organizationId,
-      groupId: currentProgram?.groupId || undefined,
+      groupId: effectiveGroupId,
     }).catch(() => {});
   };
 
